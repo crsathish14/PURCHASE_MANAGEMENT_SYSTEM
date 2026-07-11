@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Issue RFQ — Vessel PMS</title>
+<style>
+  :root{
+    --ink:#101418; --paper:#ffffff; --mist:#F4F6FA;
+    --harbor:#1E49D6; --harbor-50:#EAEEFC;
+    --slate:#5B6472; --slate-lt:#8891A0; --line:#E2E6ED;
+    --moss:#147A52; --moss-bg:#E7F5EE;
+    --amber:#B5750A; --amber-bg:#FBF0DE;
+    --rust:#C0392E;
+    --chip-bg:#EEF1F5;
+    --e1:0 1px 2px rgba(16,20,24,.07), 0 1px 1px rgba(16,20,24,.04);
+    --font-display: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+    --font-body: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "SF Mono", "Cascadia Code", Consolas, "Roboto Mono", monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{font-family:var(--font-body); color:var(--ink); background:var(--mist); font-size:14.5px; line-height:1.55; min-height:100vh; display:flex; flex-direction:column;}
+  a{color:inherit; text-decoration:none;}
+  button{font-family:inherit; cursor:pointer;}
+  h2{font-family:var(--font-display); font-weight:600; margin:0; text-wrap:balance;}
+  .icon{width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; flex:0 0 auto;}
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible{outline:2px solid var(--harbor); outline-offset:2px; border-radius:4px;}
+  [hidden]{display:none !important;}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+
+  .flow-top{display:flex; align-items:center; justify-content:space-between; padding:0 32px; height:60px; background:#fff; border-bottom:1px solid var(--line); flex:0 0 auto;}
+  .brand{display:flex; align-items:center; gap:9px;}
+  .brand .mark{width:26px; height:26px; border-radius:7px; background:var(--harbor); color:#fff; display:flex; align-items:center; justify-content:center;}
+  .brand .word{font-family:var(--font-display); font-size:15px;}
+  .flow-top-right{display:flex; align-items:center; gap:18px;}
+  .ctx-note{font-size:12.5px; color:var(--slate); font-family:var(--font-mono);}
+  .exit-link{display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; color:var(--slate); border:1px solid var(--line); border-radius:7px; padding:6px 12px;}
+  .exit-link:hover{background:var(--mist);}
+
+  .rail-wrap{background:#fff; border-bottom:1px solid var(--line); padding:22px 24px 24px; flex:0 0 auto;}
+  .rail{display:flex; align-items:flex-start; list-style:none; margin:0 auto; padding:0; max-width:880px;}
+  .rail-node{display:flex; flex-direction:column; align-items:center; gap:8px; flex:0 0 auto; background:none; border:none; padding:0;}
+  .rail-node .dot{width:28px; height:28px; border-radius:50%; border:2px solid var(--line); color:var(--slate-lt); background:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; font-family:var(--font-body);}
+  .rail-node .lbl{font-size:10.5px; color:var(--slate-lt); font-weight:700; white-space:nowrap;}
+  .rail-node.current .dot{border-color:var(--harbor); color:var(--harbor); background:var(--harbor-50);}
+  .rail-node.current .lbl{color:var(--harbor);}
+  .rail-node.done .dot{border-color:var(--harbor); background:var(--harbor); color:#fff;}
+  .rail-node.done .lbl{color:var(--ink);}
+  .rail-node.clickable{cursor:pointer;}
+  .rail-line{flex:1 1 auto; height:2px; background:var(--line); margin:13px 4px 0;}
+  .rail-line.done{background:var(--harbor);}
+
+  .flow-main{flex:1; width:100%; max-width:720px; margin:0 auto; padding:38px 24px 60px;}
+  .eyebrow{font-family:var(--font-mono); font-size:11px; text-transform:uppercase; letter-spacing:.07em; color:var(--harbor); font-weight:700; display:block; margin-bottom:9px;}
+  .step-panel .sub{color:var(--slate); font-size:13.5px; margin:8px 0 0;}
+  .step-panel .sub b{color:var(--ink);}
+
+  .pick-filters{display:flex; gap:10px; margin-top:20px;}
+  .search2{flex:1; display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:7px; padding:8px 11px; color:var(--slate-lt); font-size:13px; background:#fff;}
+  .filter{display:flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:7px; padding:7px 11px; font-size:12.5px; color:var(--ink); background:#fff; white-space:nowrap;}
+  .filter .icon{width:13px; height:13px; color:var(--slate-lt);}
+
+  .pick-list{display:flex; flex-direction:column; gap:10px; margin-top:16px;}
+  .pick-card{display:flex; align-items:flex-start; gap:13px; border:1px solid var(--line); border-radius:10px; padding:14px 16px; background:#fff; cursor:pointer;}
+  .pick-card:hover{border-color:#C4D0EC;}
+  .pick-card.selected{border-color:var(--harbor); background:var(--harbor-50);}
+  .pick-card input{margin-top:3px; flex:0 0 auto;}
+  .pick-card .body{flex:1; min-width:0;}
+  .pick-card .row1{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .pick-card .ref{font-weight:700; font-size:13.5px;}
+  .pick-card .vessel{font-family:var(--font-mono); font-size:11px; color:var(--slate-lt);}
+  .pick-card .item{font-size:13px; color:var(--slate); margin-top:5px;}
+  .pick-card .meta{display:flex; gap:14px; margin-top:8px; font-size:11.5px; color:var(--slate-lt);}
+  .pick-card .rating{color:var(--amber); font-weight:700; margin-left:auto;}
+  .pri{display:inline-flex; align-items:center; padding:2px 8px; border-radius:5px; font-size:10px; font-weight:700;}
+  .pri.high{color:var(--rust); background:#FBEAE8;}
+  .pri.med{color:var(--amber); background:var(--amber-bg);}
+  .pri.low{color:var(--slate); background:var(--chip-bg);}
+  .select-count{margin-top:14px; font-size:12.5px; color:var(--ink); font-weight:700;}
+
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:12px; font-weight:700; color:var(--ink); margin-bottom:6px;}
+  .field input, .field textarea{width:100%; border:1px solid var(--line); border-radius:7px; padding:10px 12px; font-size:13.5px; font-family:var(--font-body); color:var(--ink); background:#fff;}
+  .field input:focus, .field textarea:focus{border-color:var(--harbor);}
+  .field textarea{resize:vertical; min-height:150px; line-height:1.6;}
+  .field-row{display:flex; gap:14px;}
+  .field-row .field{flex:1;}
+
+  .suggest{display:flex; gap:10px; align-items:flex-start; background:var(--amber-bg); border:1px solid #F0DDB0; border-radius:8px; padding:12px 14px; margin-top:2px; font-size:12.5px; color:#6B4E0C;}
+  .suggest .icon{color:var(--amber); margin-top:1px;}
+  .check-row{display:flex; align-items:center; gap:9px; margin-top:18px; font-size:13px; color:var(--ink);}
+
+  .attach-card{border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-top:20px; background:#FAFBFD;}
+  .attach-card .h{display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:var(--slate);}
+  .attach-card ul{margin:10px 0 0; padding-left:18px; font-size:12.5px; color:var(--ink);}
+
+  .email-card{border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-top:20px; background:#fff;}
+  .email-head{padding:15px 18px; border-bottom:1px solid var(--line); font-size:12.5px; color:var(--slate);}
+  .email-head .row{display:flex; gap:10px; margin-bottom:6px; align-items:flex-start;}
+  .email-head .row:last-child{margin-bottom:0;}
+  .email-head .row b{width:38px; flex:0 0 auto; color:var(--slate-lt); font-weight:600;}
+  .recipients{display:flex; gap:6px; flex-wrap:wrap;}
+  .rchip{background:var(--chip-bg); border-radius:5px; padding:2px 8px; font-size:11.5px; font-weight:600;}
+  .email-subject{padding:14px 18px; font-weight:700; font-size:13.5px; border-bottom:1px solid var(--line);}
+  .email-body{padding:20px 18px;}
+  .email-body p{margin:0 0 12px; font-size:13px; line-height:1.7;}
+  .li-mini{margin:16px 0; border:1px solid var(--line); border-radius:8px; overflow:hidden;}
+  .li-mini table{width:100%; border-collapse:collapse; font-size:12px;}
+  .li-mini th{background:#FAFBFD; text-align:left; padding:7px 10px; font-family:var(--font-mono); font-size:9.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--slate-lt);}
+  .li-mini td{padding:7px 10px; border-top:1px solid var(--line);}
+  .email-cta{display:inline-block; background:var(--harbor); color:#fff; padding:10px 22px; border-radius:7px; font-weight:700; font-size:13px;}
+  .email-deadline{margin-top:14px; font-size:12px; color:var(--slate-lt);}
+  .email-foot-note{padding:12px 18px; border-top:1px solid var(--line); font-size:11.5px; color:var(--slate-lt); background:#FAFBFD;}
+  .email-foot-note b{color:var(--slate);}
+
+  .success-wrap{text-align:center; padding:34px 10px 10px;}
+  .success-icon{width:54px; height:54px; border-radius:50%; background:var(--moss-bg); color:var(--moss); display:flex; align-items:center; justify-content:center; margin:0 auto 18px;}
+  .success-wrap h2{font-size:22px;}
+  .success-wrap p{color:var(--slate); margin-top:8px; font-size:13.5px;}
+  .success-summary{max-width:440px; margin:26px auto 0; text-align:left; border:1px solid var(--line); border-radius:10px; padding:14px 18px; background:#FAFBFD;}
+  .success-summary .row{display:flex; justify-content:space-between; gap:16px; padding:8px 0; font-size:12.5px; border-bottom:1px solid var(--line);}
+  .success-summary .row:last-child{border-bottom:none;}
+  .success-summary .row span:first-child{color:var(--slate-lt); flex:0 0 auto;}
+  .success-summary .row span:last-child{text-align:right; font-weight:600;}
+  .success-actions{display:flex; gap:12px; justify-content:center; margin-top:26px; flex-wrap:wrap;}
+
+  .btn{display:inline-flex; align-items:center; gap:7px; border-radius:8px; padding:10px 18px; font-size:13px; font-weight:700; border:1px solid transparent;}
+  .btn-primary{background:var(--harbor); color:#fff;}
+  .btn-primary:hover{filter:brightness(1.05);}
+  .btn-primary:disabled{opacity:.4; cursor:not-allowed; filter:none;}
+  .btn-secondary{background:#fff; border-color:var(--line); color:var(--ink);}
+  .btn-secondary:hover{background:var(--mist);}
+
+  .flow-foot{position:sticky; bottom:0; background:#fff; border-top:1px solid var(--line); padding:16px 24px; flex:0 0 auto;}
+  .flow-foot-inner{max-width:720px; margin:0 auto; display:flex; align-items:center; gap:14px;}
+  .foot-spacer{flex:1;}
+
+  @media (max-width:640px){
+    .flow-top{padding:0 16px;}
+    .ctx-note{display:none;}
+    .rail-node .lbl{display:none;}
+    .rail-wrap{padding:18px 14px 20px;}
+    .flow-main{padding:28px 16px 50px;}
+    .field-row{flex-direction:column; gap:16px;}
+    .pick-card .rating{margin-left:0;}
+  }
+</style>
+</head>
+<body>
+
+<svg style="display:none">
+  <symbol id="i-anchor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><line x1="12" y1="7" x2="12" y2="19"/><line x1="8" y1="10" x2="16" y2="10"/><path d="M5 14a7 7 0 0 0 14 0"/><line x1="5" y1="14" x2="5" y2="11"/><line x1="19" y1="14" x2="19" y2="11"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><line x1="20" y1="20" x2="15.8" y2="15.8"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5 22 20H2Z"/><line x1="12" y1="9.5" x2="12" y2="14"/><circle cx="12" cy="17" r="0.9" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7Z"/><path d="M14 3v4h4"/><line x1="9.5" y1="12.3" x2="14.5" y2="12.3"/><line x1="9.5" y1="15.3" x2="14.5" y2="15.3"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><polyline points="8 12.3 11 15.3 16 9"/></symbol>
+</svg>
+
+<header class="flow-top">
+  <div class="brand">
+    <span class="mark"><svg class="icon" style="width:14px;height:14px;"><use href="#i-anchor"/></svg></span>
+    <span class="word">Vessel&nbsp;PMS</span>
+  </div>
+  <div class="flow-top-right">
+    <span class="ctx-note" id="topContext">Issuing RFQ for PR-2231</span>
+    <a href="rfq-list.html" class="exit-link"><svg class="icon" style="width:12px;height:12px;"><use href="#i-x"/></svg>Exit</a>
+  </div>
+</header>
+
+<div class="rail-wrap">
+  <ol class="rail" id="rail" style="display:flex;">
+    <li class="rail-node" data-step="1"><span class="dot">1</span><span class="lbl">Select PR</span></li>
+    <li class="rail-line" data-seg="1"></li>
+    <li class="rail-node" data-step="2"><span class="dot">2</span><span class="lbl">Choose vendors</span></li>
+    <li class="rail-line" data-seg="2"></li>
+    <li class="rail-node" data-step="3"><span class="dot">3</span><span class="lbl">Deadline</span></li>
+    <li class="rail-line" data-seg="3"></li>
+    <li class="rail-node" data-step="4"><span class="dot">4</span><span class="lbl">Message</span></li>
+    <li class="rail-line" data-seg="4"></li>
+    <li class="rail-node" data-step="5"><span class="dot">5</span><span class="lbl">Preview email</span></li>
+    <li class="rail-line" data-seg="5"></li>
+    <li class="rail-node" data-step="6"><span class="dot">6</span><span class="lbl">Send</span></li>
+  </ol>
+</div>
+
+<main class="flow-main">
+
+  <div class="step-panel" data-step="1">
+    <span class="eyebrow">Step 1 of 6</span>
+    <h2>Select a purchase request</h2>
+    <p class="sub">Choose the request you're sourcing quotes for — only requests awaiting RFQ are shown.</p>
+    <div class="pick-filters">
+      <div class="search2"><svg class="icon" style="width:13px;height:13px;"><use href="#i-search"/></svg>Search requests</div>
+      <div class="filter">Vessel: All <svg class="icon"><use href="#i-chevron"/></svg></div>
+    </div>
+    <div class="pick-list" id="prList">
+      <label class="pick-card selected">
+        <input type="radio" name="prPick" checked data-label="PR-2231 · Mooring rope, deck stores"/>
+        <div class="body">
+          <div class="row1"><span class="ref">PR-2231</span><span class="vessel">MV Aster · Deck</span><span class="pri high">High</span></div>
+          <div class="item">Mooring rope, 40mm ⌀ × 4 coils</div>
+          <div class="meta"><span>Requested by S. Iyer</span><span>2 Jul</span></div>
+        </div>
+      </label>
+      <label class="pick-card">
+        <input type="radio" name="prPick" data-label="PR-2225 · Gasket set, main engine"/>
+        <div class="body">
+          <div class="row1"><span class="ref">PR-2225</span><span class="vessel">MV Kavya · Engine</span><span class="pri med">Med</span></div>
+          <div class="item">Gasket set, main engine</div>
+          <div class="meta"><span>Requested by P. Nair</span><span>1 Jul</span></div>
+        </div>
+      </label>
+      <label class="pick-card">
+        <input type="radio" name="prPick" data-label="PR-2233 · Navigation chart updates"/>
+        <div class="body">
+          <div class="row1"><span class="ref">PR-2233</span><span class="vessel">MV Orion · Bridge</span><span class="pri low">Low</span></div>
+          <div class="item">Navigation chart updates, quarterly</div>
+          <div class="meta"><span>Requested by A. Rao</span><span>30 Jun</span></div>
+        </div>
+      </label>
+      <label class="pick-card">
+        <input type="radio" name="prPick" data-label="PR-2227 · Provisions, dry stores"/>
+        <div class="body">
+          <div class="row1"><span class="ref">PR-2227</span><span class="vessel">MV Aster · Galley</span><span class="pri med">Med</span></div>
+          <div class="item">Provisions, dry stores restock</div>
+          <div class="meta"><span>Requested by S. Iyer</span><span>29 Jun</span></div>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <div class="step-panel" data-step="2" hidden>
+    <span class="eyebrow">Step 2 of 6</span>
+    <h2>Choose vendors</h2>
+    <p class="sub">Pre-filtered to <b>Deck stores</b> — the category on the request you selected.</p>
+    <div class="pick-filters">
+      <div class="search2"><svg class="icon" style="width:13px;height:13px;"><use href="#i-search"/></svg>Search vendors by name</div>
+      <div class="filter">Category: Deck stores <svg class="icon"><use href="#i-chevron"/></svg></div>
+    </div>
+    <div class="pick-list" id="vendorList">
+      <label class="pick-card selected">
+        <input type="checkbox" class="vpick" checked/>
+        <div class="body">
+          <div class="row1"><span class="ref">Hind Supply Co.</span><span class="rating">★4.6</span></div>
+          <div class="item">Mumbai, India</div>
+          <div class="meta"><span>Deck stores, Engine spares</span></div>
+        </div>
+      </label>
+      <label class="pick-card selected">
+        <input type="checkbox" class="vpick" checked/>
+        <div class="body">
+          <div class="row1"><span class="ref">Global Ship Chandlers</span><span class="rating">★4.4</span></div>
+          <div class="item">Dubai, UAE</div>
+          <div class="meta"><span>Deck stores, Engine spares, Provisions</span></div>
+        </div>
+      </label>
+      <label class="pick-card selected">
+        <input type="checkbox" class="vpick" checked/>
+        <div class="body">
+          <div class="row1"><span class="ref">Anchor &amp; Rope Traders</span><span class="rating">★4.3</span></div>
+          <div class="item">Chennai, India</div>
+          <div class="meta"><span>Deck stores, Rigging</span></div>
+        </div>
+      </label>
+      <label class="pick-card">
+        <input type="checkbox" class="vpick"/>
+        <div class="body">
+          <div class="row1"><span class="ref">Bay Marine Rigging Co.</span><span class="rating">★4.0</span></div>
+          <div class="item">Colombo, Sri Lanka</div>
+          <div class="meta"><span>Deck stores, Safety</span></div>
+        </div>
+      </label>
+    </div>
+    <div class="select-count" id="vendorCount">3 vendors selected</div>
+  </div>
+
+  <div class="step-panel" data-step="3" hidden>
+    <span class="eyebrow">Step 3 of 6</span>
+    <h2>Set the quote deadline</h2>
+    <p class="sub">Vendors won't be able to submit after this time.</p>
+    <div class="field-row" style="margin-top:20px;">
+      <div class="field"><label>Deadline date</label><input type="date" value="2026-07-08"/></div>
+      <div class="field"><label>Deadline time</label><input type="time" value="18:00"/></div>
+    </div>
+    <div class="suggest">
+      <svg class="icon" style="width:15px;height:15px;"><use href="#i-alert"/></svg>
+      <span>This item is <b>High priority</b>. 5 days is the fleet's usual window — consider 2–3 days if it's urgent. All times shown in IST.</span>
+    </div>
+    <label class="check-row"><input type="checkbox" checked/> Send vendors a reminder 24 hours before the deadline</label>
+  </div>
+
+  <div class="step-panel" data-step="4" hidden>
+    <span class="eyebrow">Step 4 of 6</span>
+    <h2>Add a message for vendors</h2>
+    <p class="sub">Appears in the email above the item details.</p>
+    <div class="field" style="margin-top:20px;">
+      <textarea>Hello,
+
+We're requesting a quote for the item(s) below for MV Aster. Please submit your best price and lead time before the deadline shown in the quote form.
+
+Let us know if you need any clarification.
+
+Thanks,
+Fleet Procurement Co.</textarea>
+    </div>
+    <div class="attach-card">
+      <div class="h"><svg class="icon" style="width:14px;height:14px;"><use href="#i-file"/></svg>Automatically attached, from PR-2231</div>
+      <ul><li>Mooring rope, 40mm ⌀ — 4 coils</li></ul>
+    </div>
+  </div>
+
+  <div class="step-panel" data-step="5" hidden>
+    <span class="eyebrow">Step 5 of 6</span>
+    <h2>Preview the email</h2>
+    <p class="sub">Each vendor gets their own private copy with a unique secure link — they won't see this list or each other.</p>
+    <div class="email-card">
+      <div class="email-head">
+        <div class="row"><b>From</b><span>Fleet Procurement Co. &lt;procurement@fleetco.com&gt;</span></div>
+        <div class="row"><b>To</b><div class="recipients"><span class="rchip">Hind Supply Co.</span><span class="rchip">Global Ship Chandlers</span><span class="rchip">Anchor &amp; Rope Traders</span></div></div>
+      </div>
+      <div class="email-subject">Quote request — Mooring rope, deck stores (MV Aster) · due 8 Jul</div>
+      <div class="email-body">
+        <p>Hello,</p>
+        <p>We're requesting a quote for the item(s) below for MV Aster. Please submit your best price and lead time before the deadline shown in the quote form.</p>
+        <div class="li-mini"><table><tr><th>Item</th><th>Qty</th></tr><tr><td>Mooring rope, 40mm ⌀</td><td>4 coils</td></tr></table></div>
+        <a class="email-cta" href="vendor-quote-form.html">Submit your quote →</a>
+        <div class="email-deadline">Deadline: 8 Jul, 6:00 PM IST</div>
+      </div>
+      <div class="email-foot-note">This RFQ will be marked <b>Issued</b> once sent, and move to <b>Quotes Received</b> as vendors respond.</div>
+    </div>
+  </div>
+
+  <div class="step-panel" data-step="6" hidden>
+    <div class="success-wrap">
+      <div class="success-icon"><svg class="icon" style="width:26px;height:26px;"><use href="#i-check"/></svg></div>
+      <h2>RFQ-0416 sent to 3 vendors</h2>
+      <p>You'll be notified as quotes come in — track progress from the RFQ list.</p>
+      <div class="success-summary">
+        <div class="row"><span>Request</span><span>PR-2231 · Mooring rope, deck stores</span></div>
+        <div class="row"><span>Vendors</span><span>Hind Supply Co., Global Ship Chandlers, Anchor &amp; Rope Traders</span></div>
+        <div class="row"><span>Deadline</span><span>8 Jul, 6:00 PM IST</span></div>
+      </div>
+      <div class="success-actions">
+        <a href="rfq-list.html" class="btn btn-secondary">View RFQ list</a>
+        <button class="btn btn-primary" id="issueAnotherBtn">Issue another RFQ</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer class="flow-foot" id="flowFoot">
+  <div class="flow-foot-inner">
+    <button class="btn btn-secondary" id="backBtn">← Back</button>
+    <span class="foot-spacer"></span>
+    <button class="btn btn-primary" id="continueBtn">Continue →</button>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var current = 1;
+  var sent = false;
+  var railNodes = document.querySelectorAll('.rail-node');
+  var railLines = document.querySelectorAll('.rail-line');
+  var panels = document.querySelectorAll('.step-panel');
+  var flowFoot = document.getElementById('flowFoot');
+  var backBtn = document.getElementById('backBtn');
+  var continueBtn = document.getElementById('continueBtn');
+
+  function stepValid(step){
+    if(step === 1){ return !!document.querySelector('input[name="prPick"]:checked'); }
+    if(step === 2){ return document.querySelectorAll('.vpick:checked').length > 0; }
+    return true;
+  }
+
+  function render(){
+    panels.forEach(function(p){ p.hidden = Number(p.dataset.step) !== current; });
+
+    railNodes.forEach(function(n){
+      var s = Number(n.dataset.step);
+      var done = sent ? s <= 6 && s !== current : s < current;
+      n.classList.toggle('done', done && s !== current);
+      n.classList.toggle('current', s === current);
+      n.classList.toggle('clickable', s < current && !sent);
+    });
+    railLines.forEach(function(l){
+      var seg = Number(l.dataset.seg);
+      l.classList.toggle('done', seg < current || sent);
+    });
+
+    flowFoot.style.display = (current === 6) ? 'none' : '';
+    backBtn.style.visibility = current === 1 ? 'hidden' : 'visible';
+    continueBtn.textContent = current === 5 ? 'Send RFQ →' : 'Continue →';
+    continueBtn.disabled = !stepValid(current);
+  }
+
+  continueBtn.addEventListener('click', function(){
+    if(current === 5){ sent = true; current = 6; render(); return; }
+    if(current < 6){ current++; render(); }
+  });
+  backBtn.addEventListener('click', function(){
+    if(current > 1){ current--; render(); }
+  });
+  railNodes.forEach(function(n){
+    n.addEventListener('click', function(){
+      if(n.classList.contains('clickable')){ current = Number(n.dataset.step); render(); }
+    });
+  });
+
+  document.querySelectorAll('input[name="prPick"]').forEach(function(r){
+    r.addEventListener('change', function(){
+      document.querySelectorAll('#prList .pick-card').forEach(function(c){ c.classList.remove('selected'); });
+      r.closest('.pick-card').classList.add('selected');
+      document.getElementById('topContext').textContent = 'Issuing RFQ for ' + r.dataset.label;
+      render();
+    });
+  });
+
+  document.querySelectorAll('.vpick').forEach(function(cb){
+    cb.addEventListener('change', function(){
+      cb.closest('.pick-card').classList.toggle('selected', cb.checked);
+      var n = document.querySelectorAll('.vpick:checked').length;
+      document.getElementById('vendorCount').textContent = n + (n === 1 ? ' vendor selected' : ' vendors selected');
+      render();
+    });
+  });
+
+  document.getElementById('issueAnotherBtn').addEventListener('click', function(){
+    sent = false;
+    current = 1;
+    render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

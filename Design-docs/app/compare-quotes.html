@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Compare Quotes — Vessel PMS</title>
+<style>
+  :root{ 
+    --ink:#101418; --paper:#ffffff; --mist:#F4F6FA;
+    --harbor:#1E49D6; --harbor-50:#EAEEFC;
+    --deep:#0B2A4A; --deep2:#123A63;
+    --slate:#5B6472; --slate-lt:#8891A0; --line:#E2E6ED;
+    --moss:#147A52; --moss-bg:#E7F5EE;
+    --amber:#B5750A; --amber-bg:#FBF0DE;
+    --rust:#C0392E; --rust-bg:#FBEAE8;
+    --teal:#0E7C8C; --teal-bg:#E5F4F6;
+    --chip-bg:#EEF1F5;
+    --e1:0 1px 2px rgba(16,20,24,.07), 0 1px 1px rgba(16,20,24,.04);
+    --e3:0 18px 44px rgba(11,42,74,.22);
+    --font-display: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+    --font-body: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "SF Mono", "Cascadia Code", Consolas, "Roboto Mono", monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{font-family:var(--font-body); color:var(--ink); background:var(--mist); font-size:14.5px; line-height:1.5;}
+  a{color:inherit; text-decoration:none;}
+  button{font-family:inherit; cursor:pointer;}
+  h1,h2,h3{font-family:var(--font-display); font-weight:600; margin:0;}
+  .icon{width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; flex:0 0 auto;}
+  a:focus-visible, button:focus-visible{outline:2px solid var(--harbor); outline-offset:2px; border-radius:4px;}
+  [hidden]{display:none !important;}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+
+  .shell{display:flex; min-height:100vh;}
+  .sidebar{width:240px; flex:0 0 240px; background:var(--deep); color:#AEBBD4; display:flex; flex-direction:column; position:sticky; top:0; height:100vh; overflow-y:auto;}
+  .brand{display:flex; align-items:center; gap:10px; padding:22px 22px 18px;}
+  .brand .mark{width:30px; height:30px; border-radius:8px; background:var(--harbor); display:flex; align-items:center; justify-content:center; color:#fff;}
+  .brand .word{font-family:var(--font-display); font-size:15px; color:#fff;}
+  .nav{padding:8px 12px; display:flex; flex-direction:column; gap:2px; flex:1;}
+  .nav a{display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:7px; font-size:13.5px; color:#AEBBD4; position:relative;}
+  .nav a .icon{color:#7C90B4;}
+  .nav a:hover{background:var(--deep2); color:#fff;}
+  .nav a:hover .icon{color:#fff;}
+  .nav a.active{background:rgba(30,73,214,.35); color:#fff;}
+  .nav a.active .icon{color:#fff;}
+  .nav a.active::before{content:""; position:absolute; left:-12px; top:8px; bottom:8px; width:3px; border-radius:2px; background:#5C86F5;}
+  .nav .count{margin-left:auto; font-family:var(--font-mono); font-size:10.5px; background:rgba(255,255,255,.1); color:#CBD6E8; padding:1px 6px; border-radius:8px;}
+  .nav .divider{height:1px; background:rgba(255,255,255,.09); margin:10px 12px;}
+  .sidebar-foot{padding:14px 22px 18px; font-size:11.5px; color:#7C90B4; border-top:1px solid rgba(255,255,255,.08);}
+
+  .main{flex:1; min-width:0;}
+  .topbar{height:64px; position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:20px; padding:0 32px; background:rgba(244,246,250,.9); backdrop-filter:blur(8px); border-bottom:1px solid var(--line);}
+  .search{flex:1; max-width:420px; display:flex; align-items:center; gap:9px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px 12px; color:var(--slate-lt); font-size:13px;}
+  .search .kbd{margin-left:auto; font-family:var(--font-mono); font-size:10.5px; background:var(--chip-bg); border-radius:4px; padding:1px 6px; color:var(--slate);}
+  .topbar-right{margin-left:auto; display:flex; align-items:center; gap:10px;}
+  .icon-btn{width:36px; height:36px; border-radius:8px; background:#fff; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--slate); position:relative;}
+  .icon-btn .dot{position:absolute; top:7px; right:8px; width:6px; height:6px; border-radius:50%; background:var(--rust); border:1.5px solid #fff;}
+  .avatar-btn{display:flex; align-items:center; gap:8px; padding:5px 8px 5px 5px; border-radius:8px; border:1px solid var(--line); background:#fff;}
+  .avatar{width:26px; height:26px; border-radius:50%; background:linear-gradient(135deg,#3E63E0,#0B2A4A); color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center;}
+  .avatar-btn .who b{display:block; font-size:12.5px; line-height:1.2;}
+  .avatar-btn .who span{display:block; font-size:10.5px; color:var(--slate-lt);}
+
+  .page{padding:28px 32px 60px; max-width:1440px;}
+  .back-link{display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--harbor); margin-bottom:10px;}
+  .back-link:hover{text-decoration:underline;}
+  .page-head{display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:22px;}
+  .page-head h1{font-size:25px;}
+  .page-head p{margin:5px 0 0; color:var(--slate); font-size:13px;}
+  .btn{display:inline-flex; align-items:center; gap:7px; border-radius:8px; padding:9px 15px; font-size:13px; font-weight:700; border:1px solid transparent;}
+  .btn-primary{background:var(--harbor); color:#fff;}
+  .btn-primary:hover{filter:brightness(1.05);}
+  .btn-secondary{background:#fff; border-color:var(--line); color:var(--ink);}
+  .btn-secondary:hover{background:var(--mist);}
+  .btn-sm{padding:7px 12px; font-size:12.5px;}
+
+  .chip{display:inline-flex; align-items:center; gap:5px; padding:4px 11px; border-radius:5px; font-size:11.5px; font-weight:700; white-space:nowrap;}
+  .chip::before{content:""; width:6px; height:6px; border-radius:50%; background:currentColor;}
+  .chip.moss{color:var(--moss); background:var(--moss-bg);}
+  .chip.teal{color:var(--teal); background:var(--teal-bg);}
+
+  .card{background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:var(--e1); overflow:hidden;}
+
+  .compare-wrap{overflow-x:auto;}
+  table.compare-table{width:100%; border-collapse:collapse; min-width:920px;}
+  .compare-table th, .compare-table td{padding:14px 20px; border-bottom:1px solid var(--line); vertical-align:top;}
+  .compare-table thead th{text-align:left; background:#FAFBFD; border-bottom:1px solid var(--line);}
+  .compare-table .metric-col{width:170px; min-width:170px; font-family:var(--font-mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--slate-lt); font-weight:700; background:#fff; position:sticky; left:0; z-index:1; border-right:1px solid var(--line);}
+  .compare-table thead .metric-col{background:#FAFBFD;}
+  .compare-table tbody tr:last-child td{border-bottom:none;}
+  .compare-table tbody tr:hover td:not(.metric-col){background:#FAFBFD;}
+
+  .vendor-head{min-width:190px;}
+  .vendor-head .name{font-size:14px; font-weight:700; font-family:var(--font-body);}
+  .vendor-head .meta{display:flex; align-items:center; gap:8px; margin-top:4px; font-size:12px; color:var(--slate-lt);}
+  .vendor-head .rating{color:var(--amber); font-weight:700;}
+
+  .metric-val{font-size:14px;}
+  .metric-val.price{font-weight:700; font-variant-numeric:tabular-nums;}
+  .best{display:inline-flex; align-items:center; gap:3px; margin-left:7px; font-size:10.5px; font-weight:700; color:var(--moss); background:var(--moss-bg); padding:2px 7px; border-radius:10px; white-space:nowrap;}
+  .metric-note{color:var(--slate-lt); font-size:12.5px;}
+  .attach-link{display:inline-flex; align-items:center; gap:5px; font-size:12.5px; font-weight:700; color:var(--harbor); border:1px solid var(--line); border-radius:6px; padding:5px 10px;}
+  .attach-link:hover{background:var(--mist);}
+
+  .award-row td{background:#fff; padding-top:16px; padding-bottom:16px;}
+  .award-row .metric-col{background:#fff;}
+
+  .modal-overlay{position:fixed; inset:0; background:rgba(11,20,32,.5); display:flex; align-items:center; justify-content:center; z-index:20; padding:20px;}
+  .modal{background:#fff; border-radius:14px; box-shadow:var(--e3); width:100%; max-width:420px; padding:26px 26px 22px;}
+  .modal h3{font-size:19px; margin-bottom:8px;}
+  .modal p{color:var(--slate); font-size:13.5px; line-height:1.6; margin:0;}
+  .modal-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:22px;}
+
+  .success-wrap{text-align:center; padding:46px 20px;}
+  .success-icon{width:54px; height:54px; border-radius:50%; background:var(--moss-bg); color:var(--moss); display:flex; align-items:center; justify-content:center; margin:0 auto 18px;}
+  .success-wrap h2{font-size:21px;}
+  .success-wrap p{color:var(--slate); margin-top:8px; font-size:13.5px;}
+  .success-actions{display:flex; gap:12px; justify-content:center; margin-top:24px;}
+
+  @media (max-width:900px){
+    .sidebar{display:none;}
+    .page{padding:20px 16px 40px;}
+  }
+</style>
+</head>
+<body>
+
+<svg style="display:none">
+  <symbol id="i-anchor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><line x1="12" y1="7" x2="12" y2="19"/><line x1="8" y1="10" x2="16" y2="10"/><path d="M5 14a7 7 0 0 0 14 0"/><line x1="5" y1="14" x2="5" y2="11"/><line x1="19" y1="14" x2="19" y2="11"/></symbol>
+  <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="8" rx="1.2"/><rect x="13" y="4" width="7" height="5" rx="1.2"/><rect x="13" y="11" width="7" height="9" rx="1.2"/><rect x="4" y="14" width="7" height="6" rx="1.2"/></symbol>
+  <symbol id="i-kanban" viewBox="0 0 24 24"><rect x="4" y="4" width="4.5" height="16" rx="1"/><rect x="10" y="4" width="4.5" height="10" rx="1"/><rect x="16" y="4" width="4.5" height="13" rx="1"/></symbol>
+  <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="16" rx="1.5"/><rect x="9" y="2.3" width="6" height="3" rx="1"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="13.5" x2="15" y2="13.5"/><line x1="9" y1="17" x2="13" y2="17"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12 20 4 13 20 11 13 4 12Z"/></symbol>
+  <symbol id="i-cart" viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/><path d="M3 4h2l2.2 11h10.6L20 8H6.4"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-2-1.3L14 21l-2-1.3L10 21l-2-1.3L6 21V3Z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></symbol>
+  <symbol id="i-package" viewBox="0 0 24 24"><path d="M3 8 12 4l9 4-9 4-9-4Z"/><path d="M3 8v9l9 4 9-4V8"/><line x1="12" y1="12" x2="12" y2="21"/></symbol>
+  <symbol id="i-building" viewBox="0 0 24 24"><rect x="5" y="3" width="10" height="18" rx="1"/><rect x="15" y="9" width="5" height="12" rx="1"/><rect x="7.5" y="6.3" width="1.8" height="1.8"/><rect x="11.5" y="6.3" width="1.8" height="1.8"/><rect x="7.5" y="10.3" width="1.8" height="1.8"/><rect x="11.5" y="10.3" width="1.8" height="1.8"/></symbol>
+  <symbol id="i-ship" viewBox="0 0 24 24"><path d="M4 15h16l-2 5H6l-2-5Z"/><path d="M6 15V7h4V4h4v3"/><line x1="12" y1="4" x2="16" y2="6"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><line x1="4" y1="20" x2="4" y2="10"/><line x1="10" y1="20" x2="10" y2="4"/><line x1="16" y1="20" x2="16" y2="13"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7.8"/><line x1="12" y1="1.8" x2="12" y2="4.4"/><line x1="12" y1="19.6" x2="12" y2="22.2"/><line x1="22.2" y1="12" x2="19.6" y2="12"/><line x1="4.4" y1="12" x2="1.8" y2="12"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><line x1="20" y1="20" x2="15.8" y2="15.8"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 10a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 14 6 10Z"/><path d="M10 18.5a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
+  <symbol id="i-arrow-left" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="11 6 5 12 11 18"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7Z"/><path d="M14 3v4h4"/><line x1="9.5" y1="12.3" x2="14.5" y2="12.3"/><line x1="9.5" y1="15.3" x2="14.5" y2="15.3"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><polyline points="8 12.3 11 15.3 16 9"/></symbol>
+</svg>
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="mark"><svg class="icon" style="width:16px;height:16px;"><use href="#i-anchor"/></svg></span>
+      <span class="word">Vessel&nbsp;PMS</span>
+    </div>
+    <nav class="nav">
+      <a href="dashboard.html"><svg class="icon"><use href="#i-dashboard"/></svg>Dashboard</a>
+      <a href="pipeline.html"><svg class="icon"><use href="#i-kanban"/></svg>Pipeline</a>
+      <a href="po-requests.html"><svg class="icon"><use href="#i-clipboard"/></svg>PO Requests<span class="count">18</span></a>
+      <a href="rfq-list.html" class="active"><svg class="icon"><use href="#i-send"/></svg>Request for Quote<span class="count">9</span></a>
+      <a href="purchase-orders.html"><svg class="icon"><use href="#i-cart"/></svg>Purchase Orders</a>
+      <a href="invoice-log.html"><svg class="icon"><use href="#i-receipt"/></svg>Invoice Log<span class="count">12</span></a>
+      <a href="delivery-notes.html"><svg class="icon"><use href="#i-package"/></svg>Delivery Notes</a>
+      <a href="vendors.html"><svg class="icon"><use href="#i-building"/></svg>Vendors</a>
+      <a href="vessels.html"><svg class="icon"><use href="#i-ship"/></svg>Vessels</a>
+      <div class="divider"></div>
+      <a href="reports.html"><svg class="icon"><use href="#i-chart"/></svg>Reports</a>
+      <a href="team-access.html"><svg class="icon"><use href="#i-settings"/></svg>Settings</a>
+    </nav>
+    <div class="sidebar-foot">Fleet Procurement Co. · v1.0</div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="search">
+        <svg class="icon" style="width:15px;height:15px;"><use href="#i-search"/></svg>
+        Search PRs, POs, invoices, vendors, vessels…
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" aria-label="Notifications"><svg class="icon"><use href="#i-bell"/></svg><span class="dot"></span></button>
+        <button class="avatar-btn">
+          <span class="avatar">AR</span>
+          <span class="who"><b>Arjun Rao</b><span>Purchase Officer</span></span>
+          <svg class="icon" style="width:13px;height:13px; color:var(--slate-lt);"><use href="#i-chevron"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="page">
+      <a href="rfq-list.html" class="back-link"><svg class="icon" style="width:13px;height:13px;"><use href="#i-arrow-left"/></svg>Request for Quote</a>
+      <div class="page-head">
+        <div>
+          <h1>Compare quotes</h1>
+          <p>RFQ-0412 · PR-2229 · Life jackets × 20 · MV Orion · 5 of 5 vendors responded · Closed 2 days ago</p>
+        </div>
+        <span class="chip teal">Comparing</span>
+      </div>
+
+      <div class="card" id="compareCard">
+        <div class="compare-wrap">
+          <table class="compare-table">
+            <thead>
+              <tr>
+                <th class="metric-col">Vendor</th>
+                <th class="vendor-head"><div class="name">Hind Supply Co.</div><div class="meta">Mumbai, India <span class="rating">★4.6</span></div></th>
+                <th class="vendor-head"><div class="name">Global Ship Chandlers</div><div class="meta">Dubai, UAE <span class="rating">★4.4</span></div></th>
+                <th class="vendor-head"><div class="name">Anchor &amp; Rope Traders</div><div class="meta">Chennai, India <span class="rating">★4.3</span></div></th>
+                <th class="vendor-head"><div class="name">Marine Solutions Ltd.</div><div class="meta">Singapore <span class="rating">★4.2</span></div></th>
+                <th class="vendor-head"><div class="name">Bay Marine Rigging Co.</div><div class="meta">Colombo, Sri Lanka <span class="rating">★4.0</span></div></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="metric-col">Price</td>
+                <td><span class="metric-val price">₹42,000</span></td>
+                <td><span class="metric-val price">₹39,500</span><span class="best">★ lowest</span></td>
+                <td><span class="metric-val price">₹45,800</span></td>
+                <td><span class="metric-val price">₹41,200</span></td>
+                <td><span class="metric-val price">₹43,000</span></td>
+              </tr>
+              <tr>
+                <td class="metric-col">Lead time</td>
+                <td><span class="metric-val">5 days</span></td>
+                <td><span class="metric-val">7 days</span></td>
+                <td><span class="metric-val">4 days</span><span class="best">★ fastest</span></td>
+                <td><span class="metric-val">6 days</span></td>
+                <td><span class="metric-val">8 days</span></td>
+              </tr>
+              <tr>
+                <td class="metric-col">Delivery date</td>
+                <td><span class="metric-val">28 Jun</span></td>
+                <td><span class="metric-val">30 Jun</span></td>
+                <td><span class="metric-val">27 Jun</span></td>
+                <td><span class="metric-val">29 Jun</span></td>
+                <td><span class="metric-val">1 Jul</span></td>
+              </tr>
+              <tr>
+                <td class="metric-col">Warranty</td>
+                <td><span class="metric-val">12 months</span></td>
+                <td><span class="metric-val">12 months</span></td>
+                <td><span class="metric-val">6 months</span></td>
+                <td><span class="metric-val">24 months</span><span class="best">★ best</span></td>
+                <td><span class="metric-val">12 months</span></td>
+              </tr>
+              <tr>
+                <td class="metric-col">Payment terms</td>
+                <td><span class="metric-val">30 days net</span></td>
+                <td><span class="metric-val">45 days net</span></td>
+                <td><span class="metric-val">15 days net</span></td>
+                <td><span class="metric-val">50% advance</span></td>
+                <td><span class="metric-val">30 days net</span></td>
+              </tr>
+              <tr>
+                <td class="metric-col">Remarks</td>
+                <td><span class="metric-note">"SOLAS certified stock"</span></td>
+                <td><span class="metric-note">"Bulk discount available"</span></td>
+                <td><span class="metric-note">"Fastest turnaround in region"</span></td>
+                <td><span class="metric-note">"Extended warranty option"</span></td>
+                <td><span class="metric-note">—</span></td>
+              </tr>
+              <tr>
+                <td class="metric-col">Rating</td>
+                <td><span class="metric-val">★4.6</span><span class="best">★ best</span></td>
+                <td><span class="metric-val">★4.4</span></td>
+                <td><span class="metric-val">★4.3</span></td>
+                <td><span class="metric-val">★4.2</span></td>
+                <td><span class="metric-val">★4.0</span></td>
+              </tr>
+              <tr>
+                <td class="metric-col">Attachment</td>
+                <td><a href="#" class="attach-link"><svg class="icon" style="width:13px;height:13px;"><use href="#i-file"/></svg>quote.pdf</a></td>
+                <td><a href="#" class="attach-link"><svg class="icon" style="width:13px;height:13px;"><use href="#i-file"/></svg>quote.pdf</a></td>
+                <td><a href="#" class="attach-link"><svg class="icon" style="width:13px;height:13px;"><use href="#i-file"/></svg>quote.pdf</a></td>
+                <td><a href="#" class="attach-link"><svg class="icon" style="width:13px;height:13px;"><use href="#i-file"/></svg>quote.pdf</a></td>
+                <td><a href="#" class="attach-link"><svg class="icon" style="width:13px;height:13px;"><use href="#i-file"/></svg>quote.pdf</a></td>
+              </tr>
+              <tr class="award-row">
+                <td class="metric-col"></td>
+                <td><button class="btn btn-primary btn-sm choose-btn" data-vendor="Hind Supply Co.">Choose vendor</button></td>
+                <td><button class="btn btn-primary btn-sm choose-btn" data-vendor="Global Ship Chandlers">Choose vendor</button></td>
+                <td><button class="btn btn-primary btn-sm choose-btn" data-vendor="Anchor &amp; Rope Traders">Choose vendor</button></td>
+                <td><button class="btn btn-primary btn-sm choose-btn" data-vendor="Marine Solutions Ltd.">Choose vendor</button></td>
+                <td><button class="btn btn-primary btn-sm choose-btn" data-vendor="Bay Marine Rigging Co.">Choose vendor</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="awardModal" hidden>
+  <div class="modal">
+    <h3>Award to <span id="awardVendorName"></span>?</h3>
+    <p>This closes RFQ-0412, generates a Purchase Order draft from this quote, and marks the remaining vendors as not selected. This can't be undone.</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="cancelAward">Cancel</button>
+      <button class="btn btn-primary" id="confirmAward">Confirm award</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var modal = document.getElementById('awardModal');
+  var nameSpan = document.getElementById('awardVendorName');
+  var cancelBtn = document.getElementById('cancelAward');
+  var confirmBtn = document.getElementById('confirmAward');
+  var compareCard = document.getElementById('compareCard');
+  var pendingVendor = null;
+
+  document.querySelectorAll('.choose-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      pendingVendor = btn.dataset.vendor;
+      nameSpan.textContent = pendingVendor;
+      modal.hidden = false;
+    });
+  });
+
+  cancelBtn.addEventListener('click', function(){ modal.hidden = true; pendingVendor = null; });
+  modal.addEventListener('click', function(e){ if(e.target === modal){ modal.hidden = true; pendingVendor = null; } });
+
+  confirmBtn.addEventListener('click', function(){
+    modal.hidden = true;
+    if(!pendingVendor) return;
+    compareCard.innerHTML =
+      '<div class="success-wrap">' +
+        '<div class="success-icon"><svg class="icon" style="width:26px;height:26px;"><use href="#i-check"/></svg></div>' +
+        '<h2>Awarded to ' + pendingVendor + '</h2>' +
+        '<p>RFQ-0412 is now closed. A Purchase Order draft has been created from this quote.</p>' +
+        '<div class="success-actions">' +
+          '<a href="rfq-list.html" class="btn btn-secondary">View RFQ list</a>' +
+          '<a href="po-requests.html" class="btn btn-primary">Go to Purchase Orders</a>' +
+        '</div>' +
+      '</div>';
+  });
+})();
+</script>
+</body>
+</html>

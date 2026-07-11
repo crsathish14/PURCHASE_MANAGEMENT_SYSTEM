@@ -1,0 +1,38 @@
+{
+  "common": {
+    "appName": "Purchase Management System"
+  },
+  "metadata": {
+    "title": "Purchase Management System",
+    "description": "Vessel procurement, from request to delivery, in one system."
+  },
+  "home": {
+    "title": "Purchase Management System",
+    "subtitle": "Project foundation is set up. Feature work starts from here."
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "This page doesn't exist or hasn't been built yet.",
+    "action": "Back to home"
+  },
+  "error": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred. Try again, or come back later.",
+    "action": "Try again"
+  },
+  "loading": {
+    "label": "Loading…"
+  },
+  "toastDemo": {
+    "success": "Show success toast",
+    "error": "Show error toast",
+    "successMessage": "RFQ-0412 sent to 4 vendors",
+    "errorMessage": "Import failed — 2 rows need fixing"
+  }
+}

@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Sign in — Vessel PMS</title>
+<style>
+  :root{
+    --ink:#101418; --paper:#ffffff; --mist:#F4F6FA;
+    --harbor:#1E49D6; --harbor-50:#EAEEFC; --harbor-lt:#5C86F5;
+    --deep:#0B2A4A; --deep2:#123A63;
+    --slate:#5B6472; --slate-lt:#8891A0; --line:#E2E6ED;
+    --moss:#147A52; --moss-bg:#E7F5EE; --amber:#B5750A; --teal:#2FA8B8;
+    --rust:#C0392E; --rust-bg:#FBEAE8;
+    --e2:0 4px 14px rgba(16,20,24,.09); --e3:0 18px 44px rgba(11,42,74,.22);
+    --font-display: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+    --font-body: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "SF Mono", "Cascadia Code", Consolas, "Roboto Mono", monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{font-family:var(--font-body); color:var(--ink); font-size:14.5px; line-height:1.55; -webkit-font-smoothing:antialiased;}
+  h1,h2{font-family:var(--font-display); font-weight:600; text-wrap:balance; margin:0;}
+  a{color:var(--harbor); text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  .icon{width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; flex:0 0 auto;}
+  button:focus-visible, input:focus-visible, a:focus-visible{outline:2px solid var(--harbor); outline-offset:2px;}
+  [hidden]{display:none !important;}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+
+  .shell{display:flex; min-height:100vh;}
+  .brand-panel{flex:1 1 60%; background:linear-gradient(175deg, var(--deep) 0%, #08213B 100%); color:#DCE4F2; display:flex; flex-direction:column; padding:44px 52px; min-width:0;}
+  .brand-top{display:flex; align-items:center; gap:10px;}
+  .brand-top .mark{width:28px; height:28px; border-radius:8px; background:var(--harbor); color:#fff; display:flex; align-items:center; justify-content:center;}
+  .brand-top .word{font-family:var(--font-display); font-size:16px; color:#fff;}
+  .brand-mid{max-width:440px; margin-top:64px;}
+  .brand-mid h1{font-size:32px; color:#fff; line-height:1.25;}
+  .brand-mid p{color:#A9BAD6; font-size:14px; margin-top:14px; line-height:1.65;}
+
+  .art{position:relative; height:220px; margin-top:36px;}
+  .art svg{width:100%; height:100%;}
+  .art .route{fill:none; stroke:var(--teal); stroke-opacity:.55; stroke-width:1.5; stroke-dasharray:4 5;}
+  .art .port{fill:#0B2A4A; stroke:var(--harbor-lt); stroke-width:1.6;}
+  .art .port-core{fill:var(--harbor-lt);}
+  .art .ship{stroke:#DCE4F2; stroke-width:1.4; fill:none;}
+
+  .brand-stats{display:flex; gap:34px; margin-top:auto; padding-top:24px; border-top:1px solid rgba(255,255,255,.12);}
+  .brand-stats div b{display:block; font-family:var(--font-display); font-size:22px; color:#fff; font-weight:600;}
+  .brand-stats div span{display:block; font-size:11.5px; color:#8FA2C4; margin-top:3px;}
+
+  .auth-panel{flex:1 1 40%; background:var(--mist); display:flex; align-items:center; justify-content:center; padding:40px 24px;}
+  .auth-card{width:100%; max-width:380px; background:#fff; border:1px solid var(--line); border-radius:14px; padding:34px 34px 30px; box-shadow:var(--e2);}
+  .auth-card h2{font-size:23px;}
+  .auth-card .rule{height:1px; background:var(--line); margin:14px 0 24px;}
+
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:12px; font-weight:700; color:var(--ink); margin-bottom:6px;}
+  .field input{width:100%; border:1px solid var(--line); border-radius:7px; padding:10px 12px; font-size:13.5px; font-family:var(--font-body); color:var(--ink); background:#fff;}
+  .field input:focus{border-color:var(--harbor);}
+  .pw-label-row{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
+  .pw-label-row label{font-size:12px; font-weight:700; color:var(--ink);}
+  .pw-wrap{position:relative;}
+  .pw-wrap input{padding-right:60px;}
+  .pw-toggle{position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--slate-lt); font-size:11.5px; font-weight:700; padding:4px 6px; display:flex; align-items:center; gap:4px; cursor:pointer;}
+  .pw-toggle:hover{color:var(--harbor);}
+
+  .row-between{display:flex; align-items:center; justify-content:space-between; margin:2px 0 20px; font-size:12.5px;}
+  .remember{display:flex; align-items:center; gap:7px; color:var(--slate);}
+  .error-banner{display:flex; align-items:flex-start; gap:9px; background:var(--rust-bg); border:1px solid #F0C9C4; border-radius:8px; padding:11px 13px; margin-bottom:18px; font-size:12.5px; color:#7A241C;}
+  .error-banner .icon{color:var(--rust); margin-top:1px;}
+
+  .submit-btn{width:100%; background:var(--harbor); color:#fff; border:none; border-radius:8px; padding:12.5px; font-size:14px; font-weight:700; cursor:pointer;}
+  .submit-btn:hover{filter:brightness(1.05);}
+  .switch{text-align:center; margin-top:22px; padding-top:20px; border-top:1px solid var(--line); font-size:13px; color:var(--slate);}
+  .switch a{font-weight:700;}
+
+  @media (max-width:920px){
+    .shell{flex-direction:column;}
+    .brand-panel{padding:32px 28px; flex:none;}
+    .brand-mid{margin-top:28px;}
+    .art{display:none;}
+    .brand-stats{margin-top:24px; padding-top:18px;}
+    .auth-panel{flex:none; padding:28px 20px 48px;}
+  }
+</style>
+</head>
+<body>
+
+<svg style="display:none">
+  <symbol id="i-anchor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><line x1="12" y1="7" x2="12" y2="19"/><line x1="8" y1="10" x2="16" y2="10"/><path d="M5 14a7 7 0 0 0 14 0"/><line x1="5" y1="14" x2="5" y2="11"/><line x1="19" y1="14" x2="19" y2="11"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5 22 20H2Z"/><line x1="12" y1="9.5" x2="12" y2="14"/><circle cx="12" cy="17" r="0.9" fill="currentColor" stroke="none"/></symbol>
+</svg>
+
+<div class="shell">
+  <div class="brand-panel">
+    <div class="brand-top">
+      <span class="mark"><svg class="icon" style="width:15px;height:15px;"><use href="#i-anchor"/></svg></span>
+      <span class="word">Vessel&nbsp;PMS</span>
+    </div>
+
+    <div class="brand-mid">
+      <h1>Procurement, from request to delivery, in one system.</h1>
+      <p>Fleet Procurement Co. runs every purchase request, RFQ, purchase order, invoice, and delivery confirmation for its fleet through Vessel PMS.</p>
+    </div>
+
+    <div class="art" aria-hidden="true">
+      <svg viewBox="0 0 480 220" preserveAspectRatio="xMidYMid meet">
+        <path class="route" d="M70 60 Q150 10 230 40"/>
+        <path class="route" d="M230 40 Q290 90 350 110"/>
+        <path class="route" d="M350 110 Q385 150 405 190"/>
+        <path class="route" d="M150 190 Q195 100 230 40"/>
+        <circle class="port" cx="70" cy="60" r="5"/>
+        <circle class="port" cx="230" cy="40" r="5"/>
+        <circle class="port" cx="350" cy="110" r="6.5"/>
+        <circle class="port-core" cx="350" cy="110" r="2.5"/>
+        <circle class="port" cx="405" cy="190" r="5"/>
+        <circle class="port" cx="150" cy="190" r="5"/>
+        <g transform="translate(268,84) rotate(18)">
+          <path class="ship" d="M-16 6h32l-5 11h-22Z"/>
+          <path class="ship" d="M-6 6V-8h4v-4h5v4h4v14"/>
+        </g>
+      </svg>
+    </div>
+
+    <div class="brand-stats">
+      <div><b>3</b><span>Vessels managed</span></div>
+      <div><b>214</b><span>POs this year</span></div>
+      <div><b>42</b><span>Active vendors</span></div>
+    </div>
+  </div>
+
+  <div class="auth-panel">
+    <div class="auth-card">
+      <h2>Sign in</h2>
+      <div class="rule"></div>
+
+      <div class="error-banner" id="errorBanner" hidden>
+        <svg class="icon" style="width:14px;height:14px;"><use href="#i-alert"/></svg>
+        <span>Incorrect email or password. Try again, or use <a href="request-access.html">Request access</a> if you don't have an account yet.</span>
+      </div>
+
+      <form id="loginForm">
+        <div class="field"><label>Email</label><input type="email" placeholder="name@company.com"/></div>
+
+        <div class="field">
+          <div class="pw-label-row"><label>Password</label></div>
+          <div class="pw-wrap">
+            <input type="password" id="pwInput" placeholder="••••••••••••"/>
+            <button type="button" class="pw-toggle" id="pwToggle"><svg class="icon" style="width:13px;height:13px;"><use href="#i-eye"/></svg><span id="pwToggleLabel">Show</span></button>
+          </div>
+        </div>
+
+        <div class="row-between">
+          <label class="remember"><input type="checkbox"/> Remember me</label>
+          <a href="#">Forgot?</a>
+        </div>
+
+        <button type="submit" class="submit-btn">Sign in</button>
+      </form>
+
+      <div class="switch">New to Vessel PMS? <a href="request-access.html">Request access →</a></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var pwInput = document.getElementById('pwInput');
+  var pwToggle = document.getElementById('pwToggle');
+  var pwToggleLabel = document.getElementById('pwToggleLabel');
+  pwToggle.addEventListener('click', function(){
+    var show = pwInput.type === 'password';
+    pwInput.type = show ? 'text' : 'password';
+    pwToggleLabel.textContent = show ? 'Hide' : 'Show';
+  });
+
+  document.getElementById('loginForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    window.location.href = 'dashboard.html';
+  });
+})();
+</script>
+</body>
+</html>

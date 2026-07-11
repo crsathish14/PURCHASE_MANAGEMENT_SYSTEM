@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Invoice Log — Vessel PMS</title>
+<style>
+  :root{
+    --ink:#101418; --paper:#ffffff; --mist:#F4F6FA;
+    --harbor:#1E49D6; --harbor-50:#EAEEFC;
+    --deep:#0B2A4A; --deep2:#123A63;
+    --slate:#5B6472; --slate-lt:#8891A0; --line:#E2E6ED;
+    --moss:#147A52; --moss-bg:#E7F5EE;
+    --amber:#B5750A; --amber-bg:#FBF0DE;
+    --rust:#C0392E; --rust-bg:#FBEAE8;
+    --teal:#0E7C8C; --teal-bg:#E5F4F6;
+    --chip-bg:#EEF1F5;
+    --e1:0 1px 2px rgba(16,20,24,.07), 0 1px 1px rgba(16,20,24,.04);
+    --e3:0 18px 44px rgba(11,42,74,.22);
+    --font-display: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+    --font-body: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "SF Mono", "Cascadia Code", Consolas, "Roboto Mono", monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{font-family:var(--font-body); color:var(--ink); background:var(--mist); font-size:14.5px; line-height:1.5;}
+  a{color:inherit; text-decoration:none;}
+  button{font-family:inherit; cursor:pointer;}
+  h1,h2,h3{font-family:var(--font-display); font-weight:600; margin:0;}
+  .icon{width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; flex:0 0 auto;}
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible{outline:2px solid var(--harbor); outline-offset:2px; border-radius:4px;}
+  [hidden]{display:none !important;}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+
+  .shell{display:flex; min-height:100vh;}
+  .sidebar{width:240px; flex:0 0 240px; background:var(--deep); color:#AEBBD4; display:flex; flex-direction:column; position:sticky; top:0; height:100vh; overflow-y:auto;}
+  .brand{display:flex; align-items:center; gap:10px; padding:22px 22px 18px;}
+  .brand .mark{width:30px; height:30px; border-radius:8px; background:var(--harbor); display:flex; align-items:center; justify-content:center; color:#fff;}
+  .brand .word{font-family:var(--font-display); font-size:15px; color:#fff;}
+  .nav{padding:8px 12px; display:flex; flex-direction:column; gap:2px; flex:1;}
+  .nav a{display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:7px; font-size:13.5px; color:#AEBBD4; position:relative;}
+  .nav a .icon{color:#7C90B4;}
+  .nav a:hover{background:var(--deep2); color:#fff;}
+  .nav a:hover .icon{color:#fff;}
+  .nav a.active{background:rgba(30,73,214,.35); color:#fff;}
+  .nav a.active .icon{color:#fff;}
+  .nav a.active::before{content:""; position:absolute; left:-12px; top:8px; bottom:8px; width:3px; border-radius:2px; background:#5C86F5;}
+  .nav .count{margin-left:auto; font-family:var(--font-mono); font-size:10.5px; background:rgba(255,255,255,.1); color:#CBD6E8; padding:1px 6px; border-radius:8px;}
+  .nav .divider{height:1px; background:rgba(255,255,255,.09); margin:10px 12px;}
+  .sidebar-foot{padding:14px 22px 18px; font-size:11.5px; color:#7C90B4; border-top:1px solid rgba(255,255,255,.08);}
+
+  .main{flex:1; min-width:0;}
+  .topbar{height:64px; position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:20px; padding:0 32px; background:rgba(244,246,250,.9); backdrop-filter:blur(8px); border-bottom:1px solid var(--line);}
+  .search{flex:1; max-width:420px; display:flex; align-items:center; gap:9px; background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px 12px; color:var(--slate-lt); font-size:13px;}
+  .search .kbd{margin-left:auto; font-family:var(--font-mono); font-size:10.5px; background:var(--chip-bg); border-radius:4px; padding:1px 6px; color:var(--slate);}
+  .topbar-right{margin-left:auto; display:flex; align-items:center; gap:10px;}
+  .icon-btn{width:36px; height:36px; border-radius:8px; background:#fff; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--slate); position:relative;}
+  .icon-btn .dot{position:absolute; top:7px; right:8px; width:6px; height:6px; border-radius:50%; background:var(--rust); border:1.5px solid #fff;}
+  .avatar-btn{display:flex; align-items:center; gap:8px; padding:5px 8px 5px 5px; border-radius:8px; border:1px solid var(--line); background:#fff;}
+  .avatar{width:26px; height:26px; border-radius:50%; background:linear-gradient(135deg,#3E63E0,#0B2A4A); color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center;}
+  .avatar-btn .who b{display:block; font-size:12.5px; line-height:1.2;}
+  .avatar-btn .who span{display:block; font-size:10.5px; color:var(--slate-lt);}
+
+  .page{padding:28px 32px 60px; max-width:1440px;}
+  .page-head{display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:22px;}
+  .page-head h1{font-size:25px;}
+  .page-head p{margin:5px 0 0; color:var(--slate); font-size:13px;}
+  .btn{display:inline-flex; align-items:center; gap:7px; border-radius:8px; padding:9px 15px; font-size:13px; font-weight:700; border:1px solid transparent;}
+  .btn-primary{background:var(--harbor); color:#fff;}
+  .btn-primary:hover{filter:brightness(1.05);}
+  .btn-secondary{background:#fff; border-color:var(--line); color:var(--ink);}
+  .btn-secondary:hover{background:var(--mist);}
+
+  .card{background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:var(--e1); overflow:hidden;}
+  .toolbar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:14px 20px;}
+  .search2{flex:1; min-width:170px; max-width:260px; display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:7px; padding:8px 11px; color:var(--slate-lt); font-size:13px;}
+  .filter{display:flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:7px; padding:7px 11px; font-size:12.5px; color:var(--ink); background:#fff;}
+  .filter .icon{width:13px; height:13px; color:var(--slate-lt);}
+
+  .table-wrap{overflow-x:auto; border-top:1px solid var(--line);}
+  table{width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; min-width:900px;}
+  thead th{text-align:left; font-family:var(--font-mono); font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--slate-lt); font-weight:700; padding:11px 14px; border-bottom:1px solid var(--line); white-space:nowrap;}
+  tbody td{padding:12px 14px; border-bottom:1px solid var(--line); font-size:13px; vertical-align:middle; white-space:nowrap;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr{cursor:pointer;}
+  tbody tr:hover td{background:#FAFBFD;}
+  tbody tr.row-active td{background:var(--harbor-50);}
+  td.ref{font-weight:700;}
+  td.amt{text-align:right; font-family:var(--font-mono);}
+  th.amt{text-align:right;}
+
+  .chip{display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:5px; font-size:11px; font-weight:700; white-space:nowrap;}
+  .chip::before{content:""; width:6px; height:6px; border-radius:50%; background:currentColor;}
+  .chip.moss{color:var(--moss); background:var(--moss-bg);}
+  .chip.amber{color:var(--amber); background:var(--amber-bg);}
+  .chip.teal{color:var(--teal); background:var(--teal-bg);}
+  .chip.rust{color:var(--rust); background:var(--rust-bg);}
+
+  .pager{display:flex; align-items:center; justify-content:space-between; padding:14px 20px; font-size:12.5px; color:var(--slate-lt);}
+
+  /* ---------------- drawer ---------------- */
+  .drawer-overlay{position:fixed; inset:0; background:rgba(11,20,32,.4); z-index:30; opacity:0; pointer-events:none; transition:opacity .18s ease;}
+  .drawer-overlay.open{opacity:1; pointer-events:auto;}
+  .drawer{position:fixed; top:0; right:0; height:100vh; width:480px; max-width:100vw; background:#fff; box-shadow:var(--e3); z-index:31; transform:translateX(100%); transition:transform .22s ease; display:flex; flex-direction:column;}
+  .drawer.open{transform:translateX(0);}
+  .drawer-head{display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--line); flex:0 0 auto;}
+  .drawer-head h3{font-size:17px;}
+  .drawer-close{width:30px; height:30px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--slate); display:flex; align-items:center; justify-content:center;}
+  .drawer-close:hover{background:var(--mist);}
+  .drawer-sub{padding:0 22px 16px; border-bottom:1px solid var(--line); flex:0 0 auto;}
+  .drawer-sub .po{font-size:13px; color:var(--slate);}
+  .drawer-sub .stat{margin-top:8px;}
+  .drawer-tabs{display:flex; padding:0 22px; border-bottom:1px solid var(--line); flex:0 0 auto;}
+  .d-tab{background:none; border:none; padding:12px 4px; margin-right:22px; font-size:13px; font-weight:700; color:var(--slate-lt); border-bottom:2px solid transparent;}
+  .d-tab.active{color:var(--harbor); border-bottom-color:var(--harbor);}
+  .drawer-body{padding:20px 22px; overflow-y:auto; flex:1;}
+
+  .pdf-row{display:flex; align-items:center; justify-content:space-between; background:var(--mist); border:1px solid var(--line); border-radius:8px; padding:11px 14px; margin-bottom:18px;}
+  .pdf-row .n{display:flex; align-items:center; gap:9px; font-size:13px; font-weight:600;}
+  .pdf-row .n .icon{color:var(--rust);}
+  .pdf-row .actions{display:flex; gap:14px; font-size:12.5px; font-weight:700; color:var(--harbor);}
+  .pdf-row .actions a:hover{text-decoration:underline;}
+
+  .d-fld{display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line); font-size:13.5px;}
+  .d-fld:last-child{border-bottom:none;}
+  .d-fld .l{color:var(--slate-lt);}
+  .d-fld .v{font-weight:600;}
+  .d-fld .v.due-soon{color:var(--rust);}
+
+  .timeline{list-style:none; margin:0; padding:0; margin-left:5px; border-left:2px solid var(--line);}
+  .timeline li{position:relative; padding:0 0 20px 22px;}
+  .timeline li:last-child{padding-bottom:0;}
+  .timeline li::before{content:""; position:absolute; left:-7px; top:1px; width:12px; height:12px; border-radius:50%; background:#fff; border:2.5px solid var(--harbor);}
+  .timeline li.t-moss::before{border-color:var(--moss);}
+  .timeline li.t-pending::before{border-color:var(--line); background:var(--mist);}
+  .timeline li.t-pending .txt{color:var(--slate-lt);}
+  .timeline .txt{font-size:13px;}
+  .timeline .txt b{font-weight:600;}
+  .timeline .when{font-size:11.5px; color:var(--slate-lt); margin-top:2px; font-family:var(--font-mono);}
+
+  .comment{display:flex; gap:10px; margin-bottom:14px;}
+  .comment .av{width:26px; height:26px; border-radius:50%; background:linear-gradient(135deg,#3E63E0,#0B2A4A); color:#fff; font-size:10.5px; font-weight:700; display:flex; align-items:center; justify-content:center; flex:0 0 auto;}
+  .comment .body{flex:1; min-width:0;}
+  .comment .who{font-size:12.5px; font-weight:700;}
+  .comment .who span{font-weight:400; color:var(--slate-lt); margin-left:6px; font-family:var(--font-mono); font-size:11px;}
+  .comment .txt{font-size:13px; margin-top:2px; color:var(--ink);}
+  .comment-input{display:flex; gap:8px; margin-top:6px;}
+  .comment-input input{flex:1; border:1px solid var(--line); border-radius:7px; padding:9px 12px; font-size:13px;}
+  .comment-input button{background:var(--harbor); color:#fff; border:none; border-radius:7px; padding:0 14px; font-size:12.5px; font-weight:700;}
+
+  @media (max-width:640px){
+    .sidebar{display:none;}
+    .page{padding:20px 16px 40px;}
+    .drawer{width:100%;}
+  }
+</style>
+</head>
+<body>
+
+<svg style="display:none">
+  <symbol id="i-anchor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><line x1="12" y1="7" x2="12" y2="19"/><line x1="8" y1="10" x2="16" y2="10"/><path d="M5 14a7 7 0 0 0 14 0"/><line x1="5" y1="14" x2="5" y2="11"/><line x1="19" y1="14" x2="19" y2="11"/></symbol>
+  <symbol id="i-dashboard" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="8" rx="1.2"/><rect x="13" y="4" width="7" height="5" rx="1.2"/><rect x="13" y="11" width="7" height="9" rx="1.2"/><rect x="4" y="14" width="7" height="6" rx="1.2"/></symbol>
+  <symbol id="i-kanban" viewBox="0 0 24 24"><rect x="4" y="4" width="4.5" height="16" rx="1"/><rect x="10" y="4" width="4.5" height="10" rx="1"/><rect x="16" y="4" width="4.5" height="13" rx="1"/></symbol>
+  <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="16" rx="1.5"/><rect x="9" y="2.3" width="6" height="3" rx="1"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="13.5" x2="15" y2="13.5"/><line x1="9" y1="17" x2="13" y2="17"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12 20 4 13 20 11 13 4 12Z"/></symbol>
+  <symbol id="i-cart" viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/><path d="M3 4h2l2.2 11h10.6L20 8H6.4"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-2-1.3L14 21l-2-1.3L10 21l-2-1.3L6 21V3Z"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></symbol>
+  <symbol id="i-package" viewBox="0 0 24 24"><path d="M3 8 12 4l9 4-9 4-9-4Z"/><path d="M3 8v9l9 4 9-4V8"/><line x1="12" y1="12" x2="12" y2="21"/></symbol>
+  <symbol id="i-building" viewBox="0 0 24 24"><rect x="5" y="3" width="10" height="18" rx="1"/><rect x="15" y="9" width="5" height="12" rx="1"/><rect x="7.5" y="6.3" width="1.8" height="1.8"/><rect x="11.5" y="6.3" width="1.8" height="1.8"/><rect x="7.5" y="10.3" width="1.8" height="1.8"/><rect x="11.5" y="10.3" width="1.8" height="1.8"/></symbol>
+  <symbol id="i-ship" viewBox="0 0 24 24"><path d="M4 15h16l-2 5H6l-2-5Z"/><path d="M6 15V7h4V4h4v3"/><line x1="12" y1="4" x2="16" y2="6"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><line x1="4" y1="20" x2="4" y2="10"/><line x1="10" y1="20" x2="10" y2="4"/><line x1="16" y1="20" x2="16" y2="13"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7.8"/><line x1="12" y1="1.8" x2="12" y2="4.4"/><line x1="12" y1="19.6" x2="12" y2="22.2"/><line x1="22.2" y1="12" x2="19.6" y2="12"/><line x1="4.4" y1="12" x2="1.8" y2="12"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><line x1="20" y1="20" x2="15.8" y2="15.8"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 10a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 14 6 10Z"/><path d="M10 18.5a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7Z"/><path d="M14 3v4h4"/><line x1="9.5" y1="12.3" x2="14.5" y2="12.3"/><line x1="9.5" y1="15.3" x2="14.5" y2="15.3"/></symbol>
+</svg>
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="mark"><svg class="icon" style="width:16px;height:16px;"><use href="#i-anchor"/></svg></span>
+      <span class="word">Vessel&nbsp;PMS</span>
+    </div>
+    <nav class="nav">
+      <a href="dashboard.html"><svg class="icon"><use href="#i-dashboard"/></svg>Dashboard</a>
+      <a href="pipeline.html"><svg class="icon"><use href="#i-kanban"/></svg>Pipeline</a>
+      <a href="po-requests.html"><svg class="icon"><use href="#i-clipboard"/></svg>PO Requests<span class="count">18</span></a>
+      <a href="rfq-list.html"><svg class="icon"><use href="#i-send"/></svg>Request for Quote<span class="count">9</span></a>
+      <a href="purchase-orders.html"><svg class="icon"><use href="#i-cart"/></svg>Purchase Orders</a>
+      <a href="invoice-log.html" class="active"><svg class="icon"><use href="#i-receipt"/></svg>Invoice Log<span class="count">12</span></a>
+      <a href="delivery-notes.html"><svg class="icon"><use href="#i-package"/></svg>Delivery Notes</a>
+      <a href="vendors.html"><svg class="icon"><use href="#i-building"/></svg>Vendors</a>
+      <a href="vessels.html"><svg class="icon"><use href="#i-ship"/></svg>Vessels</a>
+      <div class="divider"></div>
+      <a href="reports.html"><svg class="icon"><use href="#i-chart"/></svg>Reports</a>
+      <a href="team-access.html"><svg class="icon"><use href="#i-settings"/></svg>Settings</a>
+    </nav>
+    <div class="sidebar-foot">Fleet Procurement Co. · v1.0</div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="search">
+        <svg class="icon" style="width:15px;height:15px;"><use href="#i-search"/></svg>
+        Search PRs, POs, invoices, vendors, vessels…
+        <span class="kbd">⌘K</span>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" aria-label="Notifications"><svg class="icon"><use href="#i-bell"/></svg><span class="dot"></span></button>
+        <button class="avatar-btn">
+          <span class="avatar">AR</span>
+          <span class="who"><b>Arjun Rao</b><span>Purchase Officer</span></span>
+          <svg class="icon" style="width:13px;height:13px; color:var(--slate-lt);"><use href="#i-chevron"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="page">
+      <div class="page-head">
+        <div>
+          <h1>Invoice Log</h1>
+          <p>Every vendor invoice against a PO, from submission to payment.</p>
+        </div>
+        <button class="btn btn-primary"><svg class="icon" style="width:15px;height:15px;"><use href="#i-plus"/></svg>New Invoice</button>
+      </div>
+
+      <div class="card">
+        <div class="toolbar">
+          <div class="search2"><svg class="icon" style="width:13px;height:13px;"><use href="#i-search"/></svg>Search invoice or PO ref</div>
+          <div class="filter">Status: All <svg class="icon"><use href="#i-chevron"/></svg></div>
+          <div class="filter">Vendor: All <svg class="icon"><use href="#i-chevron"/></svg></div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Ref</th><th>PO Ref</th><th>Vendor</th><th>Date</th><th>Due</th><th class="amt">Amount</th><th>Status</th></tr>
+            </thead>
+            <tbody id="invoiceBody">
+              <tr class="inv-row row-active" data-inv="INV-889"><td class="ref">INV-889</td><td>PO-1042</td><td>Marine Supplies Co.</td><td>3 Jul</td><td>17 Jul</td><td class="amt">$8,240</td><td><span class="chip amber">Pending</span></td></tr>
+              <tr class="inv-row" data-inv="INV-888"><td class="ref">INV-888</td><td>PO-1041</td><td>Hind Supply Co.</td><td>2 Jul</td><td>16 Jul</td><td class="amt">$3,180</td><td><span class="chip moss">Paid</span></td></tr>
+              <tr class="inv-row" data-inv="INV-887"><td class="ref">INV-887</td><td>PO-1040</td><td>SeaParts Direct</td><td>1 Jul</td><td>9 Jul</td><td class="amt">$960</td><td><span class="chip moss">Paid</span></td></tr>
+              <tr class="inv-row" data-inv="INV-886"><td class="ref">INV-886</td><td>PO-1039</td><td>Global Ship Chandlers</td><td>30 Jun</td><td>13 Jul</td><td class="amt">$5,410</td><td><span class="chip amber">Pending</span></td></tr>
+              <tr class="inv-row" data-inv="INV-885"><td class="ref">INV-885</td><td>PO-1038</td><td>Hind Supply Co.</td><td>28 Jun</td><td>7 Jul</td><td class="amt">$3,180</td><td><span class="chip teal">Approved</span></td></tr>
+              <tr class="inv-row" data-inv="INV-884"><td class="ref">INV-884</td><td>PO-1036</td><td>Marine Solutions Ltd.</td><td>23 Jun</td><td>1 Jul</td><td class="amt">$6,780</td><td><span class="chip rust">Overdue</span></td></tr>
+              <tr class="inv-row" data-inv="INV-883"><td class="ref">INV-883</td><td>PO-1035</td><td>Bay Marine Rigging Co.</td><td>21 Jun</td><td>29 Jun</td><td class="amt">$1,920</td><td><span class="chip moss">Paid</span></td></tr>
+              <tr class="inv-row" data-inv="INV-882"><td class="ref">INV-882</td><td>PO-1033</td><td>Hind Supply Co.</td><td>16 Jun</td><td>24 Jun</td><td class="amt">$7,150</td><td><span class="chip moss">Paid</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pager"><span>Showing 1–8 of 12</span><span>◂ 1 2 ▸</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <h3 id="drawerTitle">INV-889</h3>
+    <button class="drawer-close" id="drawerClose" aria-label="Close"><svg class="icon" style="width:15px;height:15px;"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="drawer-sub">
+    <div class="po" id="drawerPo">PO-1042 · Marine Supplies Co.</div>
+    <div class="stat" id="drawerStatus"><span class="chip amber">Pending</span></div>
+  </div>
+  <div class="drawer-tabs">
+    <button class="d-tab active" data-dtab="details">Details</button>
+    <button class="d-tab" data-dtab="timeline">Approval timeline</button>
+    <button class="d-tab" data-dtab="comments">Comments</button>
+  </div>
+  <div class="drawer-body">
+    <div class="d-panel" data-dpanel="details">
+      <div class="pdf-row">
+        <span class="n"><svg class="icon" style="width:16px;height:16px;"><use href="#i-file"/></svg>invoice.pdf</span>
+        <span class="actions"><a href="#">View</a><a href="#">Download</a></span>
+      </div>
+      <div class="d-fld"><span class="l">Amount</span><span class="v" id="drawerAmount">$8,240</span></div>
+      <div class="d-fld"><span class="l">Invoice date</span><span class="v" id="drawerDate">3 Jul 2026</span></div>
+      <div class="d-fld"><span class="l">Due date</span><span class="v" id="drawerDue">17 Jul 2026</span></div>
+      <div class="d-fld"><span class="l">Vendor</span><span class="v" id="drawerVendor">Marine Supplies Co.</span></div>
+      <div class="d-fld"><span class="l">PO reference</span><span class="v" id="drawerPoRef">PO-1042</span></div>
+    </div>
+    <div class="d-panel" data-dpanel="timeline" hidden>
+      <ul class="timeline" id="drawerTimeline">
+        <li class="t-moss"><div class="txt"><b>Submitted</b> — vendor</div><div class="when">3 Jul</div></li>
+        <li class="t-moss"><div class="txt"><b>Reviewed</b> — Accounts</div><div class="when">4 Jul</div></li>
+        <li class="t-pending"><div class="txt">Approved</div></li>
+        <li class="t-pending"><div class="txt">Payment scheduled</div></li>
+      </ul>
+    </div>
+    <div class="d-panel" data-dpanel="comments" hidden>
+      <div class="comment">
+        <span class="av">SI</span>
+        <div class="body"><div class="who">S. Iyer <span>4 Jul, 10:12</span></div><div class="txt">Amount matches the PO — waiting on Accounts sign-off.</div></div>
+      </div>
+      <div class="comment-input"><input type="text" placeholder="Add a comment…"/><button type="button">Post</button></div>
+    </div>
+  </div>
+</aside>
+
+<script>
+(function(){
+  var invoices = {
+    'INV-889': {po:'PO-1042', vendor:'Marine Supplies Co.', date:'3 Jul 2026', due:'17 Jul 2026', amount:'$8,240', statusChip:'chip amber', statusLabel:'Pending',
+      timeline:[
+        {state:'moss', label:'Submitted — vendor', when:'3 Jul'},
+        {state:'moss', label:'Reviewed — Accounts', when:'4 Jul'},
+        {state:'pending', label:'Approved'},
+        {state:'pending', label:'Payment scheduled'}
+      ]},
+    'INV-888': {po:'PO-1041', vendor:'Hind Supply Co.', date:'2 Jul 2026', due:'16 Jul 2026', amount:'$3,180', statusChip:'chip moss', statusLabel:'Paid',
+      timeline:[
+        {state:'moss', label:'Submitted — vendor', when:'2 Jul'},
+        {state:'moss', label:'Reviewed — Accounts', when:'3 Jul'},
+        {state:'moss', label:'Approved — Fleet Mgr', when:'3 Jul'},
+        {state:'moss', label:'Payment scheduled', when:'5 Jul'}
+      ]},
+    'INV-887': {po:'PO-1040', vendor:'SeaParts Direct', date:'1 Jul 2026', due:'9 Jul 2026', amount:'$960', statusChip:'chip moss', statusLabel:'Paid',
+      timeline:[
+        {state:'moss', label:'Submitted — vendor', when:'1 Jul'},
+        {state:'moss', label:'Reviewed — Accounts', when:'2 Jul'},
+        {state:'moss', label:'Approved — Fleet Mgr', when:'2 Jul'},
+        {state:'moss', label:'Payment scheduled', when:'4 Jul'}
+      ]},
+    'INV-886': {po:'PO-1039', vendor:'Global Ship Chandlers', date:'30 Jun 2026', due:'13 Jul 2026', amount:'$5,410', statusChip:'chip amber', statusLabel:'Pending',
+      timeline:[
+        {state:'moss', label:'Submitted — vendor', when:'30 Jun'},
+        {state:'pending', label:'Reviewed'},
+        {state:'pending', label:'Approved'},
+        {state:'pending', label:'Payment scheduled'}
+      ]},
+    'INV-885': {po:'PO-1038', vendor:'Hind Supply Co.', date:'28 Jun 2026', due:'7 Jul 2026', amount:'$3,180', statusChip:'chip teal', statusLabel:'Approved',
+      timeline:[
+        {state:'moss', label:'Submitted — vendor', when:'28 Jun'},
+        {state:'moss', label:'Reviewed — Accounts', when:'29 Jun'},
+        {state:'moss', label:'Approved — Fleet Mgr', when:'30 Jun'},
+        {state:'pending', label:'Payment scheduled'}
+      ]},
+    'INV-884': {po:'PO-1036', vendor:'Marine Solutions Ltd.', date:'23 Jun 2026', due:'1 Jul 2026', amount:'$6,780', statusChip:'chip rust', statusLabel:'Overdue',
+      timeline:[
+        {state:'moss', label:'Submitted — vendor', when:'23 Jun'},
+        {state:'moss', label:'Reviewed — Accounts', when:'24 Jun'},
+        {state:'pending', label:'Approved'},
+        {state:'pending', label:'Payment scheduled'}
+      ]},
+    'INV-883': {po:'PO-1035', vendor:'Bay Marine Rigging Co.', date:'21 Jun 2026', due:'29 Jun 2026', amount:'$1,920', statusChip:'chip moss', statusLabel:'Paid',
+      timeline:[
+        {state:'moss', label:'Submitted — vendor', when:'21 Jun'},
+        {state:'moss', label:'Reviewed — Accounts', when:'22 Jun'},
+        {state:'moss', label:'Approved — Fleet Mgr', when:'23 Jun'},
+        {state:'moss', label:'Payment scheduled', when:'26 Jun'}
+      ]},
+    'INV-882': {po:'PO-1033', vendor:'Hind Supply Co.', date:'16 Jun 2026', due:'24 Jun 2026', amount:'$7,150', statusChip:'chip moss', statusLabel:'Paid',
+      timeline:[
+        {state:'moss', label:'Submitted — vendor', when:'16 Jun'},
+        {state:'moss', label:'Reviewed — Accounts', when:'17 Jun'},
+        {state:'moss', label:'Approved — Fleet Mgr', when:'17 Jun'},
+        {state:'moss', label:'Payment scheduled', when:'19 Jun'}
+      ]}
+  };
+
+  var overlay = document.getElementById('drawerOverlay');
+  var drawer = document.getElementById('drawer');
+  var rows = document.querySelectorAll('.inv-row');
+
+  function renderTimeline(steps){
+    var html = '';
+    steps.forEach(function(s){
+      var cls = s.state === 'pending' ? 't-pending' : 't-moss';
+      html += '<li class="' + cls + '"><div class="txt">' + s.label + '</div>' + (s.when ? '<div class="when">' + s.when + '</div>' : '') + '</li>';
+    });
+    document.getElementById('drawerTimeline').innerHTML = html;
+  }
+
+  function openDrawer(ref){
+    var inv = invoices[ref];
+    if(!inv) return;
+    document.getElementById('drawerTitle').textContent = ref;
+    document.getElementById('drawerPo').textContent = inv.po + ' · ' + inv.vendor;
+    document.getElementById('drawerStatus').innerHTML = '<span class="' + inv.statusChip + '">' + inv.statusLabel + '</span>';
+    document.getElementById('drawerAmount').textContent = inv.amount;
+    document.getElementById('drawerDate').textContent = inv.date;
+    document.getElementById('drawerDue').textContent = inv.due;
+    document.getElementById('drawerVendor').textContent = inv.vendor;
+    document.getElementById('drawerPoRef').textContent = inv.po;
+    renderTimeline(inv.timeline);
+
+    rows.forEach(function(r){ r.classList.toggle('row-active', r.dataset.inv === ref); });
+    overlay.classList.add('open');
+    drawer.classList.add('open');
+    drawer.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeDrawer(){
+    overlay.classList.remove('open');
+    drawer.classList.remove('open');
+    drawer.setAttribute('aria-hidden', 'true');
+  }
+
+  rows.forEach(function(r){
+    r.addEventListener('click', function(){ openDrawer(r.dataset.inv); });
+  });
+  document.getElementById('drawerClose').addEventListener('click', closeDrawer);
+  overlay.addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeDrawer(); });
+
+  document.querySelectorAll('.d-tab').forEach(function(tab){
+    tab.addEventListener('click', function(){
+      document.querySelectorAll('.d-tab').forEach(function(t){ t.classList.toggle('active', t === tab); });
+      document.querySelectorAll('.d-panel').forEach(function(p){ p.hidden = p.dataset.dpanel !== tab.dataset.dtab; });
+    });
+  });
+
+  openDrawer('INV-889');
+})();
+</script>
+</body>
+</html>

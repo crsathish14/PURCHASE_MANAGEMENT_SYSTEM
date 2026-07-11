@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Submit Quote — RFQ-0409 · Vessel PMS</title>
+<style>
+  :root{
+    --ink:#101418; --paper:#ffffff; --mist:#F4F6FA;
+    --harbor:#1E49D6; --harbor-50:#EAEEFC;
+    --slate:#5B6472; --slate-lt:#8891A0; --line:#E2E6ED;
+    --moss:#147A52; --moss-bg:#E7F5EE;
+    --amber:#B5750A; --amber-bg:#FBF0DE;
+    --rust:#C0392E;
+    --e1:0 1px 2px rgba(16,20,24,.07), 0 1px 1px rgba(16,20,24,.04);
+    --e2:0 4px 14px rgba(16,20,24,.09);
+    --font-display: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+    --font-body: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "SF Mono", "Cascadia Code", Consolas, "Roboto Mono", monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{font-family:var(--font-body); color:var(--ink); background:var(--mist); font-size:14.5px; line-height:1.55; -webkit-font-smoothing:antialiased;}
+  h1,h2{font-family:var(--font-display); font-weight:600; text-wrap:balance; margin:0;}
+  a{color:var(--harbor);}
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{outline:2px solid var(--harbor); outline-offset:2px;}
+  .icon{width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; flex:0 0 auto;}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+
+  .topbar{height:60px; display:flex; align-items:center; justify-content:space-between; padding:0 28px; background:var(--paper); border-bottom:1px solid var(--line);}
+  .brand{display:flex; align-items:center; gap:9px;}
+  .brand .mark{width:26px; height:26px; border-radius:7px; background:var(--harbor); color:#fff; display:flex; align-items:center; justify-content:center;}
+  .brand .word{font-family:var(--font-display); font-size:15px;}
+  .secure{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--slate-lt); font-family:var(--font-mono);}
+
+  .page{display:flex; justify-content:center; padding:44px 18px 90px;}
+  .container{width:100%; max-width:620px;}
+
+  .intro{margin-bottom:26px;}
+  .intro .eyebrow{font-family:var(--font-mono); font-size:11px; letter-spacing:.07em; text-transform:uppercase; color:var(--harbor); font-weight:700; display:block; margin-bottom:8px;}
+  .intro h1{font-size:24px;}
+  .intro p{color:var(--slate); margin:8px 0 0; font-size:13.5px;}
+
+  .context-card{background:var(--paper); border:1px solid var(--line); border-left:3px solid var(--harbor); border-radius:10px; padding:22px 24px; box-shadow:var(--e1);}
+  .context-head{display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;}
+  .context-ref{font-family:var(--font-mono); font-size:11.5px; color:var(--slate); letter-spacing:.02em;}
+  .context-ref .sep{color:var(--line); margin:0 4px;}
+  .context-card h2{font-size:19px; margin-top:5px;}
+  .context-meta{color:var(--slate); font-size:12.5px; margin-top:5px;}
+  .context-meta .sep{color:var(--line); margin:0 6px;}
+
+  .deadline-chip{background:var(--amber-bg); color:var(--amber); border-radius:8px; padding:8px 13px; text-align:right; flex:0 0 auto;}
+  .deadline-chip .top{display:flex; align-items:center; gap:6px; font-weight:700; font-size:12.5px; justify-content:flex-end;}
+  .deadline-chip .sub{font-family:var(--font-mono); font-size:10.5px; color:#8A6212; margin-top:3px;}
+
+  .items-table{width:100%; border-collapse:collapse; margin-top:18px; padding-top:16px; border-top:1px solid var(--line);}
+  .items-table th{text-align:left; font-family:var(--font-mono); font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--slate-lt); font-weight:700; padding-bottom:8px;}
+  .items-table td{padding:7px 0; font-size:13px; border-top:1px solid #F0F2F6;}
+  .items-table td.qty{text-align:right; font-family:var(--font-mono); color:var(--slate); white-space:nowrap;}
+  .items-table .part{color:var(--slate-lt); font-size:11.5px; font-family:var(--font-mono); margin-top:1px;}
+
+  .verified-row{display:flex; align-items:center; gap:7px; margin-top:16px; padding-top:14px; border-top:1px solid var(--line); font-size:12.5px; color:var(--moss); font-weight:600;}
+
+  form.form-card{background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:26px 26px 28px; margin-top:20px; box-shadow:var(--e1);}
+  .field{margin-bottom:18px;}
+  .field:last-of-type{margin-bottom:0;}
+  .field label{display:block; font-size:12.5px; font-weight:700; color:var(--ink); margin-bottom:7px;}
+  .field label .optional{font-weight:400; color:var(--slate-lt); text-transform:none; letter-spacing:0; margin-left:5px;}
+  .field input, .field select, .field textarea{width:100%; border:1px solid var(--line); border-radius:7px; padding:10px 12px; font-size:13.5px; font-family:var(--font-body); color:var(--ink); background:#fff;}
+  .field input:focus, .field select:focus, .field textarea:focus{border-color:var(--harbor);}
+  .field textarea{resize:vertical; min-height:76px; line-height:1.5;}
+  .field .hint{font-size:11.5px; color:var(--slate-lt); margin-top:6px;}
+  .field-row{display:flex; gap:14px; margin-bottom:18px;}
+  .field-row .field{flex:1; margin-bottom:0;}
+
+  .locked-value{display:flex; align-items:center; justify-content:space-between; background:var(--mist); border:1px solid var(--line); border-radius:7px; padding:10px 12px;}
+  .locked-value b{font-size:13.5px; font-weight:700;}
+  .locked-tag{display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:700; color:var(--moss); background:var(--moss-bg); padding:2px 8px; border-radius:5px;}
+
+  .file-chip{display:flex; align-items:center; gap:11px; background:var(--mist); border:1px solid var(--line); border-radius:7px; padding:9px 12px;}
+  .file-chip .fi{width:30px; height:30px; border-radius:6px; background:#fff; border:1px solid var(--line); color:var(--rust); display:flex; align-items:center; justify-content:center; flex:0 0 auto;}
+  .file-chip .meta{flex:1; min-width:0;}
+  .file-chip .meta .n{font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .file-chip .meta .s{font-size:11px; color:var(--slate-lt); margin-top:1px;}
+  .file-chip .rm{width:24px; height:24px; border-radius:6px; border:none; background:transparent; color:var(--slate-lt); display:flex; align-items:center; justify-content:center;}
+  .file-chip .rm:hover{background:#E9ECF2; color:var(--rust);}
+  .add-file{display:inline-flex; align-items:center; gap:5px; margin-top:9px; background:none; border:none; color:var(--harbor); font-size:12.5px; font-weight:600; padding:0;}
+
+  .submit-btn{width:100%; background:var(--harbor); color:#fff; border:none; border-radius:8px; padding:14px; font-size:14.5px; font-weight:700; margin-top:24px; box-shadow:var(--e2);}
+  .submit-btn:hover{filter:brightness(1.05);}
+  .submit-hint{text-align:center; font-size:11.5px; color:var(--slate-lt); margin-top:11px;}
+
+  .footer-note{max-width:520px; margin:26px auto 0; text-align:center; font-size:11.5px; color:var(--slate-lt); line-height:1.7; padding:0 10px;}
+  .footer-note b{color:var(--slate);}
+
+  @media (max-width:560px){
+    .topbar{padding:0 16px;}
+    .page{padding:28px 14px 70px;}
+    .context-card, form.form-card{padding:18px 18px 20px;}
+    .field-row{flex-direction:column; gap:18px;}
+    .deadline-chip{text-align:left; width:100%;}
+    .deadline-chip .top{justify-content:flex-start;}
+  }
+</style>
+</head>
+<body>
+
+<svg style="display:none">
+  <symbol id="i-anchor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><line x1="12" y1="7" x2="12" y2="19"/><line x1="8" y1="10" x2="16" y2="10"/><path d="M5 14a7 7 0 0 0 14 0"/><line x1="5" y1="14" x2="5" y2="11"/><line x1="19" y1="14" x2="19" y2="11"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9.5" rx="1.6"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><polyline points="12 7 12 12 15.5 14"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><polyline points="8 12.3 11 15.3 16 9"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7Z"/><path d="M14 3v4h4"/><line x1="9.5" y1="12.3" x2="14.5" y2="12.3"/><line x1="9.5" y1="15.3" x2="14.5" y2="15.3"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+</svg>
+
+<div class="shell">
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark"><svg class="icon" style="width:14px;height:14px;"><use href="#i-anchor"/></svg></span>
+      <span class="word">Vessel&nbsp;PMS</span>
+    </div>
+    <div class="secure"><svg class="icon" style="width:13px;height:13px;"><use href="#i-lock"/></svg>Secure vendor link</div>
+  </header>
+
+  <main class="page">
+    <div class="container">
+      <div class="intro">
+        <span class="eyebrow">Quote request</span>
+        <h1>Fleet Procurement Co. would like a quote from Hind Supply Co.</h1>
+        <p>Review the request below and submit your best price before the deadline — no account or login needed.</p>
+      </div>
+
+      <section class="context-card">
+        <div class="context-head">
+          <div>
+            <div class="context-ref">RFQ-0409 <span class="sep">·</span> PR-2201</div>
+            <h2>Ropes &amp; rigging supply</h2>
+            <div class="context-meta">MV Orion <span class="sep">·</span> Deck department</div>
+          </div>
+          <div class="deadline-chip">
+            <div class="top"><svg class="icon" style="width:13px;height:13px;"><use href="#i-clock"/></svg>Closes in 2 days</div>
+            <div class="sub">Sun, 5 Jul · 6:00 PM IST</div>
+          </div>
+        </div>
+
+        <table class="items-table">
+          <thead><tr><th>Item</th><th class="qty">Qty</th></tr></thead>
+          <tbody>
+            <tr><td>Mooring rope, 40mm ⌀<div class="part">MR-40</div></td><td class="qty">4 coils</td></tr>
+            <tr><td>Wire rope sling, 2T<div class="part">WRS-2T</div></td><td class="qty">6 pcs</td></tr>
+            <tr><td>Bow shackles, 10mm<div class="part">SHK-10</div></td><td class="qty">20 pcs</td></tr>
+          </tbody>
+        </table>
+
+        <div class="verified-row"><svg class="icon" style="width:15px;height:15px;"><use href="#i-check"/></svg>Link verified for Hind Supply Co.</div>
+      </section>
+
+      <form class="form-card">
+        <div class="field">
+          <label>Quoting as</label>
+          <div class="locked-value"><b>Hind Supply Co.</b><span class="locked-tag"><svg class="icon" style="width:10px;height:10px;"><use href="#i-check"/></svg>Verified</span></div>
+          <div class="hint">Not your company? <a href="#">Contact procurement</a> instead of continuing.</div>
+        </div>
+
+        <div class="field">
+          <label>Quote number <span class="optional">your own reference</span></label>
+          <input type="text" value="HSC-Q-1187"/>
+        </div>
+
+        <div class="field-row">
+          <div class="field" style="flex:1.6;">
+            <label>Price</label>
+            <input type="text" value="84,500"/>
+          </div>
+          <div class="field">
+            <label>Currency</label>
+            <select>
+              <option selected>INR</option>
+              <option>USD</option>
+              <option>EUR</option>
+              <option>SGD</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>Lead time</label>
+            <input type="text" value="7 days"/>
+          </div>
+          <div class="field">
+            <label>Delivery date</label>
+            <input type="text" value="10 Jul 2026"/>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Payment terms</label>
+          <input type="text" value="30 days net"/>
+        </div>
+
+        <div class="field">
+          <label>Attachments</label>
+          <div class="file-chip">
+            <span class="fi"><svg class="icon" style="width:15px;height:15px;"><use href="#i-file"/></svg></span>
+            <span class="meta"><div class="n">HSC-Quote-1187.pdf</div><div class="s">240 KB</div></span>
+            <button type="button" class="rm" aria-label="Remove file"><svg class="icon" style="width:14px;height:14px;"><use href="#i-x"/></svg></button>
+          </div>
+          <button type="button" class="add-file"><svg class="icon" style="width:12px;height:12px;"><use href="#i-plus"/></svg>Add another file</button>
+        </div>
+
+        <div class="field">
+          <label>Remarks <span class="optional">optional</span></label>
+          <textarea>Stock ready for immediate dispatch from our Mumbai warehouse.</textarea>
+        </div>
+
+        <button type="submit" class="submit-btn">Submit quote</button>
+        <div class="submit-hint">You'll get an email confirmation once it's received — you can resubmit any time before the deadline.</div>
+      </form>
+
+      <div class="footer-note">
+        This link is unique to <b>Hind Supply Co.</b> for RFQ-0409 and shouldn't be shared. Questions about this request? Reply directly to the email it came in.
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

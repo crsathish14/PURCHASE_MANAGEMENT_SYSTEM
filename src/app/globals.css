@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+/* Design tokens ported from Design-docs/design-spec.html (§06 Design system). */
+@theme {
+  --color-ink: #101418;
+  --color-paper: #ffffff;
+  --color-mist: #f4f6fa;
+
+  --color-harbor: #1e49d6;
+  --color-harbor-50: #eaeefc;
+  --color-harbor-lt: #5c86f5;
+
+  --color-deep: #0b2a4a;
+  --color-deep-2: #123a63;
+  --color-deep-3: #1a4a80;
+
+  --color-slate: #5b6472;
+  --color-slate-lt: #8891a0;
+  --color-line: #e2e6ed;
+
+  --color-moss: #147a52;
+  --color-moss-bg: #e7f5ee;
+  --color-amber: #b5750a;
+  --color-amber-bg: #fbf0de;
+  --color-rust: #c0392e;
+  --color-rust-bg: #fbeae8;
+  --color-teal: #0e7c8c;
+  --color-teal-bg: #e5f4f6;
+
+  --color-chip: #5b6472;
+  --color-chip-bg: #eef1f5;
+
+  --font-display: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+  --font-body: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SF Mono", "Cascadia Code", Consolas, "Roboto Mono", monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --shadow-e1: 0 1px 2px rgba(16, 20, 24, 0.08);
+  --shadow-e2: 0 4px 12px rgba(16, 20, 24, 0.1);
+  --shadow-e3: 0 12px 32px rgba(16, 20, 24, 0.16);
+  --shadow-e4: 0 24px 64px rgba(16, 20, 24, 0.22);
+}
+
+/* Dark-mode overrides, applied via [data-theme="dark"] on <html> (see
+   src/components/theme-init.tsx). Same token names, different values —
+   every component using the semantic tokens re-themes automatically. */
+[data-theme="dark"] {
+  --color-ink: #edf1f7;
+  --color-paper: #141a24;
+  --color-mist: #0b0f16;
+
+  --color-harbor: #5c86f5;
+  --color-harbor-50: #1b2a4d;
+  --color-harbor-lt: #8fb0ff;
+
+  --color-slate: #9aa7bd;
+  --color-slate-lt: #67728a;
+  --color-line: #232b38;
+
+  --color-moss: #2fbe85;
+  --color-moss-bg: #123424;
+  --color-amber: #e0a542;
+  --color-amber-bg: #332510;
+  --color-rust: #e8685a;
+  --color-rust-bg: #351815;
+  --color-teal: #3fc2d3;
+  --color-teal-bg: #0f2e32;
+
+  --color-chip: #9aa7bd;
+  --color-chip-bg: #1b222e;
+}
+
+body {
+  background: var(--color-mist);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
