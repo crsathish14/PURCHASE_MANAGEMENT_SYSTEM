@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
-import "./globals.css";
+import { notFound } from "next/navigation";
+import "../globals.css";
 
 import en from "@/locales/en.json";
+import { isLocale, locales } from "@/lib/i18n";
 import { ThemeInit } from "@/components/theme-init";
 import { Toaster } from "@/components/toaster";
+
+export async function generateStaticParams() {
+  return locales.map((lang) => ({ lang }));
+}
 
 export const metadata: Metadata = {
   title: en.metadata.title,
@@ -17,14 +23,19 @@ export const metadata: Metadata = {
 // Client Component / useEffect.
 const themeInitScript = `(function(){try{var p=localStorage.getItem("theme")||"system";var t=p==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):p;document.documentElement.setAttribute("data-theme",t)}catch(e){}})()`;
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
-}: Readonly<{
+  params,
+}: {
   children: React.ReactNode;
-}>) {
+  params: Promise<{ lang: string }>;
+}) {
+  const { lang } = await params;
+  if (!isLocale(lang)) notFound();
+
   return (
     <html
-      lang="en"
+      lang={lang}
       data-theme="light"
       suppressHydrationWarning
       className="h-full antialiased"
