@@ -34,5 +34,90 @@
     "error": "Show error toast",
     "successMessage": "RFQ-0412 sent to 4 vendors",
     "errorMessage": "Import failed — 2 rows need fixing"
+  },
+  "auth": {
+    "brand": {
+      "word": "Vessel PMS",
+      "headline": "Procurement, from request to delivery, in one system.",
+      "subtext": "Fleet Procurement Co. runs every purchase request, RFQ, purchase order, invoice, and delivery confirmation for its fleet through Vessel PMS.",
+      "stats": {
+        "vessels": "Vessels managed",
+        "pos": "POs this year",
+        "vendors": "Active vendors"
+      }
+    },
+    "login": {
+      "title": "Sign in",
+      "email": "Email",
+      "emailPlaceholder": "name@company.com",
+      "password": "Password",
+      "passwordPlaceholder": "••••••••••••",
+      "showPassword": "Show",
+      "hidePassword": "Hide",
+      "rememberMe": "Remember me",
+      "forgot": "Forgot?",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "switchPrompt": "New to Vessel PMS?",
+      "switchAction": "Request access →",
+      "successTitle": "You're signed in",
+      "successDescription": "Welcome back to Vessel PMS.",
+      "errors": {
+        "emailRequired": "Email is required",
+        "emailInvalid": "Enter a valid email address",
+        "passwordRequired": "Password is required"
+      }
+    },
+    "requestAccess": {
+      "title": "Request access",
+      "description": "Get access to Fleet Procurement Co.'s Vessel PMS. An administrator reviews every request before it's active.",
+      "fullName": "Full name",
+      "fullNamePlaceholder": "e.g. Priya Nair",
+      "workEmail": "Work email",
+      "workEmailPlaceholder": "you@fleetco.com",
+      "role": "Role",
+      "rolePlaceholder": "Select role",
+      "roles": [
+        "Purchase Officer",
+        "Technical Superintendent",
+        "Fleet Manager",
+        "Accounts",
+        "Admin"
+      ],
+      "vessel": "Vessel / department",
+      "vesselPlaceholder": "Select vessel",
+      "vessels": [
+        "MV Aster",
+        "MV Kavya",
+        "MV Orion",
+        "Shore office (fleet-wide)"
+      ],
+      "password": "Password",
+      "confirmPassword": "Confirm password",
+      "strengthLabel": "Password strength",
+      "strength": {
+        "weak": "Weak",
+        "fair": "Fair",
+        "good": "Good",
+        "strong": "Strong"
+      },
+      "submit": "Submit request",
+      "submitting": "Submitting…",
+      "hint": "An admin typically responds within 1 business day — you'll get an email once your access is approved.",
+      "switchPrompt": "Already have access?",
+      "switchAction": "Sign in →",
+      "successTitle": "Request submitted",
+      "successDescription": "An admin typically responds within 1 business day — you'll get an email once your access is approved.",
+      "errors": {
+        "fullNameRequired": "Full name is required",
+        "emailRequired": "Work email is required",
+        "emailInvalid": "Enter a valid email address",
+        "roleRequired": "Select a role",
+        "vesselRequired": "Select a vessel or department",
+        "passwordMin": "Password must be at least 8 characters",
+        "confirmPasswordRequired": "Confirm your password",
+        "passwordMismatch": "Passwords don't match"
+      }
+    }
   }
 }
