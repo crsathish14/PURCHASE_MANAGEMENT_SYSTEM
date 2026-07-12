@@ -75,23 +75,6 @@
       "fullNamePlaceholder": "e.g. Priya Nair",
       "workEmail": "Work email",
       "workEmailPlaceholder": "you@fleetco.com",
-      "role": "Role",
-      "rolePlaceholder": "Select role",
-      "roles": [
-        "Purchase Officer",
-        "Technical Superintendent",
-        "Fleet Manager",
-        "Accounts",
-        "Admin"
-      ],
-      "vessel": "Vessel / department",
-      "vesselPlaceholder": "Select vessel",
-      "vessels": [
-        "MV Aster",
-        "MV Kavya",
-        "MV Orion",
-        "Shore office (fleet-wide)"
-      ],
       "password": "Password",
       "confirmPassword": "Confirm password",
       "strengthLabel": "Password strength",
@@ -112,11 +95,11 @@
         "fullNameRequired": "Full name is required",
         "emailRequired": "Work email is required",
         "emailInvalid": "Enter a valid email address",
-        "roleRequired": "Select a role",
-        "vesselRequired": "Select a vessel or department",
         "passwordMin": "Password must be at least 8 characters",
         "confirmPasswordRequired": "Confirm your password",
-        "passwordMismatch": "Passwords don't match"
+        "passwordMismatch": "Passwords don't match",
+        "emailInUse": "An account with this email already exists.",
+        "networkError": "Couldn't reach the server. Check your connection and try again."
       }
     }
   }

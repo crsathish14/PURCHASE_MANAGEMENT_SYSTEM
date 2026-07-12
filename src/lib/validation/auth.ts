@@ -22,8 +22,6 @@ export const requestAccessSchema = z
     workEmail: z
       .email({ error: requestAccessErrors.emailInvalid })
       .min(1, { error: requestAccessErrors.emailRequired }),
-    role: z.string().min(1, { error: requestAccessErrors.roleRequired }),
-    vessel: z.string().min(1, { error: requestAccessErrors.vesselRequired }),
     password: z.string().min(8, { error: requestAccessErrors.passwordMin }),
     confirmPassword: z.string().min(1, { error: requestAccessErrors.confirmPasswordRequired }),
   })

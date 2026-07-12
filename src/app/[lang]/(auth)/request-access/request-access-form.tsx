@@ -5,9 +5,11 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { Button, Input, Label, Select } from "@/components/atoms";
+import { Button, Input, Label } from "@/components/atoms";
 import en from "@/locales/en.json";
 import { requestAccessSchema, type RequestAccessInput } from "@/lib/validation/auth";
+import { createClient } from "@/lib/supabase/client";
+import { toast } from "@/store/toast-store";
 
 import { EyeIcon } from "../icons";
 
@@ -25,18 +27,11 @@ function passwordStrength(password: string) {
   return score;
 }
 
-// Real Supabase auth (supabase.auth.signUp) is deferred to a later pass — see
-// plans/development.md item 11. This simulates a request so the page is
-// fully demoable; swap the body of onSubmit when that lands.
-async function fakeRequestAccess(data: RequestAccessInput) {
-  await new Promise((resolve) => setTimeout(resolve, 600));
-  return data;
-}
-
 export function  RequestAccessForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const supabase = createClient();
 
   const {
     register,
@@ -48,23 +43,44 @@ export function  RequestAccessForm() {
     mode: "onBlur",
   });
 
-  const [fullName, workEmail, role, vessel, password, confirmPassword] = watch([
+  const [fullName, workEmail, password, confirmPassword] = watch([
     "fullName",
     "workEmail",
-    "role",
-    "vessel",
     "password",
     "confirmPassword",
   ]);
   const strength = passwordStrength(password ?? "");
-  const requiredFieldsFilled = Boolean(
-    fullName && workEmail && role && vessel && password && confirmPassword,
-  );
+  const requiredFieldsFilled = Boolean(fullName && workEmail && password && confirmPassword);
   const hasErrors = Object.keys(errors).length > 0;
 
   async function onSubmit(data: RequestAccessInput) {
-    await fakeRequestAccess(data);
-    setSubmitted(true);
+    try {
+      const { data: signUpData, error } = await supabase.auth.signUp({
+        email: data.workEmail,
+        password: data.password,
+        options: {
+          data: { full_name: data.fullName },
+          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/en/login`,
+        },
+      });
+
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+
+      // Supabase returns a "successful" response with an empty identities
+      // array (no error) for an already-registered email when enumeration
+      // protection is on, to avoid leaking which emails exist.
+      if (signUpData.user && signUpData.user.identities?.length === 0) {
+        toast.error(t.errors.emailInUse);
+        return;
+      }
+
+      setSubmitted(true);
+    } catch {
+      toast.error(t.errors.networkError);
+    }
   }
 
   if (submitted) {
@@ -106,35 +122,6 @@ export function  RequestAccessForm() {
             error={errors.workEmail?.message}
             {...register("workEmail")}
           />
-        </div>
-
-        <div className="mb-4 flex gap-3">
-          <div className="flex-1">
-            <Label htmlFor="ra-role" error={!!errors.role}>
-              {t.role}
-            </Label>
-            <Select id="ra-role" defaultValue="" error={errors.role?.message} {...register("role")}>
-              <option value="">{t.rolePlaceholder}</option>
-              {t.roles.map((role) => (
-                <option key={role} value={role}>
-                  {role}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div className="flex-1">
-            <Label htmlFor="ra-vessel" error={!!errors.vessel}>
-              {t.vessel}
-            </Label>
-            <Select id="ra-vessel" defaultValue="" error={errors.vessel?.message} {...register("vessel")}>
-              <option value="">{t.vesselPlaceholder}</option>
-              {t.vessels.map((vessel) => (
-                <option key={vessel} value={vessel}>
-                  {vessel}
-                </option>
-              ))}
-            </Select>
-          </div>
         </div>
 
         <div className="mb-4">
