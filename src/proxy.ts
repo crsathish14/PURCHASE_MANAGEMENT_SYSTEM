@@ -4,11 +4,27 @@ import { createServerClient } from "@supabase/ssr";
 import { defaultLocale } from "@/lib/i18n";
 import type { Database } from "@/lib/types/database";
 
+const LOGIN_PATH = `/${defaultLocale}/login`;
+const DASHBOARD_PATH = `/${defaultLocale}/dashboard`;
+const TEAM_ACCESS_PATH = `/${defaultLocale}/team-access`;
+const PUBLIC_PATHS = new Set([LOGIN_PATH, `/${defaultLocale}/request-access`]);
+
+function redirectTo(request: NextRequest, response: NextResponse, pathname: string) {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  const redirectResponse = NextResponse.redirect(url);
+  // Carry over any cookies refreshed above — otherwise a session refresh
+  // that happens on this request would be silently dropped when we return
+  // a fresh redirect response instead of `response`.
+  response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie));
+  return redirectResponse;
+}
+
 // Next 16 renamed `middleware.ts`/`export function middleware` to
 // `proxy.ts`/`export function proxy`. See
 // node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md
 //
-// Runs two concerns on every request, in order:
+// Runs three concerns on every request, in order:
 //
 // 1. Supabase session refresh. Server Components can't write cookies during
 //    render (see the try/catch in src/lib/supabase/server.ts), so if the
@@ -23,6 +39,18 @@ import type { Database } from "@/lib/types/database";
 //    now — there's no marketing/demo home page anymore, and /[lang]/dashboard
 //    is guarded, so sending logged-out root visitors straight to /login
 //    skips a redundant bounce through the guard.
+//
+// 3. Route gating — the *real* enforcement, not just the page-level
+//    requireActiveUser()/requireAdmin() checks (src/lib/supabase/require-active-user.ts).
+//    Those still run too, as defense-in-depth, but can't be relied on alone:
+//    every page in this app is nested under [lang]/loading.tsx, which puts
+//    rendering in a "streaming context" where redirect() only inserts a
+//    client-side redirect instruction instead of a real HTTP redirect (see
+//    node_modules/next/dist/docs/01-app/03-api-reference/04-functions/redirect.md,
+//    "When used in a streaming context..."). A client that doesn't execute
+//    that instruction — curl, a bot, a vulnerability scanner — would
+//    otherwise receive the actual protected page content with a 200. Proxy
+//    runs before any rendering, so its redirect is always a real 307.
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -47,26 +75,50 @@ export async function proxy(request: NextRequest) {
   // setAll above, writes it back onto `response`. getUser() (not
   // getSession()) is used because it revalidates against the Auth server
   // instead of trusting a potentially-stale local JWT.
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+
+  // API routes aren't part of the [lang]-prefixed page tree — locale
+  // redirecting them would send /api/team to the nonexistent /en/api/team
+  // instead of the actual route handler. They enforce their own auth (see
+  // src/app/api/team/route.ts) rather than going through the gating below.
+  if (pathname.startsWith("/api/")) {
+    return response;
+  }
+
   const hasLocale =
     pathname === `/${defaultLocale}` || pathname.startsWith(`/${defaultLocale}/`);
 
   let targetPathname = hasLocale ? pathname : `/${defaultLocale}${pathname}`;
   if (targetPathname === `/${defaultLocale}` || targetPathname === `/${defaultLocale}/`) {
-    targetPathname = `/${defaultLocale}/login`;
+    targetPathname = LOGIN_PATH;
   }
 
   if (targetPathname !== pathname) {
-    const url = request.nextUrl.clone();
-    url.pathname = targetPathname;
-    const redirectResponse = NextResponse.redirect(url);
-    // Carry over any cookies refreshed above — otherwise a session refresh
-    // that happens on this request would be silently dropped when we return
-    // a fresh redirect response instead of `response`.
-    response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie));
-    return redirectResponse;
+    return redirectTo(request, response, targetPathname);
+  }
+
+  if (!PUBLIC_PATHS.has(pathname)) {
+    if (!user) {
+      return redirectTo(request, response, LOGIN_PATH);
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, status")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile || profile.status !== "active") {
+      return redirectTo(request, response, LOGIN_PATH);
+    }
+
+    if (pathname === TEAM_ACCESS_PATH && profile.role !== "admin") {
+      return redirectTo(request, response, DASHBOARD_PATH);
+    }
   }
 
   return response;

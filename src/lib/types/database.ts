@@ -12,6 +12,7 @@ export type Database = {
         Row: {
           id: string;
           full_name: string | null;
+          email: string | null;
           role: UserRole;
           status: ProfileStatus;
           created_at: string;
@@ -20,11 +21,13 @@ export type Database = {
         Insert: {
           id: string;
           full_name?: string | null;
+          email?: string | null;
           role?: UserRole;
           status?: ProfileStatus;
         };
         Update: {
           full_name?: string | null;
+          email?: string | null;
           role?: UserRole;
           status?: ProfileStatus;
         };

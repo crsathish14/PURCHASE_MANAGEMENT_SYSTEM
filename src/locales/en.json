@@ -123,6 +123,54 @@
     "dashboard": {
       "title": "Dashboard",
       "subtitle": "Feature work starts from here — this area will show live KPIs once the procurement modules are built."
+    },
+    "teamAccess": {
+      "title": "Team & access",
+      "subtitle": "Manage who can sign in to Vessel PMS and what they can do.",
+      "breadcrumbSettings": "Settings",
+      "breadcrumbCurrent": "Team & Access",
+      "invite": "Invite person",
+      "searchPlaceholder": "Search people",
+      "roleFilter": {
+        "all": "All roles",
+        "admin": "Admin",
+        "officer": "Purchase Officer"
+      },
+      "statusFilter": {
+        "all": "All statuses",
+        "pending": "Pending",
+        "active": "Active",
+        "disabled": "Suspended"
+      },
+      "columns": {
+        "name": "Name",
+        "role": "Role",
+        "status": "Status"
+      },
+      "statusLabels": {
+        "pending": "Pending",
+        "active": "Active",
+        "disabled": "Suspended"
+      },
+      "you": "You",
+      "approve": "Approve",
+      "reject": "Reject",
+      "rowMenu": "More actions",
+      "summary": {
+        "people": "people",
+        "pendingApproval": "pending approval",
+        "suspended": "suspended"
+      },
+      "empty": "No one matches your search.",
+      "loadError": "Couldn't load team members.",
+      "subnav": {
+        "company": "Company",
+        "vessels": "Vessels",
+        "categories": "Categories",
+        "budgets": "Budgets",
+        "team": "Team",
+        "auditLog": "Audit log"
+      }
     }
   }
 }
