@@ -6,10 +6,6 @@
     "title": "Purchase Management System",
     "description": "Vessel procurement, from request to delivery, in one system."
   },
-  "home": {
-    "title": "Purchase Management System",
-    "subtitle": "Project foundation is set up. Feature work starts from here."
-  },
   "theme": {
     "label": "Theme",
     "light": "Light",
@@ -28,12 +24,6 @@
   },
   "loading": {
     "label": "Loading…"
-  },
-  "toastDemo": {
-    "success": "Show success toast",
-    "error": "Show error toast",
-    "successMessage": "RFQ-0412 sent to 4 vendors",
-    "errorMessage": "Import failed — 2 rows need fixing"
   },
   "auth": {
     "brand": {
@@ -60,12 +50,13 @@
       "submitting": "Signing in…",
       "switchPrompt": "New to Vessel PMS?",
       "switchAction": "Request access →",
-      "successTitle": "You're signed in",
-      "successDescription": "Welcome back to Vessel PMS.",
       "errors": {
         "emailRequired": "Email is required",
         "emailInvalid": "Enter a valid email address",
-        "passwordRequired": "Password is required"
+        "passwordRequired": "Password is required",
+        "accountPending": "Your account is awaiting admin approval.",
+        "accountDisabled": "This account has been disabled. Contact an admin.",
+        "networkError": "Couldn't reach the server. Check your connection and try again."
       }
     },
     "requestAccess": {
@@ -101,6 +92,37 @@
         "emailInUse": "An account with this email already exists.",
         "networkError": "Couldn't reach the server. Check your connection and try again."
       }
+    }
+  },
+  "staff": {
+    "nav": {
+      "dashboard": "Dashboard",
+      "pipeline": "Pipeline",
+      "poRequests": "PO Requests",
+      "rfq": "Request for Quote",
+      "purchaseOrders": "Purchase Orders",
+      "invoiceLog": "Invoice Log",
+      "deliveryNotes": "Delivery Notes",
+      "vendors": "Vendors",
+      "vessels": "Vessels",
+      "reports": "Reports",
+      "settings": "Settings"
+    },
+    "roleLabels": {
+      "admin": "Admin",
+      "officer": "Purchase Officer"
+    },
+    "topbar": {
+      "searchPlaceholder": "Search PRs, POs, invoices, vendors, vessels…",
+      "new": "New",
+      "settings": "Settings",
+      "logout": "Log out",
+      "menu": "Open menu"
+    },
+    "footer": "Fleet Procurement Co. · v1.0",
+    "dashboard": {
+      "title": "Dashboard",
+      "subtitle": "Feature work starts from here — this area will show live KPIs once the procurement modules are built."
     }
   }
 }

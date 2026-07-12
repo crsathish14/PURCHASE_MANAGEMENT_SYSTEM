@@ -1,6 +1,8 @@
+import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import en from "@/locales/en.json";
+import { createClient } from "@/lib/supabase/server";
 
 import { AnchorIcon } from "./icons";
 
@@ -13,7 +15,28 @@ import { AnchorIcon } from "./icons";
 // same reasoning as Avatar's fixed gradient (src/components/atoms/avatar.tsx):
 // it's a fixed brand surface, not a themed one, so colors are hardcoded here
 // rather than using the semantic tokens.
-export default function AuthLayout({ children }: { children: ReactNode }) {
+export default async function AuthLayout({ children }: { children: ReactNode }) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    // Only a fully active user gets bounced onward — a pending/disabled
+    // account may still hold a session cookie (e.g. signup left one behind
+    // when email confirmation is off) but still needs to see the login form
+    // to know why they can't get in, same as (staff)/layout.tsx's guard.
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("status")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.status === "active") {
+      redirect("/en/dashboard");
+    }
+  }
+
   const { brand } = en.auth;
 
   return (

@@ -28,7 +28,15 @@ export type Database = {
           role?: UserRole;
           status?: ProfileStatus;
         };
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: {
+      user_role: UserRole;
+      profile_status: ProfileStatus;
+    };
+    CompositeTypes: Record<string, never>;
   };
 };

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,22 +9,17 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button, Checkbox, Input, Label } from "@/components/atoms";
 import en from "@/locales/en.json";
 import { loginSchema, type LoginInput } from "@/lib/validation/auth";
+import { createClient } from "@/lib/supabase/client";
+import { toast } from "@/store/toast-store";
 
 import { EyeIcon } from "../icons";
 
 const t = en.auth.login;
 
-// Real Supabase auth (supabase.auth.signInWithPassword) is deferred to a
-// later pass — see plans/development.md item 11. This simulates a request so
-// the page is fully demoable; swap the body of onSubmit when that lands.
-async function fakeSignIn(data: LoginInput) {
-  await new Promise((resolve) => setTimeout(resolve, 600));
-  return data;
-}
-
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
-  const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
+  const supabase = createClient();
+  const router = useRouter();
 
   const {
     register,
@@ -40,18 +36,35 @@ export function LoginForm() {
   const hasErrors = Object.keys(errors).length > 0;
 
   async function onSubmit(data: LoginInput) {
-    await fakeSignIn(data);
-    setSignedInEmail(data.email);
-  }
+    try {
+      const { data: signInData, error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
 
-  if (signedInEmail) {
-    return (
-      <div className="text-center">
-        <h2 className="font-display text-[23px] font-semibold text-ink">{t.successTitle}</h2>
-        <p className="mt-3 text-sm text-slate">{t.successDescription}</p>
-        <p className="mt-4 text-xs font-bold text-ink">{signedInEmail}</p>
-      </div>
-    );
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("status")
+        .eq("id", signInData.user.id)
+        .single();
+
+      if (profileError || !profile || profile.status !== "active") {
+        await supabase.auth.signOut();
+        toast.error(
+          profile?.status === "disabled" ? t.errors.accountDisabled : t.errors.accountPending,
+        );
+        return;
+      }
+
+      router.push("/en/dashboard");
+    } catch {
+      toast.error(t.errors.networkError);
+    }
   }
 
   return (
