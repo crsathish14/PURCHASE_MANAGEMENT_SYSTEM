@@ -142,3 +142,20 @@ a dev server when practical, not just that it compiles.
 5. Wire Supabase reads via `lib/supabase/server.ts`; anything mutating goes through an API route
    using the §12 pattern.
 6. Verify per §14.
+
+## 16. Keeping this file current
+
+This file is auto-loaded into every session via `CLAUDE.md`'s `@plans/development.md` import — it's
+only useful if it matches what the code actually does. Update the relevant section **in the same
+change**, not as a follow-up, whenever:
+
+- A new environment variable is added — update §13 and `.env.example` together.
+- A new auth/session pattern or Supabase client usage is introduced or changed — update §11 (and
+  §12 if it changes how routes authenticate).
+- A new enum-like value set appears (another `role`/`status`-shaped field, another set of route
+  paths) — give it the same treatment as §7's `USER_ROLE`/`PROFILE_STATUS`/`ROUTES`, don't let raw
+  string literals creep back in.
+- A new API convention, component-organization rule, or any other repeated pattern is introduced —
+  add or revise the relevant numbered section rather than leaving it undocumented.
+- An existing convention changes — edit the section in place; don't leave the old and new
+  descriptions both in the file.
