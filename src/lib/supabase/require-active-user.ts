@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
+import { NextResponse } from "next/server";
 import type { User } from "@supabase/supabase-js";
 
+import { PROFILE_STATUS, USER_ROLE } from "@/lib/constants/profile";
+import { ROUTES } from "@/lib/routes";
 import { createClient } from "@/lib/supabase/server";
 import type { ProfileStatus, UserRole } from "@/lib/types/database";
 
@@ -44,8 +47,8 @@ export async function getSessionProfile(): Promise<SessionProfile | null> {
 // this directly, not just rely on (staff)/layout.tsx calling it.
 export async function requireActiveUser() {
   const session = await getSessionProfile();
-  if (!session || session.profile.status !== "active") redirect("/en/login");
-  if (session.profile.must_change_password) redirect("/en/change-password");
+  if (!session || session.profile.status !== PROFILE_STATUS.ACTIVE) redirect(ROUTES.LOGIN);
+  if (session.profile.must_change_password) redirect(ROUTES.CHANGE_PASSWORD);
   return session;
 }
 
@@ -54,6 +57,36 @@ export async function requireActiveUser() {
 // same /en/login redirect, and only an active non-admin is bounced onward.
 export async function requireAdmin() {
   const session = await requireActiveUser();
-  if (session.profile.role !== "admin") redirect("/en/dashboard");
+  if (session.profile.role !== USER_ROLE.ADMIN) redirect(ROUTES.DASHBOARD);
   return session;
+}
+
+// Route Handler counterparts of requireActiveUser()/requireAdmin() — they
+// can't call redirect() (see the comment on getSessionProfile() above), so
+// these return either the session or a ready-to-return NextResponse error
+// instead. Replaces the same inline auth-check block that used to be
+// copy-pasted at the top of every /api route.
+export async function requireApiActiveUser(): Promise<
+  { session: SessionProfile; error?: undefined } | { session?: undefined; error: NextResponse }
+> {
+  const session = await getSessionProfile();
+  if (!session || session.profile.status !== PROFILE_STATUS.ACTIVE) {
+    return {
+      error: NextResponse.json({ error: { message: "Authentication required." } }, { status: 401 }),
+    };
+  }
+  return { session };
+}
+
+export async function requireApiAdmin(): Promise<
+  { session: SessionProfile; error?: undefined } | { session?: undefined; error: NextResponse }
+> {
+  const result = await requireApiActiveUser();
+  if (result.error) return result;
+  if (result.session.profile.role !== USER_ROLE.ADMIN) {
+    return {
+      error: NextResponse.json({ error: { message: "Admin access required." } }, { status: 403 }),
+    };
+  }
+  return result;
 }

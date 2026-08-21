@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
+import { PROFILE_STATUS, USER_ROLE } from "@/lib/constants/profile";
 import { createClient } from "@/lib/supabase/server";
-import { getSessionProfile } from "@/lib/supabase/require-active-user";
+import { requireApiAdmin } from "@/lib/supabase/require-active-user";
 import { SELECT_COLUMNS, toTeamMember } from "../shared";
 
 // Admin-only: approve/reject a pending person, suspend/activate an existing
@@ -10,14 +11,9 @@ import { SELECT_COLUMNS, toTeamMember } from "../shared";
 // regardless of the row's current status) and role is a separate mutation —
 // status/role are mutually exclusive in the body.
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSessionProfile();
-
-  if (!session || session.profile.status !== "active") {
-    return NextResponse.json({ error: { message: "Authentication required." } }, { status: 401 });
-  }
-  if (session.profile.role !== "admin") {
-    return NextResponse.json({ error: { message: "Admin access required." } }, { status: 403 });
-  }
+  const auth = await requireApiAdmin();
+  if (auth.error) return auth.error;
+  const { session } = auth;
 
   const { id } = await params;
   if (id === session.user.id) {
@@ -48,7 +44,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const supabase = await createClient();
 
   if (hasStatus) {
-    if (status !== "active" && status !== "disabled") {
+    if (status !== PROFILE_STATUS.ACTIVE && status !== PROFILE_STATUS.DISABLED) {
       return NextResponse.json({ error: { message: "Invalid status." } }, { status: 400 });
     }
 
@@ -61,6 +57,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       .single();
 
     if (error || !data) {
+      console.error("[api/team/[id]:PATCH] status update failed", error);
       return NextResponse.json(
         { error: { message: "This person's status couldn't be updated." } },
         { status: 404 },
@@ -70,7 +67,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ data: toTeamMember(data) });
   }
 
-  if (role !== "admin" && role !== "officer") {
+  if (role !== USER_ROLE.ADMIN && role !== USER_ROLE.OFFICER) {
     return NextResponse.json({ error: { message: "Invalid role." } }, { status: 400 });
   }
 
@@ -78,11 +75,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     .from("profiles")
     .update({ role })
     .eq("id", id)
-    .eq("status", "active")
+    .eq("status", PROFILE_STATUS.ACTIVE)
     .select(SELECT_COLUMNS)
     .single();
 
   if (error || !data) {
+    console.error("[api/team/[id]:PATCH] role update failed", error);
     return NextResponse.json(
       { error: { message: "This person can't be updated." } },
       { status: 404 },

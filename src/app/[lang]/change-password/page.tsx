@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import en from "@/locales/en.json";
+import { ROUTES } from "@/lib/routes";
 import { getSessionProfile } from "@/lib/supabase/require-active-user";
 import { ChangePasswordForm } from "@/components/auth/change-password-form";
 
@@ -17,7 +18,7 @@ export default async function ChangePasswordPage() {
   // Just needs a real, active session; whether the flag is set or not, an
   // active user is always allowed to land here.
   const session = await getSessionProfile();
-  if (!session) redirect("/en/login");
+  if (!session) redirect(ROUTES.LOGIN);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-mist px-6 py-10">

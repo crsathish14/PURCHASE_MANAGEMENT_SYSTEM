@@ -7,6 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Button, Input, Label, PasswordInput, PasswordStrengthMeter } from "@/components/atoms";
 import en from "@/locales/en.json";
+import { env } from "@/lib/env";
+import { ROUTES } from "@/lib/routes";
 import { requestAccessSchema, type RequestAccessInput } from "@/lib/validation/auth";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "@/store/toast-store";
@@ -43,7 +45,7 @@ export function RequestAccessForm() {
         password: data.password,
         options: {
           data: { full_name: data.fullName },
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/en/login`,
+          emailRedirectTo: `${env.NEXT_PUBLIC_SITE_URL}${ROUTES.LOGIN}`,
         },
       });
 
@@ -140,7 +142,7 @@ export function RequestAccessForm() {
 
       <div className="mt-5.5 border-t border-line pt-5 text-center text-[13px] text-slate">
         {t.switchPrompt}{" "}
-        <Link href="/en/login" className="font-bold text-harbor hover:underline">
+        <Link href={ROUTES.LOGIN} className="font-bold text-harbor hover:underline">
           {t.switchAction}
         </Link>
       </div>

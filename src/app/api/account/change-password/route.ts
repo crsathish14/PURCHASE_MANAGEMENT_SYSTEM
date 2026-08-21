@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { getSessionProfile } from "@/lib/supabase/require-active-user";
+import { requireApiActiveUser } from "@/lib/supabase/require-active-user";
 
 // Used both by the forced first-login reset (must_change_password) and any
 // future voluntary "change password" entry point — nothing here is specific
@@ -10,11 +10,9 @@ import { getSessionProfile } from "@/lib/supabase/require-active-user";
 // before allowing the change, since this is reachable without re-entering a
 // fresh login flow.
 export async function POST(request: Request) {
-  const session = await getSessionProfile();
-
-  if (!session || session.profile.status !== "active") {
-    return NextResponse.json({ error: { message: "Authentication required." } }, { status: 401 });
-  }
+  const auth = await requireApiActiveUser();
+  if (auth.error) return auth.error;
+  const { session } = auth;
 
   let body: unknown;
   try {
@@ -70,15 +68,19 @@ export async function POST(request: Request) {
 
   const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
   if (updateError) {
+    console.error("[api/account/change-password:POST] updateUser failed", updateError);
     return NextResponse.json({ error: { message: updateError.message } }, { status: 400 });
   }
 
   // No self-update RLS policy exists for profiles (see the migration
   // comment) — this one narrow write goes through the service-role client.
-  await createAdminClient()
+  const { error: clearFlagError } = await createAdminClient()
     .from("profiles")
     .update({ must_change_password: false })
     .eq("id", session.user.id);
+  if (clearFlagError) {
+    console.error("[api/account/change-password:POST] clearing must_change_password failed", clearFlagError);
+  }
 
   return NextResponse.json({ data: { ok: true } });
 }

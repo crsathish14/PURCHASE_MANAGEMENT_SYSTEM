@@ -16,6 +16,7 @@ import {
   Select,
 } from "@/components/atoms";
 import en from "@/locales/en.json";
+import { USER_ROLE } from "@/lib/constants/profile";
 import { inviteSchema, type InviteInput } from "@/lib/validation/auth";
 import { toast } from "@/store/toast-store";
 import type { TeamMember } from "@/lib/data/team";
@@ -38,7 +39,7 @@ export function InviteDialog({
   } = useForm<InviteInput>({
     resolver: zodResolver(inviteSchema),
     mode: "onBlur",
-    defaultValues: { role: "officer", requirePasswordReset: true },
+    defaultValues: { role: USER_ROLE.OFFICER, requirePasswordReset: true },
   });
 
   const [fullName, email, password, role] = watch(["fullName", "email", "password", "role"]);
@@ -47,7 +48,7 @@ export function InviteDialog({
 
   function close() {
     setOpen(false);
-    reset({ role: "officer", requirePasswordReset: true });
+    reset({ role: USER_ROLE.OFFICER, requirePasswordReset: true });
   }
 
   async function onSubmit(data: InviteInput) {
@@ -124,8 +125,8 @@ export function InviteDialog({
           <div className="mb-4">
             <Label htmlFor="invite-role">{t.role}</Label>
             <Select id="invite-role" {...register("role")}>
-              <option value="officer">{en.staff.roleLabels.officer}</option>
-              <option value="admin">{en.staff.roleLabels.admin}</option>
+              <option value={USER_ROLE.OFFICER}>{en.staff.roleLabels.officer}</option>
+              <option value={USER_ROLE.ADMIN}>{en.staff.roleLabels.admin}</option>
             </Select>
           </div>
 

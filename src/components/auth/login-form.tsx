@@ -7,6 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Button, Checkbox, Input, Label, PasswordInput } from "@/components/atoms";
 import en from "@/locales/en.json";
+import { PROFILE_STATUS } from "@/lib/constants/profile";
+import { ROUTES } from "@/lib/routes";
 import { loginSchema, type LoginInput } from "@/lib/validation/auth";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "@/store/toast-store";
@@ -49,15 +51,17 @@ export function LoginForm() {
         .eq("id", signInData.user.id)
         .single();
 
-      if (profileError || !profile || profile.status !== "active") {
+      if (profileError || !profile || profile.status !== PROFILE_STATUS.ACTIVE) {
         await supabase.auth.signOut();
         toast.error(
-          profile?.status === "disabled" ? t.errors.accountDisabled : t.errors.accountPending,
+          profile?.status === PROFILE_STATUS.DISABLED
+            ? t.errors.accountDisabled
+            : t.errors.accountPending,
         );
         return;
       }
 
-      router.push(profile.must_change_password ? "/en/change-password" : "/en/dashboard");
+      router.push(profile.must_change_password ? ROUTES.CHANGE_PASSWORD : ROUTES.DASHBOARD);
     } catch {
       toast.error(t.errors.networkError);
     }
@@ -117,7 +121,7 @@ export function LoginForm() {
 
       <div className="mt-5.5 border-t border-line pt-5 text-center text-[13px] text-slate">
         {t.switchPrompt}{" "}
-        <Link href="/en/request-access" className="font-bold text-harbor hover:underline">
+        <Link href={ROUTES.REQUEST_ACCESS} className="font-bold text-harbor hover:underline">
           {t.switchAction}
         </Link>
       </div>

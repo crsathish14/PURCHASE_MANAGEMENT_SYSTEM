@@ -2,8 +2,9 @@
 // generated types once the project is linked to Supabase:
 //   npx supabase gen types typescript --linked > src/lib/types/database.ts
 
-export type UserRole = "admin" | "officer";
-export type ProfileStatus = "pending" | "active" | "disabled";
+import type { ProfileStatus, UserRole } from "@/lib/constants/profile";
+
+export type { ProfileStatus, UserRole };
 
 export type Database = {
   public: {

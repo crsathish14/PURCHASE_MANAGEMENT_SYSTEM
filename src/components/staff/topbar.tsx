@@ -8,6 +8,7 @@ import { Bell, ChevronDown, Menu, Plus, Search } from "lucide-react";
 import { Avatar, Button } from "@/components/atoms";
 import en from "@/locales/en.json";
 import { getInitials } from "@/lib/format";
+import { ROUTES } from "@/lib/routes";
 import { createClient } from "@/lib/supabase/client";
 import type { UserRole } from "@/lib/types/database";
 
@@ -42,7 +43,7 @@ export function Topbar({
 
   async function handleLogout() {
     await supabase.auth.signOut();
-    router.push("/en/login");
+    router.push(ROUTES.LOGIN);
   }
 
   return (
@@ -97,7 +98,7 @@ export function Topbar({
                 <span className="block text-[11px] text-slate-lt">{en.staff.roleLabels[role]}</span>
               </div>
               <Link
-                href="/en/team-access"
+                href={ROUTES.TEAM_ACCESS}
                 className="block px-3.5 py-2 text-[13px] text-ink hover:bg-mist"
                 onClick={() => setMenuOpen(false)}
               >

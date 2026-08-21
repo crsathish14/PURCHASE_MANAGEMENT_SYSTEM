@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { USER_ROLE } from "@/lib/constants/profile";
 import en from "@/locales/en.json";
 
 const loginErrors = en.auth.login.errors;
@@ -43,7 +44,7 @@ export const inviteSchema = z.object({
   fullName: z.string().min(1, { error: inviteErrors.fullNameRequired }),
   email: z.email({ error: inviteErrors.emailInvalid }).min(1, { error: inviteErrors.emailRequired }),
   password: z.string().min(8, { error: inviteErrors.passwordMin }),
-  role: z.enum(["admin", "officer"]),
+  role: z.enum([USER_ROLE.ADMIN, USER_ROLE.OFFICER]),
   requirePasswordReset: z.boolean(),
 });
 

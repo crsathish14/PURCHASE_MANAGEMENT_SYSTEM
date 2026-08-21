@@ -1,14 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
+import { env } from "@/lib/env";
 import { defaultLocale } from "@/lib/i18n";
+import { ROUTES } from "@/lib/routes";
+import { PROFILE_STATUS, USER_ROLE } from "@/lib/constants/profile";
 import type { Database } from "@/lib/types/database";
 
-const LOGIN_PATH = `/${defaultLocale}/login`;
-const DASHBOARD_PATH = `/${defaultLocale}/dashboard`;
-const TEAM_ACCESS_PATH = `/${defaultLocale}/team-access`;
-const CHANGE_PASSWORD_PATH = `/${defaultLocale}/change-password`;
-const PUBLIC_PATHS = new Set([LOGIN_PATH, `/${defaultLocale}/request-access`]);
+const PUBLIC_PATHS = new Set<string>([ROUTES.LOGIN, ROUTES.REQUEST_ACCESS]);
 
 function redirectTo(request: NextRequest, response: NextResponse, pathname: string) {
   const url = request.nextUrl.clone();
@@ -56,8 +55,8 @@ export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
       cookies: {
         getAll: () => request.cookies.getAll(),
@@ -95,7 +94,7 @@ export async function proxy(request: NextRequest) {
 
   let targetPathname = hasLocale ? pathname : `/${defaultLocale}${pathname}`;
   if (targetPathname === `/${defaultLocale}` || targetPathname === `/${defaultLocale}/`) {
-    targetPathname = LOGIN_PATH;
+    targetPathname = ROUTES.LOGIN;
   }
 
   if (targetPathname !== pathname) {
@@ -104,7 +103,7 @@ export async function proxy(request: NextRequest) {
 
   if (!PUBLIC_PATHS.has(pathname)) {
     if (!user) {
-      return redirectTo(request, response, LOGIN_PATH);
+      return redirectTo(request, response, ROUTES.LOGIN);
     }
 
     const { data: profile } = await supabase
@@ -113,16 +112,16 @@ export async function proxy(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    if (!profile || profile.status !== "active") {
-      return redirectTo(request, response, LOGIN_PATH);
+    if (!profile || profile.status !== PROFILE_STATUS.ACTIVE) {
+      return redirectTo(request, response, ROUTES.LOGIN);
     }
 
-    if (profile.must_change_password && pathname !== CHANGE_PASSWORD_PATH) {
-      return redirectTo(request, response, CHANGE_PASSWORD_PATH);
+    if (profile.must_change_password && pathname !== ROUTES.CHANGE_PASSWORD) {
+      return redirectTo(request, response, ROUTES.CHANGE_PASSWORD);
     }
 
-    if (pathname === TEAM_ACCESS_PATH && profile.role !== "admin") {
-      return redirectTo(request, response, DASHBOARD_PATH);
+    if (pathname === ROUTES.TEAM_ACCESS && profile.role !== USER_ROLE.ADMIN) {
+      return redirectTo(request, response, ROUTES.DASHBOARD);
     }
   }
 

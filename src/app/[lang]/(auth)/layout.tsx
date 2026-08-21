@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import en from "@/locales/en.json";
+import { PROFILE_STATUS } from "@/lib/constants/profile";
+import { ROUTES } from "@/lib/routes";
 import { createClient } from "@/lib/supabase/server";
 import { AnchorIcon } from "@/components/auth/icons";
 
@@ -31,8 +33,8 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
       .eq("id", user.id)
       .single();
 
-    if (profile?.status === "active") {
-      redirect(profile.must_change_password ? "/en/change-password" : "/en/dashboard");
+    if (profile?.status === PROFILE_STATUS.ACTIVE) {
+      redirect(profile.must_change_password ? ROUTES.CHANGE_PASSWORD : ROUTES.DASHBOARD);
     }
   }
 

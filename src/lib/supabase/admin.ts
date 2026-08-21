@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
+import { env } from "@/lib/env";
+import { serverEnv } from "@/lib/env.server";
 import type { Database } from "@/lib/types/database";
 
 // Service-role client — bypasses RLS entirely. Server-only: never import
@@ -9,8 +11,8 @@ import type { Database } from "@/lib/types/database";
 // password change, where RLS deliberately grants no self-update policy.
 export function createAdminClient() {
   return createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    serverEnv.SUPABASE_SERVICE_ROLE_KEY,
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 }

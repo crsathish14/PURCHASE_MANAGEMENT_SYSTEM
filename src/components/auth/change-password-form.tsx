@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Button, Input, Label, PasswordInput, PasswordStrengthMeter } from "@/components/atoms";
 import en from "@/locales/en.json";
+import { ROUTES } from "@/lib/routes";
 import { changePasswordSchema, type ChangePasswordInput } from "@/lib/validation/auth";
 import { toast } from "@/store/toast-store";
 
@@ -50,7 +51,7 @@ export function ChangePasswordForm({ email }: { email: string }) {
         return;
       }
 
-      router.push("/en/dashboard");
+      router.push(ROUTES.DASHBOARD);
     } catch {
       toast.error(t.errors.networkError);
     }

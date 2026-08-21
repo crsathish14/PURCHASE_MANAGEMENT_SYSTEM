@@ -7,6 +7,7 @@ import { Avatar, Badge, Button, Input, Menu, MenuItem, Select } from "@/componen
 import type { BadgeTone } from "@/components/atoms";
 import { getInitials } from "@/lib/format";
 import en from "@/locales/en.json";
+import { PROFILE_STATUS, USER_ROLE } from "@/lib/constants/profile";
 import { toast } from "@/store/toast-store";
 import type { TeamMember } from "@/lib/data/team";
 import type { ProfileStatus, UserRole } from "@/lib/types/database";
@@ -14,9 +15,9 @@ import type { ProfileStatus, UserRole } from "@/lib/types/database";
 const t = en.staff.teamAccess;
 
 const STATUS_TONE: Record<ProfileStatus, BadgeTone> = {
-  pending: "amber",
-  active: "moss",
-  disabled: "rust",
+  [PROFILE_STATUS.PENDING]: "amber",
+  [PROFILE_STATUS.ACTIVE]: "moss",
+  [PROFILE_STATUS.DISABLED]: "rust",
 };
 
 export function TeamTable({
@@ -65,7 +66,7 @@ export function TeamTable({
     return [...members].sort((a, b) => {
       if (a.id === currentUserId) return -1;
       if (b.id === currentUserId) return 1;
-      if (a.role !== b.role) return a.role === "admin" ? -1 : 1;
+      if (a.role !== b.role) return a.role === USER_ROLE.ADMIN ? -1 : 1;
       return 0;
     });
   }, [members, currentUserId]);
@@ -82,8 +83,8 @@ export function TeamTable({
     return true;
   });
 
-  const pendingCount = filtered.filter((member) => member.status === "pending").length;
-  const disabledCount = filtered.filter((member) => member.status === "disabled").length;
+  const pendingCount = filtered.filter((member) => member.status === PROFILE_STATUS.PENDING).length;
+  const disabledCount = filtered.filter((member) => member.status === PROFILE_STATUS.DISABLED).length;
 
   return (
     <div>
@@ -112,8 +113,8 @@ export function TeamTable({
           aria-label={t.columns.role}
         >
           <option value="all">{t.roleFilter.all}</option>
-          <option value="admin">{t.roleFilter.admin}</option>
-          <option value="officer">{t.roleFilter.officer}</option>
+          <option value={USER_ROLE.ADMIN}>{t.roleFilter.admin}</option>
+          <option value={USER_ROLE.OFFICER}>{t.roleFilter.officer}</option>
         </Select>
 
         <Select
@@ -123,9 +124,9 @@ export function TeamTable({
           aria-label={t.columns.status}
         >
           <option value="all">{t.statusFilter.all}</option>
-          <option value="pending">{t.statusFilter.pending}</option>
-          <option value="active">{t.statusFilter.active}</option>
-          <option value="disabled">{t.statusFilter.disabled}</option>
+          <option value={PROFILE_STATUS.PENDING}>{t.statusFilter.pending}</option>
+          <option value={PROFILE_STATUS.ACTIVE}>{t.statusFilter.active}</option>
+          <option value={PROFILE_STATUS.DISABLED}>{t.statusFilter.disabled}</option>
         </Select>
       </div>
 
@@ -185,7 +186,7 @@ export function TeamTable({
                   <Badge tone={STATUS_TONE[member.status]}>{t.statusLabels[member.status]}</Badge>
                 </td>
                 <td className="border-b border-line px-5 py-3 text-right group-hover:bg-mist/40">
-                  {member.status === "pending" ? (
+                  {member.status === PROFILE_STATUS.PENDING ? (
                     <div className="flex justify-end gap-2">
                       <Button
                         type="button"
@@ -194,7 +195,9 @@ export function TeamTable({
                         title={t.reject}
                         loading={actingOn === member.id}
                         disabled={actingOn === member.id}
-                        onClick={() => patchMember(member.id, { status: "disabled" }, t.rejectSuccess)}
+                        onClick={() =>
+                          patchMember(member.id, { status: PROFILE_STATUS.DISABLED }, t.rejectSuccess)
+                        }
                       >
                         {t.reject}
                       </Button>
@@ -205,7 +208,9 @@ export function TeamTable({
                         className="bg-moss"
                         loading={actingOn === member.id}
                         disabled={actingOn === member.id}
-                        onClick={() => patchMember(member.id, { status: "active" }, t.approveSuccess)}
+                        onClick={() =>
+                          patchMember(member.id, { status: PROFILE_STATUS.ACTIVE }, t.approveSuccess)
+                        }
                       >
                         {t.approve}
                       </Button>
@@ -226,26 +231,31 @@ export function TeamTable({
                           </Button>
                         }
                       >
-                        {member.status === "active" ? (
+                        {member.status === PROFILE_STATUS.ACTIVE ? (
                           <MenuItem
                             onClick={() => {
-                              const nextRole: UserRole = member.role === "admin" ? "officer" : "admin";
+                              const nextRole: UserRole =
+                                member.role === USER_ROLE.ADMIN ? USER_ROLE.OFFICER : USER_ROLE.ADMIN;
                               patchMember(member.id, { role: nextRole }, t.roleUpdateSuccess);
                             }}
                           >
-                            {member.role === "admin" ? t.makeOfficer : t.makeAdmin}
+                            {member.role === USER_ROLE.ADMIN ? t.makeOfficer : t.makeAdmin}
                           </MenuItem>
                         ) : null}
-                        {member.status === "active" ? (
+                        {member.status === PROFILE_STATUS.ACTIVE ? (
                           <MenuItem
                             tone="danger"
-                            onClick={() => patchMember(member.id, { status: "disabled" }, t.suspendSuccess)}
+                            onClick={() =>
+                              patchMember(member.id, { status: PROFILE_STATUS.DISABLED }, t.suspendSuccess)
+                            }
                           >
                             {t.suspend}
                           </MenuItem>
                         ) : (
                           <MenuItem
-                            onClick={() => patchMember(member.id, { status: "active" }, t.activateSuccess)}
+                            onClick={() =>
+                              patchMember(member.id, { status: PROFILE_STATUS.ACTIVE }, t.activateSuccess)
+                            }
                           >
                             {t.activate}
                           </MenuItem>
