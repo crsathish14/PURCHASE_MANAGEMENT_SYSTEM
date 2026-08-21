@@ -5,31 +5,15 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { Button, Input, Label } from "@/components/atoms";
+import { Button, Input, Label, PasswordInput, PasswordStrengthMeter } from "@/components/atoms";
 import en from "@/locales/en.json";
 import { requestAccessSchema, type RequestAccessInput } from "@/lib/validation/auth";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "@/store/toast-store";
 
-import { EyeIcon } from "../icons";
-
 const t = en.auth.requestAccess;
 
-const STRENGTH_LABELS = [t.strength.weak, t.strength.weak, t.strength.fair, t.strength.good, t.strength.strong];
-
-function passwordStrength(password: string) {
-  if (!password) return 0;
-  let score = 0;
-  if (password.length >= 8) score += 1;
-  if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score += 1;
-  if (/[0-9]/.test(password)) score += 1;
-  if (/[^A-Za-z0-9]/.test(password)) score += 1;
-  return score;
-}
-
-export function  RequestAccessForm() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+export function RequestAccessForm() {
   const [submitted, setSubmitted] = useState(false);
   const supabase = createClient();
 
@@ -49,7 +33,6 @@ export function  RequestAccessForm() {
     "password",
     "confirmPassword",
   ]);
-  const strength = passwordStrength(password ?? "");
   const requiredFieldsFilled = Boolean(fullName && workEmail && password && confirmPassword);
   const hasErrors = Object.keys(errors).length > 0;
 
@@ -128,54 +111,17 @@ export function  RequestAccessForm() {
           <Label htmlFor="ra-password" error={!!errors.password}>
             {t.password}
           </Label>
-          <Input
-            id="ra-password"
-            type={showPassword ? "text" : "password"}
-            error={errors.password?.message}
-            endAdornment={
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className="flex items-center gap-1 text-[11.5px] font-bold text-slate-lt hover:text-harbor"
-              >
-                <EyeIcon className="h-3.25 w-3.25" />
-                {showPassword ? en.auth.login.hidePassword : en.auth.login.showPassword}
-              </button>
-            }
-            {...register("password")}
-          />
-          <div className="mt-2 flex gap-1">
-            {[0, 1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className={`h-1 flex-1 rounded-full ${i < strength ? "bg-moss" : "bg-line"}`}
-              />
-            ))}
-          </div>
-          <div className="mt-1.25 flex justify-between text-[11px] text-slate-lt">
-            <span>{t.strengthLabel}</span>
-            {strength > 0 ? <b className="font-bold text-moss">{STRENGTH_LABELS[strength]}</b> : null}
-          </div>
+          <PasswordInput id="ra-password" error={errors.password?.message} {...register("password")} />
+          <PasswordStrengthMeter password={password ?? ""} />
         </div>
 
         <div className="mb-1">
           <Label htmlFor="ra-confirm-password" error={!!errors.confirmPassword}>
             {t.confirmPassword}
           </Label>
-          <Input
+          <PasswordInput
             id="ra-confirm-password"
-            type={showConfirmPassword ? "text" : "password"}
             error={errors.confirmPassword?.message}
-            endAdornment={
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword((v) => !v)}
-                className="flex items-center gap-1 text-[11.5px] font-bold text-slate-lt hover:text-harbor"
-              >
-                <EyeIcon className="h-3.25 w-3.25" />
-                {showConfirmPassword ? en.auth.login.hidePassword : en.auth.login.showPassword}
-              </button>
-            }
             {...register("confirmPassword")}
           />
         </div>

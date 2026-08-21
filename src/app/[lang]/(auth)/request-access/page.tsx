@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 
 import en from "@/locales/en.json";
-
-import { RequestAccessForm } from "./request-access-form";
+import { RequestAccessForm } from "@/components/auth/request-access-form";
 
 export const metadata: Metadata = {
   title: `${en.auth.requestAccess.title} — ${en.auth.brand.word}`,

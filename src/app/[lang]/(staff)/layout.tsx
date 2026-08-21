@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 
 import { requireActiveUser } from "@/lib/supabase/require-active-user";
-
-import { StaffShell } from "./staff-shell";
+import { StaffShell } from "@/components/staff/staff-shell";
 
 // Real access control for the authenticated area — the login form's own
 // profiles.status check (src/app/[lang]/(auth)/login/login-form.tsx) is only

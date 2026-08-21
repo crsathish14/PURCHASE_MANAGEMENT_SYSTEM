@@ -6,7 +6,12 @@ import type { ProfileStatus, UserRole } from "@/lib/types/database";
 
 type SessionProfile = {
   user: User;
-  profile: { full_name: string | null; role: UserRole; status: ProfileStatus };
+  profile: {
+    full_name: string | null;
+    role: UserRole;
+    status: ProfileStatus;
+    must_change_password: boolean;
+  };
 };
 
 // Route Handlers can't redirect() the way pages can, so they need the raw
@@ -21,7 +26,7 @@ export async function getSessionProfile(): Promise<SessionProfile | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, role, status")
+    .select("full_name, role, status, must_change_password")
     .eq("id", user.id)
     .single();
 
@@ -40,6 +45,7 @@ export async function getSessionProfile(): Promise<SessionProfile | null> {
 export async function requireActiveUser() {
   const session = await getSessionProfile();
   if (!session || session.profile.status !== "active") redirect("/en/login");
+  if (session.profile.must_change_password) redirect("/en/change-password");
   return session;
 }
 

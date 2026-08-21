@@ -15,6 +15,7 @@ export type Database = {
           email: string | null;
           role: UserRole;
           status: ProfileStatus;
+          must_change_password: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -24,12 +25,14 @@ export type Database = {
           email?: string | null;
           role?: UserRole;
           status?: ProfileStatus;
+          must_change_password?: boolean;
         };
         Update: {
           full_name?: string | null;
           email?: string | null;
           role?: UserRole;
           status?: ProfileStatus;
+          must_change_password?: boolean;
         };
         Relationships: [];
       };

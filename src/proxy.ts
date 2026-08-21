@@ -7,6 +7,7 @@ import type { Database } from "@/lib/types/database";
 const LOGIN_PATH = `/${defaultLocale}/login`;
 const DASHBOARD_PATH = `/${defaultLocale}/dashboard`;
 const TEAM_ACCESS_PATH = `/${defaultLocale}/team-access`;
+const CHANGE_PASSWORD_PATH = `/${defaultLocale}/change-password`;
 const PUBLIC_PATHS = new Set([LOGIN_PATH, `/${defaultLocale}/request-access`]);
 
 function redirectTo(request: NextRequest, response: NextResponse, pathname: string) {
@@ -108,12 +109,16 @@ export async function proxy(request: NextRequest) {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role, status")
+      .select("role, status, must_change_password")
       .eq("id", user.id)
       .single();
 
     if (!profile || profile.status !== "active") {
       return redirectTo(request, response, LOGIN_PATH);
+    }
+
+    if (profile.must_change_password && pathname !== CHANGE_PASSWORD_PATH) {
+      return redirectTo(request, response, CHANGE_PASSWORD_PATH);
     }
 
     if (pathname === TEAM_ACCESS_PATH && profile.role !== "admin") {

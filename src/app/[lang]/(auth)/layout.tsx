@@ -3,8 +3,7 @@ import type { ReactNode } from "react";
 
 import en from "@/locales/en.json";
 import { createClient } from "@/lib/supabase/server";
-
-import { AnchorIcon } from "./icons";
+import { AnchorIcon } from "@/components/auth/icons";
 
 // Ref: Design-docs/app/login.html + request-access.html — both mockups share
 // this exact two-panel shell (dark brand panel + mist auth-panel). A route
@@ -28,12 +27,12 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
     // to know why they can't get in, same as (staff)/layout.tsx's guard.
     const { data: profile } = await supabase
       .from("profiles")
-      .select("status")
+      .select("status, must_change_password")
       .eq("id", user.id)
       .single();
 
     if (profile?.status === "active") {
-      redirect("/en/dashboard");
+      redirect(profile.must_change_password ? "/en/change-password" : "/en/dashboard");
     }
   }
 

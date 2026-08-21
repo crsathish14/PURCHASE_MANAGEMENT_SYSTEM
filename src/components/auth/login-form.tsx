@@ -2,22 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { Button, Checkbox, Input, Label } from "@/components/atoms";
+import { Button, Checkbox, Input, Label, PasswordInput } from "@/components/atoms";
 import en from "@/locales/en.json";
 import { loginSchema, type LoginInput } from "@/lib/validation/auth";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "@/store/toast-store";
 
-import { EyeIcon } from "../icons";
-
 const t = en.auth.login;
 
 export function LoginForm() {
-  const [showPassword, setShowPassword] = useState(false);
   const supabase = createClient();
   const router = useRouter();
 
@@ -49,7 +45,7 @@ export function LoginForm() {
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("status")
+        .select("status, must_change_password")
         .eq("id", signInData.user.id)
         .single();
 
@@ -61,7 +57,7 @@ export function LoginForm() {
         return;
       }
 
-      router.push("/en/dashboard");
+      router.push(profile.must_change_password ? "/en/change-password" : "/en/dashboard");
     } catch {
       toast.error(t.errors.networkError);
     }
@@ -90,21 +86,10 @@ export function LoginForm() {
           <Label htmlFor="login-password" error={!!errors.password}>
             {t.password}
           </Label>
-          <Input
+          <PasswordInput
             id="login-password"
-            type={showPassword ? "text" : "password"}
             placeholder={t.passwordPlaceholder}
             error={errors.password?.message}
-            endAdornment={
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className="flex items-center gap-1 text-[11.5px] font-bold text-slate-lt hover:text-harbor"
-              >
-                <EyeIcon className="h-3.25 w-3.25" />
-                {showPassword ? t.hidePassword : t.showPassword}
-              </button>
-            }
             {...register("password")}
           />
         </div>

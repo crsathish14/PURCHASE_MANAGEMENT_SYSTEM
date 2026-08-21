@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { MoreVertical, Search } from "lucide-react";
 
-import { Avatar, Badge, Button, Input, Select } from "@/components/atoms";
+import { Avatar, Badge, Button, Input, Menu, MenuItem, Select } from "@/components/atoms";
 import type { BadgeTone } from "@/components/atoms";
 import { getInitials } from "@/lib/format";
 import en from "@/locales/en.json";
+import { toast } from "@/store/toast-store";
 import type { TeamMember } from "@/lib/data/team";
 import type { ProfileStatus, UserRole } from "@/lib/types/database";
 
@@ -20,17 +21,57 @@ const STATUS_TONE: Record<ProfileStatus, BadgeTone> = {
 
 export function TeamTable({
   members,
+  setMembers,
   currentUserId,
 }: {
   members: TeamMember[];
+  setMembers: Dispatch<SetStateAction<TeamMember[]>>;
   currentUserId: string;
 }) {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | UserRole>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | ProfileStatus>("all");
+  const [actingOn, setActingOn] = useState<string | null>(null);
+
+  async function patchMember(
+    id: string,
+    body: { status: ProfileStatus } | { role: UserRole },
+    successMessage: string,
+  ) {
+    setActingOn(id);
+    try {
+      const response = await fetch(`/api/team/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        toast.error(payload?.error?.message ?? t.actionError);
+        return;
+      }
+      setMembers((prev) => prev.map((member) => (member.id === id ? payload.data : member)));
+      toast.success(successMessage);
+    } catch {
+      toast.error(t.actionError);
+    } finally {
+      setActingOn(null);
+    }
+  }
+
+  // You first, then other admins, then purchase officers — stable within
+  // each group, so the existing created_at-ascending server order holds.
+  const sortedMembers = useMemo(() => {
+    return [...members].sort((a, b) => {
+      if (a.id === currentUserId) return -1;
+      if (b.id === currentUserId) return 1;
+      if (a.role !== b.role) return a.role === "admin" ? -1 : 1;
+      return 0;
+    });
+  }, [members, currentUserId]);
 
   const query = search.trim().toLowerCase();
-  const filtered = members.filter((member) => {
+  const filtered = sortedMembers.filter((member) => {
     if (roleFilter !== "all" && member.role !== roleFilter) return false;
     if (statusFilter !== "all" && member.status !== statusFilter) return false;
     if (query) {
@@ -146,28 +187,70 @@ export function TeamTable({
                 <td className="border-b border-line px-5 py-3 text-right group-hover:bg-mist/40">
                   {member.status === "pending" ? (
                     <div className="flex justify-end gap-2">
-                      <button
+                      <Button
                         type="button"
-                        disabled
+                        variant="danger"
+                        size="sm"
                         title={t.reject}
-                        className="rounded-md border border-rust/30 px-3 py-1.5 text-xs font-bold text-rust disabled:pointer-events-none disabled:opacity-40"
+                        loading={actingOn === member.id}
+                        disabled={actingOn === member.id}
+                        onClick={() => patchMember(member.id, { status: "disabled" }, t.rejectSuccess)}
                       >
                         {t.reject}
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
-                        disabled
+                        size="sm"
                         title={t.approve}
-                        className="rounded-md border border-transparent bg-moss px-3 py-1.5 text-xs font-bold text-white disabled:pointer-events-none disabled:opacity-40"
+                        className="bg-moss"
+                        loading={actingOn === member.id}
+                        disabled={actingOn === member.id}
+                        onClick={() => patchMember(member.id, { status: "active" }, t.approveSuccess)}
                       >
                         {t.approve}
-                      </button>
+                      </Button>
                     </div>
                   ) : (
                     <div className="flex justify-end">
-                      <Button variant="icon" size="sm" disabled aria-label={t.rowMenu} title={t.rowMenu}>
-                        <MoreVertical size={16} strokeWidth={1.7} aria-hidden="true" />
-                      </Button>
+                      <Menu
+                        trigger={
+                          <Button
+                            variant="icon"
+                            size="sm"
+                            aria-label={t.rowMenu}
+                            title={t.rowMenu}
+                            disabled={member.id === currentUserId}
+                            loading={actingOn === member.id}
+                          >
+                            <MoreVertical size={16} strokeWidth={1.7} aria-hidden="true" />
+                          </Button>
+                        }
+                      >
+                        {member.status === "active" ? (
+                          <MenuItem
+                            onClick={() => {
+                              const nextRole: UserRole = member.role === "admin" ? "officer" : "admin";
+                              patchMember(member.id, { role: nextRole }, t.roleUpdateSuccess);
+                            }}
+                          >
+                            {member.role === "admin" ? t.makeOfficer : t.makeAdmin}
+                          </MenuItem>
+                        ) : null}
+                        {member.status === "active" ? (
+                          <MenuItem
+                            tone="danger"
+                            onClick={() => patchMember(member.id, { status: "disabled" }, t.suspendSuccess)}
+                          >
+                            {t.suspend}
+                          </MenuItem>
+                        ) : (
+                          <MenuItem
+                            onClick={() => patchMember(member.id, { status: "active" }, t.activateSuccess)}
+                          >
+                            {t.activate}
+                          </MenuItem>
+                        )}
+                      </Menu>
                     </div>
                   )}
                 </td>

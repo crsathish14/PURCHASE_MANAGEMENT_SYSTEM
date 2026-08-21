@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 
 import en from "@/locales/en.json";
-
-import { LoginForm } from "./login-form";
+import { LoginForm } from "@/components/auth/login-form";
 
 export const metadata: Metadata = {
   title: `${en.auth.login.title} — ${en.auth.brand.word}`,

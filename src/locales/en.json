@@ -94,6 +94,28 @@
       }
     }
   },
+  "changePassword": {
+    "title": "Set a new password",
+    "description": "This account needs a new password before you can continue.",
+    "email": "Email",
+    "currentPassword": "Current password",
+    "currentPasswordPlaceholder": "The password you were given",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "submit": "Update password",
+    "submitting": "Updating…",
+    "errors": {
+      "emailRequired": "Email is required",
+      "emailInvalid": "Enter a valid email address",
+      "emailMismatch": "That email doesn't match your account.",
+      "currentPasswordRequired": "Enter your current password",
+      "currentPasswordIncorrect": "Current password is incorrect.",
+      "passwordMin": "Password must be at least 8 characters",
+      "confirmPasswordRequired": "Confirm your new password",
+      "passwordMismatch": "Passwords don't match",
+      "networkError": "Couldn't reach the server. Check your connection and try again."
+    }
+  },
   "staff": {
     "nav": {
       "dashboard": "Dashboard",
@@ -163,6 +185,37 @@
       },
       "empty": "No one matches your search.",
       "loadError": "Couldn't load team members.",
+      "approveSuccess": "Person approved.",
+      "rejectSuccess": "Request rejected.",
+      "roleUpdateSuccess": "Role updated.",
+      "suspendSuccess": "Account suspended.",
+      "activateSuccess": "Account activated.",
+      "actionError": "Couldn't update this person. Try again.",
+      "makeAdmin": "Make admin",
+      "makeOfficer": "Make purchase officer",
+      "suspend": "Suspend account",
+      "activate": "Activate account",
+      "inviteFormTitle": "Invite person",
+      "inviteFormDescription": "Create an account directly — it's active immediately.",
+      "fullName": "Full name",
+      "fullNamePlaceholder": "e.g. Priya Nair",
+      "email": "Email",
+      "emailPlaceholder": "name@fleetco.com",
+      "password": "Password",
+      "role": "Role",
+      "requirePasswordReset": "Require password reset on first login",
+      "inviteSubmit": "Send invite",
+      "inviteSubmitting": "Creating…",
+      "inviteCancel": "Cancel",
+      "inviteSuccess": "Person invited.",
+      "inviteError": "Couldn't create this account. Try again.",
+      "inviteErrors": {
+        "fullNameRequired": "Full name is required",
+        "emailRequired": "Email is required",
+        "emailInvalid": "Enter a valid email address",
+        "passwordMin": "Password must be at least 8 characters",
+        "emailInUse": "An account with this email already exists."
+      },
       "subnav": {
         "company": "Company",
         "vessels": "Vessels",
