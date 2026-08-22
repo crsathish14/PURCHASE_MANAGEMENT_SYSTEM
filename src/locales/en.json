@@ -216,6 +216,17 @@
         "passwordMin": "Password must be at least 8 characters",
         "emailInUse": "An account with this email already exists."
       },
+      "resetPassword": "Reset password",
+      "newPassword": "New password",
+      "resetFormTitle": "Reset person",
+      "resetFormDescription": "Set a new password for this person — it takes effect immediately.",
+      "resetSubmit": "Reset password",
+      "resetSubmitting": "Resetting…",
+      "resetSuccess": "Password reset.",
+      "resetError": "Couldn't reset this person's password. Try again.",
+      "resetErrors": {
+        "passwordMin": "Password must be at least 8 characters"
+      },
       "subnav": {
         "company": "Company",
         "vessels": "Vessels",

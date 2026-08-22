@@ -7,7 +7,7 @@ import en from "@/locales/en.json";
 import { ROUTES } from "@/lib/routes";
 import type { TeamMember } from "@/lib/data/team";
 
-import { InviteDialog } from "./invite-dialog";
+import { MemberDialog } from "./member-dialog";
 import { TeamTable } from "./team-table";
 
 const t = en.staff.teamAccess;
@@ -37,7 +37,7 @@ export function TeamAccessView({
           <h1 className="font-display text-2xl font-semibold text-ink">{t.title}</h1>
           <p className="mt-1.5 text-sm text-slate">{t.subtitle}</p>
         </div>
-        <InviteDialog setMembers={setMembers} />
+        <MemberDialog mode="invite" setMembers={setMembers} />
       </div>
 
       <div className="grid grid-cols-1 gap-7 md:grid-cols-[184px_1fr]">

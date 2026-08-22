@@ -11,6 +11,7 @@ import { PROFILE_STATUS, USER_ROLE } from "@/lib/constants/profile";
 import { toast } from "@/store/toast-store";
 import type { TeamMember } from "@/lib/data/team";
 import type { ProfileStatus, UserRole } from "@/lib/types/database";
+import { MemberDialog } from "./member-dialog";
 
 const t = en.staff.teamAccess;
 
@@ -33,6 +34,7 @@ export function TeamTable({
   const [roleFilter, setRoleFilter] = useState<"all" | UserRole>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | ProfileStatus>("all");
   const [actingOn, setActingOn] = useState<string | null>(null);
+  const [resetTarget, setResetTarget] = useState<TeamMember | null>(null);
 
   async function patchMember(
     id: string,
@@ -242,6 +244,7 @@ export function TeamTable({
                             {member.role === USER_ROLE.ADMIN ? t.makeOfficer : t.makeAdmin}
                           </MenuItem>
                         ) : null}
+                        <MenuItem onClick={() => setResetTarget(member)}>{t.resetPassword}</MenuItem>
                         {member.status === PROFILE_STATUS.ACTIVE ? (
                           <MenuItem
                             tone="danger"
@@ -269,6 +272,16 @@ export function TeamTable({
           )}
         </tbody>
       </table>
+
+      {resetTarget ? (
+        <MemberDialog
+          mode="reset"
+          member={resetTarget}
+          open={true}
+          onClose={() => setResetTarget(null)}
+          setMembers={setMembers}
+        />
+      ) : null}
     </div>
   );
 }

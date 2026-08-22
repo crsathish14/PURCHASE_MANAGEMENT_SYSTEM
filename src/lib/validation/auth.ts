@@ -50,6 +50,15 @@ export const inviteSchema = z.object({
 
 export type InviteInput = z.infer<typeof inviteSchema>;
 
+const resetPasswordErrors = en.staff.teamAccess.resetErrors;
+
+export const resetPasswordSchema = z.object({
+  password: z.string().min(8, { error: resetPasswordErrors.passwordMin }),
+  requirePasswordReset: z.boolean(),
+});
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
 const changePasswordErrors = en.changePassword.errors;
 
 export const changePasswordSchema = z
