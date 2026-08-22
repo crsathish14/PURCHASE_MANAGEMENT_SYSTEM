@@ -98,12 +98,6 @@ export function LoginForm() {
           />
         </div>
 
-        <div className="mb-5 flex justify-end text-xs">
-          <Link href={ROUTES.CHANGE_PASSWORD} className="font-bold text-harbor hover:underline">
-            {t.changePassword}
-          </Link>
-        </div>
-
         <Button
           type="submit"
           variant="primary"
