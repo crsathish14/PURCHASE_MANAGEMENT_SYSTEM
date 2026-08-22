@@ -5,12 +5,14 @@ import { Plus, Upload } from "lucide-react";
 
 import { Button } from "@/components/atoms";
 import en from "@/locales/en.json";
-import type { PrDropdownField, PrListRow } from "@/lib/data/purchase-requisition";
+import type { PrDetail, PrDropdownField, PrListRow } from "@/lib/data/purchase-requisition";
 import { toast } from "@/store/toast-store";
+import { CancelPrDialog } from "./cancel-pr-dialog";
 import { CreateRequisitionDialog } from "./create-requisition-dialog";
 import { EmptyState } from "./empty-state";
 import { PrPager } from "./pr-pager";
 import { PrTable } from "./pr-table";
+import { PrToolbar } from "./pr-toolbar";
 
 const t = en.staff.poRequests;
 
@@ -23,9 +25,17 @@ export type PoRequestsViewProps = {
 const DEFAULT_PAGE_SIZE = 20;
 
 export function PoRequestsView({ initialDropdownFields, initialRows, initialTotal }: PoRequestsViewProps) {
-  // Lifted (not owned by a single trigger) because both the header CTA and
-  // the empty-state CTA below must open the same dialog instance.
+  // Lifted (not owned by a single trigger) because the header CTA, the
+  // empty-state CTA, and clicking any row all open this same dialog instance —
+  // it's keyed by editingRequisition?.id below so switching between "create"
+  // and a given row's edit/view remounts it with fresh defaultValues.
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingRequisition, setEditingRequisition] = useState<PrDetail | null>(null);
+  const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
+
+  const [cancelTarget, setCancelTarget] = useState<PrListRow | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
   const [rows, setRows] = useState(initialRows);
   const [total, setTotal] = useState(initialTotal);
@@ -55,6 +65,85 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
     }
   }
 
+  async function handleRowSelect(row: PrListRow) {
+    setDetailLoadingId(row.id);
+    try {
+      const response = await fetch(`/api/purchase-requisitions/${row.id}`);
+      const payload = await response.json();
+
+      if (!response.ok) {
+        toast.error(payload?.error?.message ?? t.table.detailLoadError);
+        return;
+      }
+
+      setEditingRequisition(payload.data);
+    } catch {
+      toast.error(t.table.detailLoadError);
+    } finally {
+      setDetailLoadingId(null);
+    }
+  }
+
+  function handleDialogClose() {
+    setCreateOpen(false);
+    setEditingRequisition(null);
+  }
+
+  // Reads editingRequisition before handleDialogClose (called right after by
+  // the dialog itself) clears it — see the comment in
+  // create-requisition-dialog.tsx's onSubmit for why onSaved fires first.
+  function handleDialogSaved() {
+    if (editingRequisition) {
+      fetchPage(page, pageSize);
+    } else {
+      fetchPage(1, pageSize);
+    }
+  }
+
+  async function handleCancelConfirmed() {
+    if (!cancelTarget) return;
+    setCancelling(true);
+    try {
+      const response = await fetch(`/api/purchase-requisitions/${cancelTarget.id}/cancel`, {
+        method: "POST",
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        toast.error(payload?.error?.message ?? t.table.cancelError);
+        return;
+      }
+
+      toast.success(t.table.cancelSuccess);
+      setCancelTarget(null);
+      fetchPage(page, pageSize);
+    } catch {
+      toast.error(t.table.cancelError);
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  async function handleDuplicate(row: PrListRow) {
+    setDuplicatingId(row.id);
+    try {
+      const response = await fetch(`/api/purchase-requisitions/${row.id}/duplicate`, { method: "POST" });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        toast.error(payload?.error?.message ?? t.table.duplicateError);
+        return;
+      }
+
+      toast.success(t.table.duplicateSuccess);
+      fetchPage(1, pageSize);
+    } catch {
+      toast.error(t.table.duplicateError);
+    } finally {
+      setDuplicatingId(null);
+    }
+  }
+
   return (
     <div>
       {/* Persisted header — always renders; only the content area below swaps
@@ -76,11 +165,20 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
         </div>
       </div>
 
+      <PrToolbar />
+
       {total === 0 ? (
         <EmptyState onCreate={() => setCreateOpen(true)} />
       ) : (
         <div className={loading ? "opacity-60" : undefined}>
-          <PrTable rows={rows} />
+          <PrTable
+            rows={rows}
+            onRowSelect={handleRowSelect}
+            detailLoadingId={detailLoadingId}
+            onCancelRequested={setCancelTarget}
+            onDuplicate={handleDuplicate}
+            duplicatingId={duplicatingId}
+          />
           <PrPager
             page={page}
             pageSize={pageSize}
@@ -92,10 +190,20 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
       )}
 
       <CreateRequisitionDialog
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
+        key={editingRequisition?.id ?? "create"}
+        open={createOpen || editingRequisition !== null}
+        onClose={handleDialogClose}
         dropdownFields={initialDropdownFields}
-        onCreated={() => fetchPage(1, pageSize)}
+        onSaved={handleDialogSaved}
+        requisition={editingRequisition}
+      />
+
+      <CancelPrDialog
+        open={cancelTarget !== null}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={handleCancelConfirmed}
+        prNumber={cancelTarget?.prNumber ?? ""}
+        loading={cancelling}
       />
     </div>
   );

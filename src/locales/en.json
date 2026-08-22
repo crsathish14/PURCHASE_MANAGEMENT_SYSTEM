@@ -269,7 +269,14 @@
         "submit": "Submit",
         "submitting": "Submitting…",
         "createSuccess": "Requisition created.",
-        "createError": "Couldn't create this requisition. Try again."
+        "createError": "Couldn't create this requisition. Try again.",
+        "editTitle": "Edit Requisition",
+        "viewTitle": "View Requisition",
+        "saveChanges": "Save changes",
+        "savingChanges": "Saving…",
+        "updateSuccess": "Requisition updated.",
+        "updateError": "Couldn't update this requisition. Try again.",
+        "close": "Close"
       },
       "askLabelDialog": {
         "fieldTitle": "Add a field",
@@ -297,9 +304,37 @@
           "pending_rfq": "Pending RFQ",
           "rfq_issued": "RFQ Issued",
           "quotes_received": "Quotes Recv'd",
-          "awarded": "Awarded"
+          "awarded": "Awarded",
+          "cancelled": "Cancelled"
         },
-        "loadError": "Couldn't load purchase requisitions."
+        "loadError": "Couldn't load purchase requisitions.",
+        "detailLoadError": "Couldn't load this requisition.",
+        "rowMenuLabel": "Row actions",
+        "rowMenu": {
+          "cancel": "Cancel",
+          "duplicate": "Duplicate",
+          "issueRfq": "Issue RFQ",
+          "export": "Export"
+        },
+        "cancelDialog": {
+          "title": "Cancel requisition?",
+          "message": "Cancel {prNumber}? This can't be undone.",
+          "cancel": "Keep it",
+          "confirm": "Cancel requisition"
+        },
+        "cancelSuccess": "Requisition cancelled.",
+        "cancelError": "Couldn't cancel this requisition. Try again.",
+        "duplicateSuccess": "Requisition duplicated.",
+        "duplicateError": "Couldn't duplicate this requisition. Try again."
+      },
+      "toolbar": {
+        "searchPlaceholder": "Search ref, item, requester",
+        "status": "Status",
+        "vessel": "Vessel",
+        "category": "Category",
+        "date": "Date",
+        "all": "All",
+        "any": "Any"
       },
       "pager": {
         "showing": "Showing {from}–{to} of {total}",

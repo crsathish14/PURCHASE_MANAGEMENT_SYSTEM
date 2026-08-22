@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge, type BadgeTone } from "@/components/atoms";
+import { Badge, Menu, MenuItem, type BadgeTone } from "@/components/atoms";
 import en from "@/locales/en.json";
 import { PR_PRIORITY, PR_STATUS, type PrPriority, type PrStatus } from "@/lib/constants/purchase-requisition";
 import type { PrListRow } from "@/lib/data/purchase-requisition";
@@ -18,6 +18,7 @@ const STATUS_TONE: Record<PrStatus, BadgeTone> = {
   [PR_STATUS.RFQ_ISSUED]: "teal",
   [PR_STATUS.QUOTES_RECEIVED]: "teal",
   [PR_STATUS.AWARDED]: "moss",
+  [PR_STATUS.CANCELLED]: "rust",
 };
 
 const dateFormatter = new Intl.DateTimeFormat("en", { day: "numeric", month: "short" });
@@ -29,9 +30,21 @@ function formatItemCount(count: number): string {
 
 export type PrTableProps = {
   rows: PrListRow[];
+  onRowSelect: (row: PrListRow) => void;
+  detailLoadingId: string | null;
+  onCancelRequested: (row: PrListRow) => void;
+  onDuplicate: (row: PrListRow) => void;
+  duplicatingId: string | null;
 };
 
-export function PrTable({ rows }: PrTableProps) {
+export function PrTable({
+  rows,
+  onRowSelect,
+  detailLoadingId,
+  onCancelRequested,
+  onDuplicate,
+  duplicatingId,
+}: PrTableProps) {
   return (
     <div className="overflow-x-auto rounded-xl border border-line bg-paper shadow-(--shadow-e1)">
       <table className="w-full min-w-215 text-left text-[13px]">
@@ -46,28 +59,69 @@ export function PrTable({ rows }: PrTableProps) {
             <th className="px-4 py-3">{t.columns.requester}</th>
             <th className="px-4 py-3">{t.columns.date}</th>
             <th className="px-4 py-3">{t.columns.status}</th>
+            <th className="px-4 py-3" aria-hidden="true" />
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.id} className="border-b border-line last:border-b-0 hover:bg-mist">
-              <td className="px-4 py-3 font-mono text-ink">{row.prNumber}</td>
-              <td className="px-4 py-3 text-ink">{row.vesselLabel ?? "—"}</td>
-              <td className="px-4 py-3 text-ink">{row.departmentLabel ?? "—"}</td>
-              <td className="px-4 py-3 text-ink">{row.categoryLabel ?? "—"}</td>
-              <td className="px-4 py-3 text-slate">{formatItemCount(row.itemCount)}</td>
-              <td className="px-4 py-3">
-                <Badge tone={PRIORITY_TONE[row.priority]} dot={false}>
-                  {priorityLabel(row.priority)}
-                </Badge>
-              </td>
-              <td className="px-4 py-3 text-ink">{row.requesterName ?? "—"}</td>
-              <td className="px-4 py-3 font-mono text-slate">{dateFormatter.format(new Date(row.createdAt))}</td>
-              <td className="px-4 py-3">
-                <Badge tone={STATUS_TONE[row.status]}>{statusLabel(row.status)}</Badge>
-              </td>
-            </tr>
-          ))}
+          {rows.map((row) => {
+            const cancelDisabled = row.status === PR_STATUS.AWARDED || row.status === PR_STATUS.CANCELLED;
+            return (
+              <tr
+                key={row.id}
+                onClick={() => {
+                  if (detailLoadingId) return;
+                  onRowSelect(row);
+                }}
+                className={`border-b border-line last:border-b-0 hover:bg-mist ${
+                  detailLoadingId === row.id ? "cursor-wait opacity-60" : "cursor-pointer"
+                }`}
+              >
+                <td className="px-4 py-3 font-mono text-ink">{row.prNumber}</td>
+                <td className="px-4 py-3 text-ink">{row.vesselLabel ?? "—"}</td>
+                <td className="px-4 py-3 text-ink">{row.departmentLabel ?? "—"}</td>
+                <td className="px-4 py-3 text-ink">{row.categoryLabel ?? "—"}</td>
+                <td className="px-4 py-3 text-slate">{formatItemCount(row.itemCount)}</td>
+                <td className="px-4 py-3">
+                  <Badge tone={PRIORITY_TONE[row.priority]} dot={false}>
+                    {priorityLabel(row.priority)}
+                  </Badge>
+                </td>
+                <td className="px-4 py-3 text-ink">{row.requesterName ?? "—"}</td>
+                <td className="px-4 py-3 font-mono text-slate">{dateFormatter.format(new Date(row.createdAt))}</td>
+                <td className="px-4 py-3">
+                  <Badge tone={STATUS_TONE[row.status]}>{statusLabel(row.status)}</Badge>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <Menu
+                    align="right"
+                    trigger={
+                      <button
+                        type="button"
+                        onClick={(event) => event.stopPropagation()}
+                        aria-label={t.rowMenuLabel}
+                        className="inline-flex h-6.5 w-6.5 items-center justify-center rounded-md text-slate-lt hover:bg-mist hover:text-ink"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-3.75 w-3.75" aria-hidden="true">
+                          <circle cx="12" cy="5" r="1.3" fill="currentColor" />
+                          <circle cx="12" cy="12" r="1.3" fill="currentColor" />
+                          <circle cx="12" cy="19" r="1.3" fill="currentColor" />
+                        </svg>
+                      </button>
+                    }
+                  >
+                    <MenuItem tone="danger" disabled={cancelDisabled} onClick={() => onCancelRequested(row)}>
+                      {t.rowMenu.cancel}
+                    </MenuItem>
+                    <MenuItem disabled={duplicatingId === row.id} onClick={() => onDuplicate(row)}>
+                      {t.rowMenu.duplicate}
+                    </MenuItem>
+                    <MenuItem disabled>{t.rowMenu.issueRfq}</MenuItem>
+                    <MenuItem disabled>{t.rowMenu.export}</MenuItem>
+                  </Menu>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

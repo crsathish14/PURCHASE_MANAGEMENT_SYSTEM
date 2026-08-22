@@ -325,6 +325,28 @@ export type Database = {
         };
         Returns: { id: string; pr_number: string }[];
       };
+      update_purchase_requisition: {
+        Args: {
+          p_id: string;
+          p_priority: PrPriority;
+          p_requested_by: string | null;
+          p_required_port: string | null;
+          p_remarks: string | null;
+          p_dropdowns: Json;
+          p_custom_fields: Json;
+          p_columns: Json;
+          p_line_items: Json;
+        };
+        Returns: { id: string; pr_number: string }[];
+      };
+      cancel_purchase_requisition: {
+        Args: { p_id: string };
+        Returns: { id: string; status: PrStatus }[];
+      };
+      duplicate_purchase_requisition: {
+        Args: { p_id: string };
+        Returns: { id: string; pr_number: string }[];
+      };
     };
     Enums: {
       user_role: UserRole;

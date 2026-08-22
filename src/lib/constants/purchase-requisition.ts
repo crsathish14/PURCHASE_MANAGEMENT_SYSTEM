@@ -7,6 +7,7 @@ export const PR_STATUS = {
   RFQ_ISSUED: "rfq_issued",
   QUOTES_RECEIVED: "quotes_received",
   AWARDED: "awarded",
+  CANCELLED: "cancelled",
 } as const;
 
 export type PrPriority = (typeof PR_PRIORITY)[keyof typeof PR_PRIORITY];

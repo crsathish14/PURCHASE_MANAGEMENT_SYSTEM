@@ -35,6 +35,7 @@ type LineItemsFieldProps = {
   columns: Array<LineItemColumn & { id: string }>;
   appendColumn: UseFieldArrayAppend<CreateRequisitionFormValues, "columns">;
   removeColumn: UseFieldArrayRemove;
+  readOnly?: boolean;
 };
 
 export function LineItemsField({
@@ -46,6 +47,7 @@ export function LineItemsField({
   columns,
   appendColumn,
   removeColumn,
+  readOnly = false,
 }: LineItemsFieldProps) {
   const { fields, append, remove } = useFieldArray({ control, name: "lineItems" });
   const [addColumnOpen, setAddColumnOpen] = useState(false);
@@ -85,9 +87,11 @@ export function LineItemsField({
           columns stay evenly aligned between the header row and every data row. */}
       <div className="mb-2 flex items-center justify-between">
         <Label>{t.lineItemsTitle}</Label>
-        <Button type="button" variant="ghost" size="sm" onClick={() => setAddColumnOpen(true)}>
-          {t.addColumn}
-        </Button>
+        {readOnly ? null : (
+          <Button type="button" variant="ghost" size="sm" onClick={() => setAddColumnOpen(true)}>
+            {t.addColumn}
+          </Button>
+        )}
       </div>
 
       <table className="mb-2 w-full border-collapse">
@@ -99,18 +103,20 @@ export function LineItemsField({
               <th key={column.key} className={headerCellClass}>
                 <span className="inline-flex items-center gap-1">
                   {column.label}
-                  <button
-                    type="button"
-                    aria-label={t.removeColumn}
-                    onClick={() => handleRemoveColumn(column.key)}
-                    className="normal-case text-slate-lt hover:text-rust"
-                  >
-                    <X size={11} strokeWidth={1.7} aria-hidden="true" />
-                  </button>
+                  {readOnly ? null : (
+                    <button
+                      type="button"
+                      aria-label={t.removeColumn}
+                      onClick={() => handleRemoveColumn(column.key)}
+                      className="normal-case text-slate-lt hover:text-rust"
+                    >
+                      <X size={11} strokeWidth={1.7} aria-hidden="true" />
+                    </button>
+                  )}
                 </span>
               </th>
             ))}
-            <th className={`${headerCellClass} w-10`} aria-hidden="true" />
+            {readOnly ? null : <th className={`${headerCellClass} w-10`} aria-hidden="true" />}
           </tr>
         </thead>
         <tbody>
@@ -118,33 +124,37 @@ export function LineItemsField({
             <tr key={field.id}>
               <td className={cellClass}>
                 <Input
+                  disabled={readOnly}
                   error={errors.lineItems?.[index]?.description?.message}
                   {...register(`lineItems.${index}.description`)}
                 />
               </td>
               <td className={cellClass}>
                 <Input
+                  disabled={readOnly}
                   error={errors.lineItems?.[index]?.qty?.message}
                   {...register(`lineItems.${index}.qty`)}
                 />
               </td>
               {columns.map((column) => (
                 <td key={column.key} className={cellClass}>
-                  <Input {...register(`lineItems.${index}.extra.${column.key}`)} />
+                  <Input disabled={readOnly} {...register(`lineItems.${index}.extra.${column.key}`)} />
                 </td>
               ))}
-              <td className={cellClass}>
-                <Button
-                  type="button"
-                  variant="icon"
-                  size="sm"
-                  aria-label={t.removeLineItem}
-                  disabled={fields.length === 1}
-                  onClick={() => remove(index)}
-                >
-                  <X size={14} strokeWidth={1.7} aria-hidden="true" />
-                </Button>
-              </td>
+              {readOnly ? null : (
+                <td className={cellClass}>
+                  <Button
+                    type="button"
+                    variant="icon"
+                    size="sm"
+                    aria-label={t.removeLineItem}
+                    disabled={fields.length === 1}
+                    onClick={() => remove(index)}
+                  >
+                    <X size={14} strokeWidth={1.7} aria-hidden="true" />
+                  </Button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
@@ -152,13 +162,15 @@ export function LineItemsField({
 
       {/* Plain button, not the Button atom — none of its variants have the
           design's dashed-border "add item" treatment. */}
-      <button
-        type="button"
-        onClick={handleAddItem}
-        className="w-full rounded-md border border-dashed border-[#C9D2E0] py-2 text-center text-[12.5px] font-bold text-harbor hover:bg-harbor-50"
-      >
-        + {t.addItem}
-      </button>
+      {readOnly ? null : (
+        <button
+          type="button"
+          onClick={handleAddItem}
+          className="w-full rounded-md border border-dashed border-[#C9D2E0] py-2 text-center text-[12.5px] font-bold text-harbor hover:bg-harbor-50"
+        >
+          + {t.addItem}
+        </button>
+      )}
 
       <AskLabelDialog
         open={addColumnOpen}

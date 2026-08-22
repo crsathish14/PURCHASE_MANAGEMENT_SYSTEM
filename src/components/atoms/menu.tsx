@@ -89,7 +89,17 @@ export function Menu({ trigger, children, align = "right", className = "" }: Men
               ref={panelRef}
               style={{ position: "absolute", top: position.top, left: position.left }}
               className="z-20 w-48 rounded-md border border-line bg-paper py-1.5 shadow-(--shadow-e2)"
-              onClick={() => setOpen(false)}
+              onClick={(event) => {
+                // Stop here, not just close the menu: this panel is portaled
+                // into document.body, but React bubbles synthetic events
+                // through the *React* tree, not the DOM tree — since a
+                // consumer can (and does, for row action menus) nest <Menu>
+                // inside another element with its own onClick (e.g. a
+                // clickable <tr>), an un-stopped click would also fire that
+                // ancestor's handler right after the menu item's own.
+                event.stopPropagation();
+                setOpen(false);
+              }}
             >
               {children}
             </div>,
@@ -104,15 +114,23 @@ export type MenuItemProps = {
   children: ReactNode;
   onClick?: () => void;
   tone?: "default" | "danger";
+  disabled?: boolean;
   className?: string;
 };
 
-export function MenuItem({ children, onClick, tone = "default", className = "" }: MenuItemProps) {
+export function MenuItem({
+  children,
+  onClick,
+  tone = "default",
+  disabled = false,
+  className = "",
+}: MenuItemProps) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`block w-full px-3.5 py-2 text-left text-[13px] hover:bg-mist ${
+      disabled={disabled}
+      className={`block w-full px-3.5 py-2 text-left text-[13px] hover:bg-mist disabled:pointer-events-none disabled:opacity-40 ${
         tone === "danger" ? "text-rust" : "text-ink"
       } ${className}`}
     >

@@ -43,7 +43,20 @@ export function AskLabelDialog({ open, onClose, title, onSubmit }: AskLabelDialo
 
   return (
     <Dialog open={open} onClose={close} title={title}>
-      <form onSubmit={handleSubmit(submit)} noValidate>
+      {/* This dialog renders via a createPortal into document.body (see the
+          Dialog atom), but React's synthetic event system bubbles through
+          the *React* component tree, not the DOM tree — since this form is a
+          React descendant of CreateRequisitionDialog's own <form> (through
+          LineItemsField or directly), its submit event would otherwise also
+          reach and fire the outer form's onSubmit. stopPropagation() keeps
+          it contained to this dialog's own handleSubmit. */}
+      <form
+        onSubmit={(event) => {
+          event.stopPropagation();
+          handleSubmit(submit)(event);
+        }}
+        noValidate
+      >
         <div className="mb-5">
           <Label htmlFor="ask-label-input" error={!!errors.label}>
             {t.label}
