@@ -37,6 +37,59 @@ export type Database = {
         };
         Relationships: [];
       };
+      pr_dropdown_fields: {
+        Row: {
+          id: string;
+          key: string;
+          label: string;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          key: string;
+          label: string;
+          sort_order?: number;
+        };
+        Update: {
+          key?: string;
+          label?: string;
+          sort_order?: number;
+        };
+        Relationships: [];
+      };
+      pr_dropdown_field_options: {
+        Row: {
+          id: string;
+          field_id: string;
+          value: string;
+          label: string;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          field_id: string;
+          value: string;
+          label: string;
+          sort_order?: number;
+        };
+        Update: {
+          field_id?: string;
+          value?: string;
+          label?: string;
+          sort_order?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pr_dropdown_field_options_field_id_fkey";
+            columns: ["field_id"];
+            isOneToOne: false;
+            referencedRelation: "pr_dropdown_fields";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

@@ -5,14 +5,23 @@ import { createPortal } from "react-dom";
 
 // Same createPortal-into-document.body technique as Menu (src/components/atoms/menu.tsx),
 // but centered with a backdrop instead of anchored to a trigger.
+export type DialogSize = "md" | "lg";
+
+const SIZE_CLASSES: Record<DialogSize, string> = {
+  md: "max-w-md",
+  // Matches Design-docs/design-spec.html's "Modal L 720px" token (Create PR).
+  lg: "max-w-[720px]",
+};
+
 export type DialogProps = {
   open: boolean;
   onClose: () => void;
   title: ReactNode;
   children: ReactNode;
+  size?: DialogSize;
 };
 
-export function Dialog({ open, onClose, title, children }: DialogProps) {
+export function Dialog({ open, onClose, title, children, size = "md" }: DialogProps) {
   useEffect(() => {
     if (!open) return;
 
@@ -33,7 +42,7 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
       <div
         role="dialog"
         aria-modal="true"
-        className="max-h-full w-full max-w-md overflow-y-auto rounded-xl border border-line bg-paper p-6 shadow-(--shadow-e2)"
+        className={`max-h-full w-full ${SIZE_CLASSES[size]} overflow-y-auto rounded-xl border border-line bg-paper p-6 shadow-(--shadow-e2)`}
         onClick={(event) => event.stopPropagation()}
       >
         <h2 className="font-display text-lg font-semibold text-ink">{title}</h2>

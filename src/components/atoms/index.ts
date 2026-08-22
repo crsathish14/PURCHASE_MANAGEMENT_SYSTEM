@@ -11,7 +11,7 @@ export { Checkbox } from "./checkbox";
 export type { CheckboxProps } from "./checkbox";
 
 export { Dialog } from "./dialog";
-export type { DialogProps } from "./dialog";
+export type { DialogProps, DialogSize } from "./dialog";
 
 export { Input } from "./input";
 export type { InputProps } from "./input";

@@ -228,6 +228,48 @@
       "subnav": {
         "team": "Team"
       }
+    },
+    "poRequests": {
+      "title": "Purchase Requisition",
+      "subtitle": "Every request raised across the fleet, from draft to RFQ.",
+      "importExcel": "Import Excel",
+      "createRequisition": "Create Requisition",
+      "empty": {
+        "title": "No purchase requisitions yet",
+        "description": "Create your first requisition to start the procurement pipeline for a vessel.",
+        "action": "Create Requisition"
+      },
+      "createDialog": {
+        "title": "Create Requisition",
+        "selectPlaceholder": "Select…",
+        "requestedBy": "Requested By",
+        "requiredPort": "Required Port",
+        "requiredPortPlaceholder": "e.g. Singapore",
+        "addMoreField": "Add more",
+        "lineItemsTitle": "Line items",
+        "columns": {
+          "description": "Description",
+          "qty": "Qty"
+        },
+        "addItem": "Add item",
+        "addColumn": "Add column",
+        "removeLineItem": "Remove line item",
+        "removeColumn": "Remove column",
+        "removeField": "Remove field",
+        "cancel": "Cancel"
+      },
+      "askLabelDialog": {
+        "fieldTitle": "Add a field",
+        "columnTitle": "Add a column",
+        "label": "Field label",
+        "labelPlaceholder": "e.g. Remarks",
+        "cancel": "Cancel",
+        "add": "Add"
+      },
+      "errors": {
+        "fieldRequired": "This field is required.",
+        "labelRequired": "Enter a label."
+      }
     }
   }
 }
