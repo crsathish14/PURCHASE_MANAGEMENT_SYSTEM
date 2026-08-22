@@ -17,13 +17,41 @@ import {
 } from "@/components/atoms";
 import en from "@/locales/en.json";
 import { USER_ROLE } from "@/lib/constants/profile";
-import { inviteSchema, type InviteInput } from "@/lib/validation/auth";
+import {
+  inviteSchema,
+  resetPasswordSchema,
+  type InviteInput,
+  type ResetPasswordInput,
+} from "@/lib/validation/auth";
 import { toast } from "@/store/toast-store";
 import type { TeamMember } from "@/lib/data/team";
 
 const t = en.staff.teamAccess;
 
-export function InviteDialog({
+type MemberDialogProps =
+  | { mode: "invite"; setMembers: Dispatch<SetStateAction<TeamMember[]>> }
+  | {
+      mode: "reset";
+      member: TeamMember;
+      open: boolean;
+      onClose: () => void;
+      setMembers: Dispatch<SetStateAction<TeamMember[]>>;
+    };
+
+export function MemberDialog(props: MemberDialogProps) {
+  return props.mode === "invite" ? (
+    <InviteForm setMembers={props.setMembers} />
+  ) : (
+    <ResetForm
+      member={props.member}
+      open={props.open}
+      onClose={props.onClose}
+      setMembers={props.setMembers}
+    />
+  );
+}
+
+function InviteForm({
   setMembers,
 }: {
   setMembers: Dispatch<SetStateAction<TeamMember[]>>;
@@ -39,7 +67,7 @@ export function InviteDialog({
   } = useForm<InviteInput>({
     resolver: zodResolver(inviteSchema),
     mode: "onBlur",
-    defaultValues: { role: USER_ROLE.OFFICER, requirePasswordReset: true },
+    defaultValues: { role: USER_ROLE.OFFICER, requirePasswordReset: false },
   });
 
   const [fullName, email, password, role] = watch(["fullName", "email", "password", "role"]);
@@ -48,7 +76,7 @@ export function InviteDialog({
 
   function close() {
     setOpen(false);
-    reset({ role: USER_ROLE.OFFICER, requirePasswordReset: true });
+    reset({ role: USER_ROLE.OFFICER, requirePasswordReset: false });
   }
 
   async function onSubmit(data: InviteInput) {
@@ -151,5 +179,117 @@ export function InviteDialog({
         </form>
       </Dialog>
     </>
+  );
+}
+
+function ResetForm({
+  member,
+  open,
+  onClose,
+  setMembers,
+}: {
+  member: TeamMember;
+  open: boolean;
+  onClose: () => void;
+  setMembers: Dispatch<SetStateAction<TeamMember[]>>;
+}) {
+  const {
+    register,
+    handleSubmit,
+    watch,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<ResetPasswordInput>({
+    resolver: zodResolver(resetPasswordSchema),
+    mode: "onBlur",
+    defaultValues: { requirePasswordReset: false },
+  });
+
+  const password = watch("password");
+  const requiredFieldsFilled = Boolean(password);
+  const hasErrors = Object.keys(errors).length > 0;
+
+  function close() {
+    onClose();
+    reset({ requirePasswordReset: false });
+  }
+
+  async function onSubmit(data: ResetPasswordInput) {
+    try {
+      const response = await fetch(`/api/team/${member.id}/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        toast.error(payload?.error?.message ?? t.resetError);
+        return;
+      }
+
+      setMembers((prev) => prev.map((m) => (m.id === payload.data.id ? payload.data : m)));
+      toast.success(t.resetSuccess);
+      close();
+    } catch {
+      toast.error(t.resetError);
+    }
+  }
+
+  return (
+    <Dialog open={open} onClose={close} title={t.resetFormTitle}>
+      <p className="mb-5 text-[13px] leading-relaxed text-slate">{t.resetFormDescription}</p>
+
+      <form onSubmit={handleSubmit(onSubmit)} noValidate>
+        <div className="mb-4">
+          <Label htmlFor="reset-full-name">{t.fullName}</Label>
+          <Input id="reset-full-name" type="text" defaultValue={member.fullName ?? ""} disabled />
+        </div>
+
+        <div className="mb-4">
+          <Label htmlFor="reset-email">{t.email}</Label>
+          <Input id="reset-email" type="email" defaultValue={member.email ?? ""} disabled />
+        </div>
+
+        <div className="mb-4">
+          <Label htmlFor="reset-password" error={!!errors.password}>
+            {t.newPassword}
+          </Label>
+          <PasswordInput
+            id="reset-password"
+            error={errors.password?.message}
+            {...register("password")}
+          />
+          <PasswordStrengthMeter password={password ?? ""} />
+        </div>
+
+        <div className="mb-4">
+          <Label htmlFor="reset-role">{t.role}</Label>
+          <Select id="reset-role" defaultValue={member.role} disabled>
+            <option value={USER_ROLE.OFFICER}>{en.staff.roleLabels.officer}</option>
+            <option value={USER_ROLE.ADMIN}>{en.staff.roleLabels.admin}</option>
+          </Select>
+        </div>
+
+        <label className="mb-5 flex items-center gap-2 text-[13px] text-slate">
+          <Checkbox {...register("requirePasswordReset")} />
+          {t.requirePasswordReset}
+        </label>
+
+        <div className="flex justify-end gap-2.5">
+          <Button type="button" variant="secondary" onClick={close}>
+            {t.inviteCancel}
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            loading={isSubmitting}
+            disabled={!requiredFieldsFilled || hasErrors}
+          >
+            {isSubmitting ? t.resetSubmitting : t.resetSubmit}
+          </Button>
+        </div>
+      </form>
+    </Dialog>
   );
 }
