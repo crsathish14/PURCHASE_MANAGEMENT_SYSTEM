@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { Button, Checkbox, Input, Label, PasswordInput } from "@/components/atoms";
+import { Button, Input, Label, PasswordInput } from "@/components/atoms";
 import en from "@/locales/en.json";
 import { PROFILE_STATUS } from "@/lib/constants/profile";
 import { ROUTES } from "@/lib/routes";
@@ -98,13 +98,9 @@ export function LoginForm() {
           />
         </div>
 
-        <div className="mb-5 flex items-center justify-between text-xs">
-          <label className="flex items-center gap-1.5 text-slate">
-            <Checkbox {...register("rememberMe")} />
-            {t.rememberMe}
-          </label>
-          <Link href="#" className="font-bold text-harbor hover:underline">
-            {t.forgot}
+        <div className="mb-5 flex justify-end text-xs">
+          <Link href={ROUTES.CHANGE_PASSWORD} className="font-bold text-harbor hover:underline">
+            {t.changePassword}
           </Link>
         </div>
 

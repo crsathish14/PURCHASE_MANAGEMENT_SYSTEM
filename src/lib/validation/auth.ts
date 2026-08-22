@@ -10,7 +10,6 @@ export const loginSchema = z.object({
     .email({ error: loginErrors.emailInvalid })
     .min(1, { error: loginErrors.emailRequired }),
   password: z.string().min(1, { error: loginErrors.passwordRequired }),
-  rememberMe: z.boolean().optional(),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
