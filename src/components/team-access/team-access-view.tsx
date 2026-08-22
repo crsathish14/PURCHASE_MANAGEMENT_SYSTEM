@@ -48,16 +48,6 @@ export function TeamAccessView({
           >
             {t.subnav.team}
           </Link>
-          {[t.subnav.company, t.subnav.vessels, t.subnav.categories, t.subnav.budgets, t.subnav.auditLog].map(
-            (label) => (
-              <span
-                key={label}
-                className="cursor-not-allowed rounded-md px-3 py-2 text-[13px] whitespace-nowrap text-slate-lt/60"
-              >
-                {label}
-              </span>
-            ),
-          )}
         </nav>
 
         <div className="overflow-hidden rounded-xl border border-line bg-paper shadow-(--shadow-e1)">

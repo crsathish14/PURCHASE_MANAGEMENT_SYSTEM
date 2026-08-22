@@ -44,8 +44,7 @@
       "passwordPlaceholder": "••••••••••••",
       "showPassword": "Show",
       "hidePassword": "Hide",
-      "rememberMe": "Remember me",
-      "forgot": "Forgot?",
+      "changePassword": "Change password",
       "submit": "Sign in",
       "submitting": "Signing in…",
       "switchPrompt": "New to Vessel PMS?",
@@ -120,7 +119,7 @@
     "nav": {
       "dashboard": "Dashboard",
       "pipeline": "Pipeline",
-      "poRequests": "PO Requests",
+      "poRequests": "Purchase Requisition",
       "rfq": "Request for Quote",
       "purchaseOrders": "Purchase Orders",
       "invoiceLog": "Invoice Log",
@@ -228,12 +227,7 @@
         "passwordMin": "Password must be at least 8 characters"
       },
       "subnav": {
-        "company": "Company",
-        "vessels": "Vessels",
-        "categories": "Categories",
-        "budgets": "Budgets",
-        "team": "Team",
-        "auditLog": "Audit log"
+        "team": "Team"
       }
     }
   }
