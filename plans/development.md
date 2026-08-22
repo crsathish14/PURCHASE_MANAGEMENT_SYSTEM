@@ -45,7 +45,8 @@ automatic — no `dark:` variants needed. Canonical source: `Design-docs/design-
   barrel: `import { Button, Badge } from "@/components/atoms"`.
 - `src/components/<feature>/` — everything else, grouped by feature area: `auth/` (login,
   request-access, change-password forms + shared icons), `staff/` (sidebar, topbar, shell,
-  nav-items), `team-access/` (the Team & Access page's view/table/invite-dialog).
+  nav-items), `team-access/` (the Team & Access page's view/table/member-dialog — the latter
+  handles both inviting a person and resetting a person's password via a `mode` prop).
 - `src/app/[lang]/**` holds **only** pages and layouts — no component logic lives there. If a new
   component isn't a page or layout, it goes in `atoms/` (small, reusable, no feature-specific
   logic) or a feature folder (everything else), never inline in the route file.
@@ -93,9 +94,10 @@ for loading, Client Component + `unstable_retry` for error).
   the normal cookie-session client, subject to RLS.
 - `src/lib/supabase/admin.ts` — service-role client, bypasses RLS entirely. Server-only, never
   imported from a Client Component. Used only where a session-scoped client genuinely can't do the
-  job (creating an invited user via `auth.admin.createUser`, clearing a profile's own
-  `must_change_password` flag — see the migration comment on why no self-update RLS policy exists).
-  Don't reach for it as a shortcut around RLS elsewhere.
+  job (creating an invited user via `auth.admin.createUser`, an admin resetting another user's
+  password via `auth.admin.updateUserById`, clearing a profile's own `must_change_password` flag —
+  see the migration comment on why no self-update RLS policy exists). Don't reach for it as a
+  shortcut around RLS elsewhere.
 - Schema lives in `supabase/migrations/*.sql` — `profiles` table (`admin`/`officer` roles,
   `pending`/`active`/`disabled` status, `must_change_password` flag), RLS (select-own + admin-all,
   admin-update, no client-side self-update/insert/delete), a `storage.attachments` bucket policy.
