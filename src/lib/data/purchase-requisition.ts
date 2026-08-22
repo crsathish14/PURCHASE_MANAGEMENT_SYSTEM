@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import type { PrPriority, PrStatus } from "@/lib/constants/purchase-requisition";
 
 export type PrDropdownFieldOption = {
   value: string;
@@ -32,4 +33,54 @@ export async function getPrDropdownFields(): Promise<PrDropdownField[]> {
       label: option.label,
     })),
   }));
+}
+
+export type PrListRow = {
+  id: string;
+  prNumber: string;
+  priority: PrPriority;
+  status: PrStatus;
+  createdAt: string;
+  vesselLabel: string | null;
+  departmentLabel: string | null;
+  categoryLabel: string | null;
+  itemCount: number;
+  requesterName: string | null;
+};
+
+// pr_requisition_list is a view (not a table) so pagination gets total count
+// in the same round trip via count:"exact" — see the migration comment on
+// why it's deliberately left at security_invoker=false to resolve every
+// requester's name regardless of the viewing user's own profiles RLS.
+export async function getPurchaseRequisitions({
+  page,
+  pageSize,
+}: {
+  page: number;
+  pageSize: number;
+}): Promise<{ rows: PrListRow[]; total: number }> {
+  const supabase = await createClient();
+  const from = (page - 1) * pageSize;
+  const { data, error, count } = await supabase
+    .from("pr_requisition_list")
+    .select("*", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(from, from + pageSize - 1);
+
+  if (error) throw error;
+
+  const rows: PrListRow[] = (data ?? []).map((row) => ({
+    id: row.id,
+    prNumber: row.pr_number,
+    priority: row.priority,
+    status: row.status,
+    createdAt: row.created_at,
+    vesselLabel: row.vessel_label,
+    departmentLabel: row.department_label,
+    categoryLabel: row.category_label,
+    itemCount: row.item_count,
+    requesterName: row.requester_name,
+  }));
+
+  return { rows, total: count ?? 0 };
 }

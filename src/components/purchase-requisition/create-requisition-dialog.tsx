@@ -5,13 +5,15 @@ import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, X } from "lucide-react";
 
-import { Button, Dialog, Input, Label, Select } from "@/components/atoms";
+import { Button, Dialog, Input, Label, Select, Textarea } from "@/components/atoms";
 import en from "@/locales/en.json";
+import { PR_PRIORITY } from "@/lib/constants/purchase-requisition";
 import type { PrDropdownField } from "@/lib/data/purchase-requisition";
 import {
   buildCreateRequisitionSchema,
   type CreateRequisitionFormValues,
 } from "@/lib/validation/purchase-requisition";
+import { toast } from "@/store/toast-store";
 import { AskLabelDialog } from "./ask-label-dialog";
 import { LineItemsField } from "./line-items-field";
 
@@ -22,17 +24,26 @@ export type CreateRequisitionDialogProps = {
   open: boolean;
   onClose: () => void;
   dropdownFields: PrDropdownField[];
+  onCreated: () => void;
 };
 
-export function CreateRequisitionDialog({ open, onClose, dropdownFields }: CreateRequisitionDialogProps) {
+export function CreateRequisitionDialog({
+  open,
+  onClose,
+  dropdownFields,
+  onCreated,
+}: CreateRequisitionDialogProps) {
   const schema = useMemo(() => buildCreateRequisitionSchema(dropdownFields), [dropdownFields]);
 
   const defaultValues = useMemo<CreateRequisitionFormValues>(
     () => ({
+      priority: "",
       dropdowns: Object.fromEntries(dropdownFields.map((field) => [field.key, ""])),
       requestedBy: "",
       requiredPort: "",
+      remarks: "",
       customFields: [],
+      columns: [],
       lineItems: [{ description: "", qty: "", extra: {} }],
     }),
     [dropdownFields],
@@ -44,7 +55,9 @@ export function CreateRequisitionDialog({ open, onClose, dropdownFields }: Creat
     setValue,
     unregister,
     reset,
-    formState: { errors },
+    handleSubmit,
+    watch,
+    formState: { errors, isSubmitting },
   } = useForm<CreateRequisitionFormValues>({
     resolver: zodResolver(schema),
     mode: "onBlur",
@@ -60,23 +73,71 @@ export function CreateRequisitionDialog({ open, onClose, dropdownFields }: Creat
     name: "customFields",
   });
 
+  const {
+    fields: columns,
+    append: appendColumn,
+    remove: removeColumn,
+  } = useFieldArray({
+    control,
+    name: "columns",
+  });
+
   const [addFieldOpen, setAddFieldOpen] = useState(false);
+
+  const watchedDropdowns = watch("dropdowns");
+  const priority = watch("priority");
+  const requiredFieldsFilled =
+    Boolean(priority) && dropdownFields.every((field) => watchedDropdowns?.[field.key]);
+  const hasErrors = Object.keys(errors).length > 0;
 
   function close() {
     onClose();
     reset(defaultValues);
   }
 
+  async function onSubmit(data: CreateRequisitionFormValues) {
+    try {
+      const response = await fetch("/api/purchase-requisitions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        toast.error(payload?.error?.message ?? t.createError);
+        return;
+      }
+
+      toast.success(t.createSuccess);
+      close();
+      onCreated();
+    } catch {
+      toast.error(t.createError);
+    }
+  }
+
   return (
     <Dialog open={open} onClose={close} title={t.title} size="lg">
-      {/* No RHF handleSubmit — there's no backend to submit to yet (see the
-          footer below), so nothing triggers this; preventDefault just guards
-          against a stray native form submission. */}
-      <form noValidate onSubmit={(event) => event.preventDefault()}>
+      <form onSubmit={handleSubmit(onSubmit)} noValidate>
         {/* Two columns for every field except line items — CSS grid auto-flow
             handles pairing regardless of how many dynamic dropdowns/custom
             fields end up in the list, unlike manually paired flex rows. */}
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+          <div>
+            <Label htmlFor="pr-priority" error={!!errors.priority}>
+              {t.priority}
+            </Label>
+            <Select id="pr-priority" error={errors.priority?.message} {...register("priority")}>
+              <option value="" disabled>
+                {t.selectPlaceholder}
+              </option>
+              <option value={PR_PRIORITY.HIGH}>{t.priorityOptions.high}</option>
+              <option value={PR_PRIORITY.MEDIUM}>{t.priorityOptions.medium}</option>
+              <option value={PR_PRIORITY.LOW}>{t.priorityOptions.low}</option>
+            </Select>
+          </div>
+
           {dropdownFields.map((field) => (
             <div key={field.key}>
               <Label htmlFor={`pr-dropdown-${field.key}`} error={!!errors.dropdowns?.[field.key]}>
@@ -157,11 +218,29 @@ export function CreateRequisitionDialog({ open, onClose, dropdownFields }: Creat
           errors={errors}
           setValue={setValue}
           unregister={unregister}
+          columns={columns}
+          appendColumn={appendColumn}
+          removeColumn={removeColumn}
         />
+
+        <div className="mt-5">
+          <Label htmlFor="pr-remarks">
+            {t.remarks} <span className="font-normal text-slate-lt">{t.optional}</span>
+          </Label>
+          <Textarea id="pr-remarks" placeholder={t.remarksPlaceholder} {...register("remarks")} />
+        </div>
 
         <div className="mt-6 flex justify-end gap-2.5 border-t border-line pt-4">
           <Button type="button" variant="secondary" onClick={close}>
             {t.cancel}
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            loading={isSubmitting}
+            disabled={!requiredFieldsFilled || hasErrors}
+          >
+            {isSubmitting ? t.submitting : t.submit}
           </Button>
         </div>
       </form>

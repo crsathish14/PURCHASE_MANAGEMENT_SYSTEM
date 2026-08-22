@@ -242,9 +242,18 @@
       "createDialog": {
         "title": "Create Requisition",
         "selectPlaceholder": "Select…",
+        "priority": "Priority",
+        "priorityOptions": {
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low"
+        },
         "requestedBy": "Requested By",
         "requiredPort": "Required Port",
         "requiredPortPlaceholder": "e.g. Singapore",
+        "remarks": "Remarks",
+        "remarksPlaceholder": "Notes for your own record — not sent to vendors",
+        "optional": "optional",
         "addMoreField": "Add more",
         "lineItemsTitle": "Line items",
         "columns": {
@@ -256,7 +265,11 @@
         "removeLineItem": "Remove line item",
         "removeColumn": "Remove column",
         "removeField": "Remove field",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "submit": "Submit",
+        "submitting": "Submitting…",
+        "createSuccess": "Requisition created.",
+        "createError": "Couldn't create this requisition. Try again."
       },
       "askLabelDialog": {
         "fieldTitle": "Add a field",
@@ -265,6 +278,34 @@
         "labelPlaceholder": "e.g. Remarks",
         "cancel": "Cancel",
         "add": "Add"
+      },
+      "table": {
+        "columns": {
+          "ref": "Ref",
+          "vessel": "Vessel",
+          "department": "Dept.",
+          "category": "Category",
+          "description": "Description",
+          "priority": "Priority",
+          "requester": "Requester",
+          "date": "Date",
+          "status": "Status"
+        },
+        "itemCountSingular": "{count} item",
+        "itemCountPlural": "{count} items",
+        "statusLabels": {
+          "pending_rfq": "Pending RFQ",
+          "rfq_issued": "RFQ Issued",
+          "quotes_received": "Quotes Recv'd",
+          "awarded": "Awarded"
+        },
+        "loadError": "Couldn't load purchase requisitions."
+      },
+      "pager": {
+        "showing": "Showing {from}–{to} of {total}",
+        "rowsPerPage": "Rows per page",
+        "previous": "Previous page",
+        "next": "Next page"
       },
       "errors": {
         "fieldRequired": "This field is required.",

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 
 import en from "@/locales/en.json";
-import { getPrDropdownFields } from "@/lib/data/purchase-requisition";
+import { getPrDropdownFields, getPurchaseRequisitions } from "@/lib/data/purchase-requisition";
 import { requireActiveUser } from "@/lib/supabase/require-active-user";
 import { PoRequestsView } from "@/components/purchase-requisition/po-requests-view";
 
 const t = en.staff.poRequests;
+const DEFAULT_PAGE_SIZE = 20;
 
 export const metadata: Metadata = {
   title: `${t.title} — ${en.auth.brand.word}`,
@@ -17,7 +18,12 @@ export default async function PoRequestsPage() {
   // page's own render. requireActiveUser() (not requireAdmin()) since both
   // admin and Purchase Officer roles can view/create requisitions.
   await requireActiveUser();
-  const dropdownFields = await getPrDropdownFields();
+  const [dropdownFields, { rows, total }] = await Promise.all([
+    getPrDropdownFields(),
+    getPurchaseRequisitions({ page: 1, pageSize: DEFAULT_PAGE_SIZE }),
+  ]);
 
-  return <PoRequestsView initialDropdownFields={dropdownFields} />;
+  return (
+    <PoRequestsView initialDropdownFields={dropdownFields} initialRows={rows} initialTotal={total} />
+  );
 }

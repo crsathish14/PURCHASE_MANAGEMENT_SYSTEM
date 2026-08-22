@@ -1,15 +1,19 @@
 import { z } from "zod";
 
 import en from "@/locales/en.json";
+import { PR_PRIORITY } from "@/lib/constants/purchase-requisition";
 import type { PrDropdownField } from "@/lib/data/purchase-requisition";
 
 const t = en.staff.poRequests.errors;
 
 export type CreateRequisitionFormValues = {
+  priority: string;
   dropdowns: Record<string, string>;
   requestedBy: string;
   requiredPort: string;
+  remarks: string;
   customFields: Array<{ label: string; value: string }>;
+  columns: Array<{ key: string; label: string }>;
   lineItems: Array<{ description: string; qty: string; extra: Record<string, string> }>;
 };
 
@@ -35,13 +39,19 @@ export function buildCreateRequisitionSchema(
     }),
   );
 
-  // Only the backend-driven dropdown fields are required — Requested By,
-  // Required Port, custom "Add more" fields, and line items are all optional.
+  // Only the backend-driven dropdown fields and Priority are required —
+  // Requested By, Required Port, Remarks, custom "Add more" fields, and line
+  // items are all optional.
   return z.object({
+    priority: z.enum([PR_PRIORITY.HIGH, PR_PRIORITY.MEDIUM, PR_PRIORITY.LOW], {
+      error: t.fieldRequired,
+    }),
     dropdowns: z.object(dropdownShape),
     requestedBy: z.string(),
     requiredPort: z.string(),
+    remarks: z.string(),
     customFields: z.array(z.object({ label: z.string(), value: z.string() })),
+    columns: z.array(z.object({ key: z.string(), label: z.string() })),
     lineItems: z.array(
       z.object({
         description: z.string(),

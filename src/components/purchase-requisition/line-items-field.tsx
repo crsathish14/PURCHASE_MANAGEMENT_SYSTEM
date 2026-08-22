@@ -5,6 +5,8 @@ import {
   useFieldArray,
   type Control,
   type FieldErrors,
+  type UseFieldArrayAppend,
+  type UseFieldArrayRemove,
   type UseFormRegister,
   type UseFormSetValue,
   type UseFormUnregister,
@@ -19,10 +21,9 @@ import { AskLabelDialog } from "./ask-label-dialog";
 const t = en.staff.poRequests.createDialog;
 const askLabelT = en.staff.poRequests.askLabelDialog;
 
-// A column's label is display metadata, not a submitted value with its own
-// validation rule — so column definitions live in plain useState, not in
-// react-hook-form state. Only the per-row *values* (registered under
-// lineItems.{index}.extra.{column.key}) are RHF-managed.
+// Column *definitions* live on the parent form's own "columns" field array
+// (not local state here) — the POST payload needs each column's label, which
+// only ever lives here, never inside a row's "extra" values.
 type LineItemColumn = { key: string; label: string };
 
 type LineItemsFieldProps = {
@@ -31,16 +32,27 @@ type LineItemsFieldProps = {
   errors: FieldErrors<CreateRequisitionFormValues>;
   setValue: UseFormSetValue<CreateRequisitionFormValues>;
   unregister: UseFormUnregister<CreateRequisitionFormValues>;
+  columns: Array<LineItemColumn & { id: string }>;
+  appendColumn: UseFieldArrayAppend<CreateRequisitionFormValues, "columns">;
+  removeColumn: UseFieldArrayRemove;
 };
 
-export function LineItemsField({ control, register, errors, setValue, unregister }: LineItemsFieldProps) {
+export function LineItemsField({
+  control,
+  register,
+  errors,
+  setValue,
+  unregister,
+  columns,
+  appendColumn,
+  removeColumn,
+}: LineItemsFieldProps) {
   const { fields, append, remove } = useFieldArray({ control, name: "lineItems" });
-  const [columns, setColumns] = useState<LineItemColumn[]>([]);
   const [addColumnOpen, setAddColumnOpen] = useState(false);
 
   function handleAddColumn(label: string) {
     const key = crypto.randomUUID();
-    setColumns((prev) => [...prev, { key, label }]);
+    appendColumn({ key, label });
     // Backfill every existing row so its new input resolves to "" instead of undefined.
     fields.forEach((_, index) => {
       setValue(`lineItems.${index}.extra.${key}`, "");
@@ -48,7 +60,8 @@ export function LineItemsField({ control, register, errors, setValue, unregister
   }
 
   function handleRemoveColumn(key: string) {
-    setColumns((prev) => prev.filter((column) => column.key !== key));
+    const columnIndex = columns.findIndex((column) => column.key === key);
+    if (columnIndex !== -1) removeColumn(columnIndex);
     fields.forEach((_, index) => {
       unregister(`lineItems.${index}.extra.${key}`);
     });
