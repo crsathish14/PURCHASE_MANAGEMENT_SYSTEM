@@ -307,6 +307,9 @@ export type Database = {
           category_label: string | null;
           item_count: number;
           requester_name: string | null;
+          remarks: string | null;
+          vessel_value: string | null;
+          category_value: string | null;
         };
         Relationships: [];
       };
@@ -346,6 +349,32 @@ export type Database = {
       duplicate_purchase_requisition: {
         Args: { p_id: string };
         Returns: { id: string; pr_number: string }[];
+      };
+      search_purchase_requisitions: {
+        Args: {
+          p_search: string | null;
+          p_statuses: PrStatus[] | null;
+          p_vessels: string[] | null;
+          p_categories: string[] | null;
+          p_date_preset: string | null;
+          p_start_date: string | null;
+          p_end_date: string | null;
+          p_page: number;
+          p_page_size: number;
+        };
+        Returns: {
+          id: string;
+          pr_number: string;
+          priority: PrPriority;
+          status: PrStatus;
+          created_at: string;
+          vessel_label: string | null;
+          department_label: string | null;
+          category_label: string | null;
+          item_count: number;
+          requester_name: string | null;
+          total_count: number;
+        }[];
       };
     };
     Enums: {

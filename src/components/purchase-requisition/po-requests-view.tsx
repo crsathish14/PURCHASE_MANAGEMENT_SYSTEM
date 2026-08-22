@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Plus, Upload } from "lucide-react";
 
 import { Button } from "@/components/atoms";
 import en from "@/locales/en.json";
+import { PR_STATUS } from "@/lib/constants/purchase-requisition";
+import type { DatePreset } from "@/lib/constants/purchase-requisition";
 import type { PrDetail, PrDropdownField, PrListRow } from "@/lib/data/purchase-requisition";
 import { toast } from "@/store/toast-store";
 import { CancelPrDialog } from "./cancel-pr-dialog";
@@ -23,6 +25,23 @@ export type PoRequestsViewProps = {
 };
 
 const DEFAULT_PAGE_SIZE = 20;
+
+const STATUS_OPTIONS = Object.values(PR_STATUS).map((value) => ({
+  value,
+  label: t.table.statusLabels[value as keyof typeof t.table.statusLabels],
+}));
+
+type ListParams = {
+  page: number;
+  pageSize: number;
+  search: string;
+  statuses: string[];
+  vessels: string[];
+  categories: string[];
+  datePreset: DatePreset | null;
+  startDate: string | null;
+  endDate: string | null;
+};
 
 export function PoRequestsView({ initialDropdownFields, initialRows, initialTotal }: PoRequestsViewProps) {
   // Lifted (not owned by a single trigger) because the header CTA, the
@@ -43,25 +62,88 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [loading, setLoading] = useState(false);
 
-  async function fetchPage(nextPage: number, nextPageSize: number) {
+  // What's actually been fetched — as opposed to whatever's currently staged
+  // (but not yet Submitted) inside PrToolbar. Passed down so each filter chip
+  // can be colored correctly, and reused by every non-toolbar refresh trigger
+  // (pagination, post-mutation refetches) so a filtered view doesn't reset
+  // itself just because the user paged or edited/cancelled/duplicated a row.
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [appliedStatuses, setAppliedStatuses] = useState<string[]>([]);
+  const [appliedVessels, setAppliedVessels] = useState<string[]>([]);
+  const [appliedCategories, setAppliedCategories] = useState<string[]>([]);
+  const [appliedDatePreset, setAppliedDatePreset] = useState<DatePreset | null>(null);
+  const [appliedStartDate, setAppliedStartDate] = useState<string | null>(null);
+  const [appliedEndDate, setAppliedEndDate] = useState<string | null>(null);
+  const [toolbarResetKey, setToolbarResetKey] = useState(0);
+
+  const requestIdRef = useRef(0);
+
+  const appliedParams = {
+    search: appliedSearch,
+    statuses: appliedStatuses,
+    vessels: appliedVessels,
+    categories: appliedCategories,
+    datePreset: appliedDatePreset,
+    startDate: appliedStartDate,
+    endDate: appliedEndDate,
+  };
+  const hasActiveFilters =
+    appliedSearch.length > 0 ||
+    appliedStatuses.length > 0 ||
+    appliedVessels.length > 0 ||
+    appliedCategories.length > 0 ||
+    appliedDatePreset !== null;
+
+  async function fetchList(params: ListParams) {
+    // Guards against an in-flight request resolving after a newer one was
+    // already issued (e.g. the search debounce firing just as the user hits
+    // Submit) — a stale response is dropped instead of overwriting a newer one.
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     try {
-      const response = await fetch(`/api/purchase-requisitions?page=${nextPage}&pageSize=${nextPageSize}`);
+      const query = new URLSearchParams({ page: String(params.page), pageSize: String(params.pageSize) });
+      if (params.search) query.set("search", params.search);
+      if (params.statuses.length) query.set("status", params.statuses.join(","));
+      if (params.vessels.length) query.set("vessel", params.vessels.join(","));
+      if (params.categories.length) query.set("category", params.categories.join(","));
+      if (params.datePreset) query.set("datePreset", params.datePreset);
+      if (params.startDate) query.set("dateFrom", params.startDate);
+      if (params.endDate) query.set("dateTo", params.endDate);
+
+      const response = await fetch(`/api/purchase-requisitions?${query.toString()}`);
       const payload = await response.json();
+
+      if (requestId !== requestIdRef.current) return;
 
       if (!response.ok) {
         toast.error(payload?.error?.message ?? t.table.loadError);
         return;
       }
 
+      // A filter/search change (or an unrelated refresh) can land on a page
+      // past the new end of a shrunk result set, since the RPC's total only
+      // travels alongside actual output rows — retry once at page 1 instead
+      // of showing a misleading empty page.
+      if (payload.data.length === 0 && params.page > 1) {
+        await fetchList({ ...params, page: 1 });
+        return;
+      }
+
       setRows(payload.data);
       setTotal(payload.meta.total);
-      setPage(nextPage);
-      setPageSize(nextPageSize);
+      setPage(params.page);
+      setPageSize(params.pageSize);
+      setAppliedSearch(params.search);
+      setAppliedStatuses(params.statuses);
+      setAppliedVessels(params.vessels);
+      setAppliedCategories(params.categories);
+      setAppliedDatePreset(params.datePreset);
+      setAppliedStartDate(params.startDate);
+      setAppliedEndDate(params.endDate);
     } catch {
-      toast.error(t.table.loadError);
+      if (requestId === requestIdRef.current) toast.error(t.table.loadError);
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
   }
 
@@ -93,11 +175,7 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
   // the dialog itself) clears it — see the comment in
   // create-requisition-dialog.tsx's onSubmit for why onSaved fires first.
   function handleDialogSaved() {
-    if (editingRequisition) {
-      fetchPage(page, pageSize);
-    } else {
-      fetchPage(1, pageSize);
-    }
+    fetchList({ page: editingRequisition ? page : 1, pageSize, ...appliedParams });
   }
 
   async function handleCancelConfirmed() {
@@ -116,7 +194,7 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
 
       toast.success(t.table.cancelSuccess);
       setCancelTarget(null);
-      fetchPage(page, pageSize);
+      fetchList({ page, pageSize, ...appliedParams });
     } catch {
       toast.error(t.table.cancelError);
     } finally {
@@ -136,13 +214,72 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
       }
 
       toast.success(t.table.duplicateSuccess);
-      fetchPage(1, pageSize);
+      fetchList({ page: 1, pageSize, ...appliedParams });
     } catch {
       toast.error(t.table.duplicateError);
     } finally {
       setDuplicatingId(null);
     }
   }
+
+  function handleSearchSettled(search: string) {
+    fetchList({
+      page: 1,
+      pageSize,
+      search,
+      statuses: appliedStatuses,
+      vessels: appliedVessels,
+      categories: appliedCategories,
+      datePreset: appliedDatePreset,
+      startDate: appliedStartDate,
+      endDate: appliedEndDate,
+    });
+  }
+
+  function handleFilterSubmit(params: {
+    search: string;
+    statuses: string[];
+    vessels: string[];
+    categories: string[];
+    datePreset: DatePreset | null;
+    startDate: string | null;
+    endDate: string | null;
+  }) {
+    fetchList({ page: 1, pageSize, ...params });
+  }
+
+  function handleFilterClear() {
+    // Clear appliedSearch/Statuses/Vessels/Categories/Date* synchronously, in
+    // the same batch as the toolbarResetKey bump below — not just inside
+    // fetchList's async resolution. PrToolbar's draft state initializes from
+    // these applied* props via useState(appliedX) at mount, which only reads
+    // the prop's value at the moment the remounted instance first renders;
+    // if that render still saw the pre-clear values (because fetchList's
+    // setAppliedX calls only happen after its awaited fetch resolves), the
+    // "reset" toolbar would silently start staged with the old selections.
+    setAppliedSearch("");
+    setAppliedStatuses([]);
+    setAppliedVessels([]);
+    setAppliedCategories([]);
+    setAppliedDatePreset(null);
+    setAppliedStartDate(null);
+    setAppliedEndDate(null);
+    setToolbarResetKey((key) => key + 1);
+    fetchList({
+      page: 1,
+      pageSize,
+      search: "",
+      statuses: [],
+      vessels: [],
+      categories: [],
+      datePreset: null,
+      startDate: null,
+      endDate: null,
+    });
+  }
+
+  const vesselOptions = initialDropdownFields.find((field) => field.key === "vessel")?.options ?? [];
+  const categoryOptions = initialDropdownFields.find((field) => field.key === "category")?.options ?? [];
 
   return (
     <div>
@@ -165,10 +302,33 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
         </div>
       </div>
 
-      <PrToolbar />
+      <PrToolbar
+        key={toolbarResetKey}
+        statusOptions={STATUS_OPTIONS}
+        vesselOptions={vesselOptions}
+        categoryOptions={categoryOptions}
+        appliedStatuses={appliedStatuses}
+        appliedVessels={appliedVessels}
+        appliedCategories={appliedCategories}
+        appliedDatePreset={appliedDatePreset}
+        appliedStartDate={appliedStartDate}
+        appliedEndDate={appliedEndDate}
+        onSearchSettled={handleSearchSettled}
+        onSubmit={handleFilterSubmit}
+        onClear={handleFilterClear}
+        submitting={loading}
+      />
 
-      {total === 0 ? (
+      {total === 0 && !hasActiveFilters ? (
         <EmptyState onCreate={() => setCreateOpen(true)} />
+      ) : total === 0 && hasActiveFilters ? (
+        <div className="rounded-xl border border-line bg-paper py-14 text-center shadow-(--shadow-e1)">
+          <p className="text-[13px] font-semibold text-ink">{t.table.noResultsTitle}</p>
+          <p className="mt-1 mb-2.5 text-xs text-slate-lt">{t.table.noResultsDescription}</p>
+          <Button variant="secondary" size="sm" onClick={handleFilterClear}>
+            {t.toolbar.clear}
+          </Button>
+        </div>
       ) : (
         <div className={loading ? "opacity-60" : undefined}>
           <PrTable
@@ -183,8 +343,8 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
             page={page}
             pageSize={pageSize}
             total={total}
-            onPageChange={(nextPage) => fetchPage(nextPage, pageSize)}
-            onPageSizeChange={(nextPageSize) => fetchPage(1, nextPageSize)}
+            onPageChange={(nextPage) => fetchList({ page: nextPage, pageSize, ...appliedParams })}
+            onPageSizeChange={(nextPageSize) => fetchList({ page: 1, pageSize: nextPageSize, ...appliedParams })}
           />
         </div>
       )}

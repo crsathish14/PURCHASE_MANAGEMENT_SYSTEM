@@ -10,5 +10,13 @@ export const PR_STATUS = {
   CANCELLED: "cancelled",
 } as const;
 
+export const DATE_PRESET = {
+  LAST_1_MONTH: "last_1_month",
+  LAST_3_MONTHS: "last_3_months",
+  LAST_6_MONTHS: "last_6_months",
+  CUSTOM: "custom",
+} as const;
+
 export type PrPriority = (typeof PR_PRIORITY)[keyof typeof PR_PRIORITY];
 export type PrStatus = (typeof PR_STATUS)[keyof typeof PR_STATUS];
+export type DatePreset = (typeof DATE_PRESET)[keyof typeof DATE_PRESET];

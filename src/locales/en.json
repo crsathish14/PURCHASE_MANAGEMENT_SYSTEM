@@ -309,6 +309,8 @@
         },
         "loadError": "Couldn't load purchase requisitions.",
         "detailLoadError": "Couldn't load this requisition.",
+        "noResultsTitle": "No requests match your filters",
+        "noResultsDescription": "Try adjusting or clearing your search and filters.",
         "rowMenuLabel": "Row actions",
         "rowMenu": {
           "cancel": "Cancel",
@@ -334,7 +336,19 @@
         "category": "Category",
         "date": "Date",
         "all": "All",
-        "any": "Any"
+        "any": "Any",
+        "nSelected": "{count} selected",
+        "submit": "Submit",
+        "clear": "Clear",
+        "removeFilter": "Remove {label} filter",
+        "dateOptions": {
+          "last1Month": "Last 1 month",
+          "last3Months": "Last 3 months",
+          "last6Months": "Last 6 months",
+          "custom": "Custom date",
+          "startDate": "Start date",
+          "endDate": "End date"
+        }
       },
       "pager": {
         "showing": "Showing {from}–{to} of {total}",

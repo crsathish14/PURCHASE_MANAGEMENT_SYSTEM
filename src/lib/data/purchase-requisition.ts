@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { PrPriority, PrStatus } from "@/lib/constants/purchase-requisition";
+import type { DatePreset, PrPriority, PrStatus } from "@/lib/constants/purchase-requisition";
 
 export type PrDropdownFieldOption = {
   value: string;
@@ -48,24 +48,49 @@ export type PrListRow = {
   requesterName: string | null;
 };
 
-// pr_requisition_list is a view (not a table) so pagination gets total count
-// in the same round trip via count:"exact" — see the migration comment on
-// why it's deliberately left at security_invoker=false to resolve every
-// requester's name regardless of the viewing user's own profiles RLS.
+export type PrListFilters = {
+  search?: string;
+  statuses?: PrStatus[];
+  vessels?: string[];
+  categories?: string[];
+  datePreset?: DatePreset;
+  startDate?: string;
+  endDate?: string;
+};
+
+// Goes through search_purchase_requisitions (not a plain .from(view).select())
+// so status/vessel/category filtering and the remarks-partial/ref-exact
+// search can happen server-side with proper indexes, and so total count comes
+// back in the same round trip via a count(*) over() window column instead of
+// a second count:"exact" pass — see the migration for the full rationale
+// (including why the ref match is case-insensitive equality, not ilike, and
+// why a page past the end of a filtered set returns zero rows with no total).
 export async function getPurchaseRequisitions({
   page,
   pageSize,
+  search,
+  statuses,
+  vessels,
+  categories,
+  datePreset,
+  startDate,
+  endDate,
 }: {
   page: number;
   pageSize: number;
-}): Promise<{ rows: PrListRow[]; total: number }> {
+} & PrListFilters): Promise<{ rows: PrListRow[]; total: number }> {
   const supabase = await createClient();
-  const from = (page - 1) * pageSize;
-  const { data, error, count } = await supabase
-    .from("pr_requisition_list")
-    .select("*", { count: "exact" })
-    .order("created_at", { ascending: false })
-    .range(from, from + pageSize - 1);
+  const { data, error } = await supabase.rpc("search_purchase_requisitions", {
+    p_search: search?.trim() ? search.trim() : null,
+    p_statuses: statuses?.length ? statuses : null,
+    p_vessels: vessels?.length ? vessels : null,
+    p_categories: categories?.length ? categories : null,
+    p_date_preset: datePreset ?? null,
+    p_start_date: startDate ?? null,
+    p_end_date: endDate ?? null,
+    p_page: page,
+    p_page_size: pageSize,
+  });
 
   if (error) throw error;
 
@@ -82,7 +107,7 @@ export async function getPurchaseRequisitions({
     requesterName: row.requester_name,
   }));
 
-  return { rows, total: count ?? 0 };
+  return { rows, total: data?.[0]?.total_count ?? 0 };
 }
 
 export type PrDetail = {
