@@ -78,6 +78,16 @@ These files hold every value that would otherwise be a magic string:
   `crypto.randomUUID()` key).
 - `src/lib/routes.ts` — `ROUTES`, every locale-prefixed path the app links to or redirects to (see
   §3).
+- `src/lib/constants/storage.ts` — `STORAGE_BUCKET` (currently just `ATTACHMENTS`), `MAX_PHOTO_SIZE_BYTES`,
+  `MAX_PHOTOS_PER_LINE_ITEM`, `MAX_PHOTO_DIMENSION_PX`, `PHOTO_JPEG_QUALITY`, `ALLOWED_PHOTO_MIME_TYPES`,
+  `PHOTO_EXTENSION_BY_MIME_TYPE`, `PR_LINE_ITEM_PHOTO_PATH_PREFIX`, `SIGNED_DISPLAY_URL_TTL_SECONDS` — the
+  shared vocabulary every Storage-backed upload feature uses. `MAX_PHOTO_SIZE_BYTES`/`ALLOWED_PHOTO_MIME_TYPES`
+  mirror the `attachments` bucket's own `file_size_limit`/`allowed_mime_types` settings for fast
+  client-side pre-validation only; the bucket settings themselves (not this file) are the real
+  enforcement boundary, since a signed-upload-URL flow means file bytes never pass through our server.
+  `PR_LINE_ITEM_PHOTO_PATH_PREFIX` is this feature's own namespace within the shared bucket — a future
+  upload feature (e.g. PO documents) adds its own sibling prefix constant here, not a new bucket or a
+  new table shape.
 
 ## 8. Client state (Zustand)
 
@@ -105,10 +115,28 @@ for loading, Client Component + `unstable_retry` for error).
   job (creating an invited user via `auth.admin.createUser`, an admin resetting another user's
   password via `auth.admin.updateUserById`, clearing a profile's own `must_change_password` flag —
   see the migration comment on why no self-update RLS policy exists). Don't reach for it as a
-  shortcut around RLS elsewhere.
+  shortcut around RLS elsewhere. **Storage uploads are another example of this:** `api/uploads/sign`
+  uses the session-scoped `server.ts` client, not `admin.ts`, because the `storage.objects`
+  insert/select/delete policies below already grant an active user's own session everything it needs.
 - Schema lives in `supabase/migrations/*.sql` — `profiles` table (`admin`/`officer` roles,
   `pending`/`active`/`disabled` status, `must_change_password` flag), RLS (select-own + admin-all,
   admin-update, no client-side self-update/insert/delete), a `storage.attachments` bucket policy.
+- **File/image uploads** go through one shared pattern: a private Storage bucket (`attachments`,
+  with `storage.buckets.file_size_limit`/`allowed_mime_types` set per-feature — see
+  `20260823190000_storage_attachments_policies.sql`), `storage.objects` RLS policies scoped to
+  `bucket_id = '<bucket>'` for `authenticated` (insert/select/delete — same "any active user, app
+  layer is the real gate" trust model as every `purchase_requisition_*` table's own RLS), and one
+  shared signing Route Handler (`src/app/api/uploads/sign/route.ts`) that validates
+  `requireApiActiveUser()`, builds the object's Storage path itself from a small validated vocabulary
+  (never from a client-supplied path string), and calls `createSignedUploadUrl`. The client PUTs
+  bytes straight to Storage with that signed URL/token
+  (`supabase.storage.from(bucket).uploadToSignedUrl(...)`) — file bytes never pass through our own
+  server, and the existing create/update Route Handlers stay pure JSON. Each entity that owns
+  uploads (e.g. `purchase_requisition_line_items` today, via `purchase_requisition_line_item_attachments`)
+  gets its own small metadata table (FK to the owning row, `on delete cascade`, RLS matching its
+  siblings) rather than one polymorphic `entity_type`/`entity_id` table. What's actually
+  centralized/reused is the bucket + path convention + signing route + `src/lib/constants/storage.ts`,
+  not the DB table shape.
 - `src/lib/types/database.ts` is a hand-written stub — replace with
   `npx supabase gen types typescript --linked` once the generated output is worth the churn; keep
   `UserRole`/`ProfileStatus` re-exported from `src/lib/constants/profile.ts` either way.

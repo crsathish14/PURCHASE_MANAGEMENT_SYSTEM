@@ -6,6 +6,16 @@ import type { PrDropdownField } from "@/lib/data/purchase-requisition";
 
 const t = en.staff.poRequests.errors;
 
+// Local (not UTC) YYYY-MM-DD, matching the string an <input type="date">
+// reports — comparable with plain string ordering since both sides share
+// that fixed zero-padded format.
+export function todayDateString(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
 export type CreateRequisitionFormValues = {
   priority: string;
   dropdowns: Record<string, string>;
@@ -71,12 +81,21 @@ export function buildCreateRequisitionSchema(
       // 'vessel'/'department'/'category' — not a new precedent.
       const category = data.dropdowns.category;
       const qtyRequired = category === PR_CATEGORY.STORES || category === PR_CATEGORY.SPARES;
-      if (!qtyRequired) return;
-      data.lineItems.forEach((item, index) => {
-        if (!item.qty.trim()) {
-          ctx.addIssue({ code: "custom", path: ["lineItems", index, "qty"], message: t.fieldRequired });
-        }
-      });
+      if (qtyRequired) {
+        data.lineItems.forEach((item, index) => {
+          if (!item.qty.trim()) {
+            ctx.addIssue({ code: "custom", path: ["lineItems", index, "qty"], message: t.fieldRequired });
+          }
+        });
+      }
+
+      // Required By is optional, but when set it can't be in the past —
+      // frontend-only restriction (the <input>'s own `min` attribute blocks
+      // picking a past date in the native picker; this catches a typed or
+      // pasted one). No backend check, by design.
+      if (data.requestedBy && data.requestedBy < todayDateString()) {
+        ctx.addIssue({ code: "custom", path: ["requestedBy"], message: t.pastDateNotAllowed });
+      }
     });
 }
 

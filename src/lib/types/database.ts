@@ -356,6 +356,10 @@ export type Database = {
         Args: { p_id: string };
         Returns: { id: string; pr_number: string }[];
       };
+      delete_purchase_requisition: {
+        Args: { p_id: string };
+        Returns: { id: string }[];
+      };
       search_purchase_requisitions: {
         Args: {
           p_search: string | null;

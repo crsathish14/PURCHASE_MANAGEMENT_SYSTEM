@@ -11,6 +11,7 @@ import type { PrDetail, PrDropdownField, PrListRow } from "@/lib/data/purchase-r
 import { toast } from "@/store/toast-store";
 import { CancelPrDialog } from "./cancel-pr-dialog";
 import { CreateRequisitionDialog } from "./create-requisition-dialog";
+import { DeletePrDialog } from "./delete-pr-dialog";
 import { EmptyState } from "./empty-state";
 import { PrPager } from "./pr-pager";
 import { PrTable } from "./pr-table";
@@ -54,6 +55,8 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
 
   const [cancelTarget, setCancelTarget] = useState<PrListRow | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<PrListRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
   const [rows, setRows] = useState(initialRows);
@@ -202,6 +205,30 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
     }
   }
 
+  async function handleDeleteConfirmed() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/purchase-requisitions/${deleteTarget.id}`, {
+        method: "DELETE",
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        toast.error(payload?.error?.message ?? t.table.deleteError);
+        return;
+      }
+
+      toast.success(t.table.deleteSuccess);
+      setDeleteTarget(null);
+      fetchList({ page, pageSize, ...appliedParams });
+    } catch {
+      toast.error(t.table.deleteError);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   async function handleDuplicate(row: PrListRow) {
     setDuplicatingId(row.id);
     try {
@@ -336,6 +363,7 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
             onRowSelect={handleRowSelect}
             detailLoadingId={detailLoadingId}
             onCancelRequested={setCancelTarget}
+            onDeleteRequested={setDeleteTarget}
             onDuplicate={handleDuplicate}
             duplicatingId={duplicatingId}
           />
@@ -364,6 +392,14 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
         onConfirm={handleCancelConfirmed}
         prNumber={cancelTarget?.prNumber ?? ""}
         loading={cancelling}
+      />
+
+      <DeletePrDialog
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteConfirmed}
+        prNumber={deleteTarget?.prNumber ?? ""}
+        loading={deleting}
       />
     </div>
   );

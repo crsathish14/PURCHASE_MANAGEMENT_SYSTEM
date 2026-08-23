@@ -11,6 +11,7 @@ import { PR_PRIORITY, PR_STATUS } from "@/lib/constants/purchase-requisition";
 import type { PrDetail, PrDropdownField } from "@/lib/data/purchase-requisition";
 import {
   buildCreateRequisitionSchema,
+  todayDateString,
   type CreateRequisitionFormValues,
 } from "@/lib/validation/purchase-requisition";
 import { toast } from "@/store/toast-store";
@@ -19,6 +20,13 @@ import { LineItemsField } from "./line-items-field";
 
 const t = en.staff.poRequests.createDialog;
 const askLabelT = en.staff.poRequests.askLabelDialog;
+
+// The <form> lives inside Dialog's scrollable body, but its submit/cancel
+// buttons render in Dialog's separate sticky `footer` slot — outside the
+// form's own DOM subtree. The HTML `form` attribute (used on the submit
+// Button below) associates a button with a <form> by id regardless of DOM
+// nesting, which is what keeps handleSubmit wired up across that split.
+const FORM_ID = "create-requisition-form";
 
 export type CreateRequisitionDialogProps = {
   open: boolean;
@@ -165,8 +173,43 @@ export function CreateRequisitionDialog({
   const title = mode === "create" ? t.title : mode === "edit" ? t.editTitle : t.viewTitle;
 
   return (
-    <Dialog open={open} onClose={close} title={title} size="lg">
-      <form onSubmit={handleSubmit(onSubmit)} noValidate>
+    <Dialog
+      open={open}
+      onClose={close}
+      title={title}
+      size="lg"
+      footer={
+        readOnly ? (
+          <div className="flex justify-end">
+            <Button type="button" variant="secondary" onClick={close}>
+              {t.close}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex justify-end gap-2.5">
+            <Button type="button" variant="secondary" onClick={close}>
+              {t.cancel}
+            </Button>
+            <Button
+              type="submit"
+              form={FORM_ID}
+              variant="primary"
+              loading={isSubmitting}
+              disabled={!requiredFieldsFilled || hasErrors}
+            >
+              {mode === "edit"
+                ? isSubmitting
+                  ? t.savingChanges
+                  : t.saveChanges
+                : isSubmitting
+                  ? t.submitting
+                  : t.submit}
+            </Button>
+          </div>
+        )
+      }
+    >
+      <form id={FORM_ID} onSubmit={handleSubmit(onSubmit)} noValidate>
         {/* Two columns for every field except line items — CSS grid auto-flow
             handles pairing regardless of how many dynamic dropdowns/custom
             fields end up in the list, unlike manually paired flex rows. */}
@@ -246,6 +289,7 @@ export function CreateRequisitionDialog({
             <Input
               id="pr-requested-by"
               type="date"
+              min={todayDateString()}
               disabled={readOnly}
               error={errors.requestedBy?.message}
               {...register("requestedBy")}
@@ -327,34 +371,6 @@ export function CreateRequisitionDialog({
             disabled={readOnly}
             {...register("remarks")}
           />
-        </div>
-
-        <div className="mt-6 flex justify-end gap-2.5 border-t border-line pt-4">
-          {readOnly ? (
-            <Button type="button" variant="secondary" onClick={close}>
-              {t.close}
-            </Button>
-          ) : (
-            <>
-              <Button type="button" variant="secondary" onClick={close}>
-                {t.cancel}
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                loading={isSubmitting}
-                disabled={!requiredFieldsFilled || hasErrors}
-              >
-                {mode === "edit"
-                  ? isSubmitting
-                    ? t.savingChanges
-                    : t.saveChanges
-                  : isSubmitting
-                    ? t.submitting
-                    : t.submit}
-              </Button>
-            </>
-          )}
         </div>
       </form>
 

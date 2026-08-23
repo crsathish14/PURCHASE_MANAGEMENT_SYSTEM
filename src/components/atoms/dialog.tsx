@@ -19,9 +19,14 @@ export type DialogProps = {
   title: ReactNode;
   children: ReactNode;
   size?: DialogSize;
+  // Rendered as a shrink-0 section pinned below the scrollable body — for a
+  // dialog long enough to scroll (e.g. Create/Edit Requisition), this keeps
+  // the CTAs reachable without following the body's scroll. Omit it for a
+  // short dialog whose own inline button row never needs to leave the flow.
+  footer?: ReactNode;
 };
 
-export function Dialog({ open, onClose, title, children, size = "md" }: DialogProps) {
+export function Dialog({ open, onClose, title, children, size = "md", footer }: DialogProps) {
   useEffect(() => {
     if (!open) return;
 
@@ -42,11 +47,14 @@ export function Dialog({ open, onClose, title, children, size = "md" }: DialogPr
       <div
         role="dialog"
         aria-modal="true"
-        className={`max-h-full w-full ${SIZE_CLASSES[size]} overflow-y-auto rounded-xl border border-line bg-paper p-6 shadow-(--shadow-e2)`}
+        className={`flex max-h-full w-full ${SIZE_CLASSES[size]} flex-col overflow-hidden rounded-xl border border-line bg-paper shadow-(--shadow-e2)`}
         onClick={(event) => event.stopPropagation()}
       >
-        <h2 className="font-display text-lg font-semibold text-ink">{title}</h2>
-        <div className="mt-4">{children}</div>
+        <div className="shrink-0 px-6 pt-6 pb-4">
+          <h2 className="font-display text-lg font-semibold text-ink">{title}</h2>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">{children}</div>
+        {footer ? <div className="shrink-0 border-t border-line px-6 pt-4 pb-6">{footer}</div> : null}
       </div>
     </div>,
     document.body,

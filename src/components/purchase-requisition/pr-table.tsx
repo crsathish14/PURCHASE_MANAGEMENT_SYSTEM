@@ -33,6 +33,7 @@ export type PrTableProps = {
   onRowSelect: (row: PrListRow) => void;
   detailLoadingId: string | null;
   onCancelRequested: (row: PrListRow) => void;
+  onDeleteRequested: (row: PrListRow) => void;
   onDuplicate: (row: PrListRow) => void;
   duplicatingId: string | null;
 };
@@ -42,6 +43,7 @@ export function PrTable({
   onRowSelect,
   detailLoadingId,
   onCancelRequested,
+  onDeleteRequested,
   onDuplicate,
   duplicatingId,
 }: PrTableProps) {
@@ -65,6 +67,7 @@ export function PrTable({
         <tbody>
           {rows.map((row) => {
             const cancelDisabled = row.status === PR_STATUS.AWARDED || row.status === PR_STATUS.CANCELLED;
+            const deleteDisabled = row.status !== PR_STATUS.PENDING_RFQ;
             return (
               <tr
                 key={row.id}
@@ -124,6 +127,10 @@ export function PrTable({
                     </MenuItem>
                     <MenuItem disabled>{t.rowMenu.issueRfq}</MenuItem>
                     <MenuItem disabled>{t.rowMenu.export}</MenuItem>
+                    <div className="my-1 border-t border-line" aria-hidden="true" />
+                    <MenuItem tone="danger" disabled={deleteDisabled} onClick={() => onDeleteRequested(row)}>
+                      {t.rowMenu.delete}
+                    </MenuItem>
                   </Menu>
                 </td>
               </tr>

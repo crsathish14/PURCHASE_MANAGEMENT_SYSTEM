@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 
 import en from "@/locales/en.json";
 import type { PrPriority } from "@/lib/constants/purchase-requisition";
-import { getPrDropdownFields, getPurchaseRequisitionById } from "@/lib/data/purchase-requisition";
+import { STORAGE_BUCKET } from "@/lib/constants/storage";
+import {
+  getPrDropdownFields,
+  getPurchaseRequisitionAttachmentPaths,
+  getPurchaseRequisitionById,
+} from "@/lib/data/purchase-requisition";
 import { requireApiActiveUser } from "@/lib/supabase/require-active-user";
 import { createClient } from "@/lib/supabase/server";
 import { buildCreateRequisitionSchema } from "@/lib/validation/purchase-requisition";
@@ -114,4 +119,55 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   return NextResponse.json({ data: { id: updated.id, prNumber: updated.pr_number } });
+}
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireApiActiveUser();
+  if (auth.error) return auth.error;
+
+  const { id } = await params;
+
+  // Must run BEFORE the RPC — delete_purchase_requisition's cascade removes
+  // every purchase_requisition_line_item_attachments row (the only place
+  // these storage_path values live) the moment the parent row is deleted.
+  let attachmentPaths: string[] = [];
+  try {
+    attachmentPaths = await getPurchaseRequisitionAttachmentPaths(id);
+  } catch (pathsError) {
+    console.error("[api/purchase-requisitions/[id]:DELETE] attachment path lookup failed", pathsError);
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("delete_purchase_requisition", { p_id: id }).single();
+
+  if (error || !data) {
+    if (error?.code === CONFLICT_PG_CODE) {
+      return NextResponse.json(
+        { error: { message: "Only requisitions pending RFQ can be deleted." } },
+        { status: 409 },
+      );
+    }
+    if (error?.code === "P0002") {
+      return NextResponse.json({ error: { message: "Requisition not found." } }, { status: 404 });
+    }
+    console.error("[api/purchase-requisitions/[id]:DELETE]", error);
+    return NextResponse.json(
+      { error: { message: en.staff.poRequests.table.deleteError } },
+      { status: 500 },
+    );
+  }
+
+  // Best-effort: the DB row is already gone (permanent, no soft-delete) — a
+  // Storage cleanup failure here shouldn't make the client think the delete
+  // itself failed.
+  if (attachmentPaths.length > 0) {
+    const { error: removeError } = await supabase.storage
+      .from(STORAGE_BUCKET.ATTACHMENTS)
+      .remove(attachmentPaths);
+    if (removeError) {
+      console.error("[api/purchase-requisitions/[id]:DELETE] storage cleanup failed", removeError);
+    }
+  }
+
+  return NextResponse.json({ data: { id: data.id } });
 }
