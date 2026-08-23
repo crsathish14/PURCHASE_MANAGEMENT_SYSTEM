@@ -15,6 +15,10 @@ const t = en.staff.poRequests.createDialog;
 // current state, not a malformed request.
 const CLIENT_ERROR_PG_CODES = new Set(["23503", "23514"]);
 const CONFLICT_PG_CODE = "55000";
+// update_purchase_requisition's own "category cannot be changed after a
+// requisition is created" guard — a distinct client-fixable 400, not the
+// generic stale-option-value message the other CLIENT_ERROR_PG_CODES get.
+const CATEGORY_LOCKED_PG_CODE = "55001";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireApiActiveUser();
@@ -73,6 +77,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       p_requested_by: data.requestedBy || null,
       p_required_port: data.requiredPort || null,
       p_remarks: data.remarks || null,
+      p_requisition_number: data.requisitionNumber || null,
       p_dropdowns: data.dropdowns,
       p_custom_fields: data.customFields,
       p_columns: data.columns,
@@ -85,6 +90,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json(
         { error: { message: "This requisition can no longer be edited. Refresh and try again." } },
         { status: 409 },
+      );
+    }
+    if (error?.code === CATEGORY_LOCKED_PG_CODE) {
+      return NextResponse.json(
+        { error: { message: "Category can't be changed after a requisition is created." } },
+        { status: 400 },
       );
     }
     const status = error?.code && CLIENT_ERROR_PG_CODES.has(error.code) ? 400 : 500;

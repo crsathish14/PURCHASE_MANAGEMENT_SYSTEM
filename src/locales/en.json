@@ -248,9 +248,12 @@
           "medium": "Medium",
           "low": "Low"
         },
-        "requestedBy": "Requested By",
+        "requestedBy": "Required By",
         "requiredPort": "Required Port",
         "requiredPortPlaceholder": "e.g. Singapore",
+        "requisitionNumber": "Requisition Number",
+        "requisitionNumberPlaceholder": "e.g. REQ-2045",
+        "categoryLocked": "Locked after creation",
         "remarks": "Remarks",
         "remarksPlaceholder": "Notes for your own record — not sent to vendors",
         "optional": "optional",
@@ -258,10 +261,15 @@
         "lineItemsTitle": "Line items",
         "columns": {
           "description": "Description",
-          "qty": "Qty"
+          "qty": "Required Quantity",
+          "approvedQty": "Approved Qty",
+          "lineItemRemarks": "Remarks",
+          "photos": "Photos"
         },
         "addItem": "Add item",
         "addColumn": "Add column",
+        "addPhoto": "Add photo",
+        "removePhoto": "Remove photo",
         "removeLineItem": "Remove line item",
         "removeColumn": "Remove column",
         "removeField": "Remove field",
@@ -292,9 +300,9 @@
           "vessel": "Vessel",
           "department": "Dept.",
           "category": "Category",
-          "description": "Description",
+          "description": "Item Count",
           "priority": "Priority",
-          "requester": "Requester",
+          "requester": "Created By",
           "date": "Date",
           "status": "Status"
         },
@@ -330,7 +338,7 @@
         "duplicateError": "Couldn't duplicate this requisition. Try again."
       },
       "toolbar": {
-        "searchPlaceholder": "Search ref, item, requester",
+        "searchPlaceholder": "Search ref, requisition no., item, requester",
         "status": "Status",
         "vessel": "Vessel",
         "category": "Category",

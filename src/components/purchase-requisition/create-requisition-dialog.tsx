@@ -55,6 +55,7 @@ export function CreateRequisitionDialog({
         dropdowns: Object.fromEntries(dropdownFields.map((field) => [field.key, ""])),
         requestedBy: "",
         requiredPort: "",
+        requisitionNumber: "",
         remarks: "",
         customFields: [],
         columns: [],
@@ -70,6 +71,7 @@ export function CreateRequisitionDialog({
       ),
       requestedBy: requisition.requestedBy ?? "",
       requiredPort: requisition.requiredPort ?? "",
+      requisitionNumber: requisition.requisitionNumber ?? "",
       remarks: requisition.remarks ?? "",
       customFields: requisition.customFields,
       columns: requisition.columns,
@@ -170,6 +172,20 @@ export function CreateRequisitionDialog({
             fields end up in the list, unlike manually paired flex rows. */}
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
           <div>
+            <Label htmlFor="pr-requisition-number" error={!!errors.requisitionNumber}>
+              {t.requisitionNumber}
+            </Label>
+            <Input
+              id="pr-requisition-number"
+              type="text"
+              placeholder={t.requisitionNumberPlaceholder}
+              disabled={readOnly}
+              error={errors.requisitionNumber?.message}
+              {...register("requisitionNumber")}
+            />
+          </div>
+
+          <div>
             <Label htmlFor="pr-priority" error={!!errors.priority}>
               {t.priority}
             </Label>
@@ -188,28 +204,40 @@ export function CreateRequisitionDialog({
             </Select>
           </div>
 
-          {dropdownFields.map((field) => (
-            <div key={field.key}>
-              <Label htmlFor={`pr-dropdown-${field.key}`} error={!!errors.dropdowns?.[field.key]}>
-                {field.label}
-              </Label>
-              <Select
-                id={`pr-dropdown-${field.key}`}
-                disabled={readOnly}
-                error={errors.dropdowns?.[field.key]?.message}
-                {...register(`dropdowns.${field.key}`)}
-              >
-                <option value="" disabled>
-                  {t.selectPlaceholder}
-                </option>
-                {field.options.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
+          {dropdownFields.map((field) => {
+            // Category is immutable once a requisition exists — locked as
+            // soon as mode isn't "create", even while everything else stays
+            // editable during pending_rfq. update_purchase_requisition
+            // independently rejects a changed category too (defense against
+            // a direct API call), so this disabled state is UI-convenience,
+            // not the only enforcement.
+            const categoryLocked = field.key === "category" && mode !== "create";
+            return (
+              <div key={field.key}>
+                <Label htmlFor={`pr-dropdown-${field.key}`} error={!!errors.dropdowns?.[field.key]}>
+                  {field.label}
+                  {categoryLocked && !readOnly ? (
+                    <span className="ml-1.5 font-normal text-slate-lt">{t.categoryLocked}</span>
+                  ) : null}
+                </Label>
+                <Select
+                  id={`pr-dropdown-${field.key}`}
+                  disabled={readOnly || categoryLocked}
+                  error={errors.dropdowns?.[field.key]?.message}
+                  {...register(`dropdowns.${field.key}`)}
+                >
+                  <option value="" disabled>
+                    {t.selectPlaceholder}
                   </option>
-                ))}
-              </Select>
-            </div>
-          ))}
+                  {field.options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            );
+          })}
 
           <div>
             <Label htmlFor="pr-requested-by" error={!!errors.requestedBy}>
@@ -285,6 +313,7 @@ export function CreateRequisitionDialog({
           columns={columns}
           appendColumn={appendColumn}
           removeColumn={removeColumn}
+          category={watchedDropdowns?.category}
           readOnly={readOnly}
         />
 

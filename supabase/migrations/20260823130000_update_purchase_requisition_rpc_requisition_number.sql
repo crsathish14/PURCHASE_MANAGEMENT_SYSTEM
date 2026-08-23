@@ -1,21 +1,28 @@
--- Edits an existing purchase requisition in place — only while status is
--- 'pending_rfq'. Same atomic single-RPC shape as create_purchase_requisition
--- (PostgREST wraps one .rpc() call in one implicit transaction), but updates
--- the parent row instead of inserting one, and replaces every child row
--- (delete-then-reinsert) rather than diffing add/remove/reorder client-side —
--- simplest correct way to let "each PR can have unique fields" survive an
--- edit without hand-rolled diffing logic.
+-- Adds p_requisition_number to update_purchase_requisition (same overload
+-- treatment as create_purchase_requisition's own migration: drop the exact
+-- current 9-arg signature, recreate as 10-arg, re-grant).
 --
--- Every reference to the RETURNS TABLE's own "id"/"pr_number" output
--- parameters is fully table-qualified below (purchase_requisitions.id, ...) —
--- see 20260822070000_fix_create_purchase_requisition_ambiguous_id.sql for why
--- an unqualified reference breaks with "column reference is ambiguous".
+-- Also enforces category immutability: once a requisition exists, its
+-- category can never change, even while still pending_rfq and otherwise
+-- editable. The frontend already disables the Category <Select> in edit
+-- mode, but this RPC is independently callable via Supabase's own REST
+-- endpoint with any valid session, so the check is repeated here — same
+-- "belt and suspenders" reasoning already used for the active-user and
+-- required-dropdown-field checks below. Uses a new, dedicated errcode
+-- ('55001') distinct from this function's existing '55000' ("only
+-- pending_rfq can be edited") so the API route can surface an accurate
+-- message instead of folding it into the generic stale-option-value 400.
+drop function if exists public.update_purchase_requisition(
+  uuid, public.pr_priority, date, text, text, jsonb, jsonb, jsonb, jsonb
+);
+
 create or replace function public.update_purchase_requisition(
   p_id uuid,
   p_priority public.pr_priority,
   p_requested_by date,
   p_required_port text,
   p_remarks text,
+  p_requisition_number text,
   p_dropdowns jsonb,
   p_custom_fields jsonb,
   p_columns jsonb,
@@ -30,6 +37,9 @@ declare
   v_uid uuid := auth.uid();
   v_status public.pr_status;
   v_pr_number text;
+  v_category_field_id uuid;
+  v_existing_category text;
+  v_new_category text;
   v_column_id_map jsonb := '{}'::jsonb;
   v_field_id uuid;
   v_new_column_id uuid;
@@ -62,11 +72,21 @@ begin
     raise exception 'Missing a required dropdown field' using errcode = '23514';
   end if;
 
+  select f.id into v_category_field_id from public.pr_dropdown_fields f where f.key = 'category';
+  select dv.option_value into v_existing_category
+  from public.purchase_requisition_dropdown_values dv
+  where dv.requisition_id = p_id and dv.field_id = v_category_field_id;
+  v_new_category := p_dropdowns ->> 'category';
+  if v_existing_category is not null and v_new_category is not null and v_existing_category <> v_new_category then
+    raise exception 'Category cannot be changed after a requisition is created' using errcode = '55001';
+  end if;
+
   update public.purchase_requisitions
   set priority = p_priority,
       requested_by = p_requested_by,
       required_port = p_required_port,
-      remarks = p_remarks
+      remarks = p_remarks,
+      requisition_number = p_requisition_number
   where purchase_requisitions.id = p_id
   returning purchase_requisitions.pr_number into v_pr_number;
 
@@ -123,6 +143,6 @@ end;
 $$;
 
 revoke all on function public.update_purchase_requisition
-  (uuid, public.pr_priority, date, text, text, jsonb, jsonb, jsonb, jsonb) from public;
+  (uuid, public.pr_priority, date, text, text, text, jsonb, jsonb, jsonb, jsonb) from public;
 grant execute on function public.update_purchase_requisition
-  (uuid, public.pr_priority, date, text, text, jsonb, jsonb, jsonb, jsonb) to authenticated;
+  (uuid, public.pr_priority, date, text, text, text, jsonb, jsonb, jsonb, jsonb) to authenticated;

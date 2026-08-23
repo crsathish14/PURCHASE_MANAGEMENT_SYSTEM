@@ -1,19 +1,7 @@
--- Appends 3 columns to the end of pr_requisition_list for the new
--- search_purchase_requisitions RPC (20260822140000): remarks (for the search
--- box's partial match) and vessel_value/category_value (the raw
--- pr_dropdown_field_options.value codes, alongside the labels already
--- selected below, for filtering on the stable code rather than display text).
--- No department_value column — department filtering is out of scope.
---
--- CREATE OR REPLACE VIEW only allows appending columns, never
--- reordering/removing existing ones, so the first 10 columns below are
--- byte-for-byte unchanged from 20260822060000_pr_requisition_list_view.sql.
--- No new joins needed — vessel_dv/category_dv are already joined in for the
--- existing *_label columns; this just also selects their option_value.
---
--- security_invoker stays unset (same reasoning as the original migration:
--- needed for requester.full_name to resolve regardless of the caller's own
--- profiles RLS).
+-- Appends requisition_number to pr_requisition_list for the list page's Ref
+-- cell and the search RPC. CREATE OR REPLACE VIEW only allows appending
+-- columns, never reordering/removing existing ones, so the first 13 columns
+-- below are byte-for-byte unchanged from 20260822120000.
 create or replace view public.pr_requisition_list as
 select
   pr.id,
@@ -29,7 +17,8 @@ select
   requester.full_name as requester_name,
   pr.remarks,
   vessel_dv.option_value as vessel_value,
-  category_dv.option_value as category_value
+  category_dv.option_value as category_value,
+  pr.requisition_number
 from public.purchase_requisitions pr
 left join public.pr_dropdown_fields vessel_field on vessel_field.key = 'vessel'
 left join public.purchase_requisition_dropdown_values vessel_dv

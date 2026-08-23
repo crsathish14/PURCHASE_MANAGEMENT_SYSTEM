@@ -103,6 +103,7 @@ export type Database = {
           requested_by: string | null;
           required_port: string | null;
           remarks: string | null;
+          requisition_number: string | null;
           created_by: string;
           created_at: string;
           updated_at: string;
@@ -115,6 +116,7 @@ export type Database = {
           requested_by?: string | null;
           required_port?: string | null;
           remarks?: string | null;
+          requisition_number?: string | null;
           created_by: string;
         };
         Update: {
@@ -123,6 +125,7 @@ export type Database = {
           requested_by?: string | null;
           required_port?: string | null;
           remarks?: string | null;
+          requisition_number?: string | null;
         };
         Relationships: [
           {
@@ -310,6 +313,7 @@ export type Database = {
           remarks: string | null;
           vessel_value: string | null;
           category_value: string | null;
+          requisition_number: string | null;
         };
         Relationships: [];
       };
@@ -321,6 +325,7 @@ export type Database = {
           p_requested_by: string | null;
           p_required_port: string | null;
           p_remarks: string | null;
+          p_requisition_number: string | null;
           p_dropdowns: Json;
           p_custom_fields: Json;
           p_columns: Json;
@@ -335,6 +340,7 @@ export type Database = {
           p_requested_by: string | null;
           p_required_port: string | null;
           p_remarks: string | null;
+          p_requisition_number: string | null;
           p_dropdowns: Json;
           p_custom_fields: Json;
           p_columns: Json;
@@ -373,6 +379,7 @@ export type Database = {
           category_label: string | null;
           item_count: number;
           requester_name: string | null;
+          requisition_number: string | null;
           total_count: number;
         }[];
       };

@@ -1,20 +1,20 @@
--- Atomic write path for creating a purchase requisition. A single RPC (not
--- sequential .insert() calls from the Route Handler) because PostgREST runs
--- an .rpc() call inside one implicit transaction — any exception anywhere in
--- this function unwinds every insert it made, automatically. Sequential
--- client-side inserts have no such guarantee: each is its own separate
--- request/commit boundary, so a later failure would leave earlier inserts
--- committed with no real atomicity.
---
--- security definer (like handle_new_user()) so zero INSERT policies are
--- needed on any of the 6 tables — this RPC is the only write path, matching
--- profiles' own "no insert/update/delete policies, writes happen only via
--- the security-definer trigger" precedent.
+-- Adds p_requisition_number to create_purchase_requisition. Adding a
+-- parameter changes the argument-type list, so per the
+-- 20260823090000_search_purchase_requisitions_date_filter.sql precedent this
+-- is a genuine overload, not an in-place replace: the old 8-arg signature is
+-- dropped first (CREATE OR REPLACE with a different arg list would leave it
+-- registered alongside the new one), then the 9-arg version is created and
+-- re-granted (grants do not survive a drop).
+drop function if exists public.create_purchase_requisition(
+  public.pr_priority, date, text, text, jsonb, jsonb, jsonb, jsonb
+);
+
 create or replace function public.create_purchase_requisition(
   p_priority public.pr_priority,
   p_requested_by date,
   p_required_port text,
   p_remarks text,
+  p_requisition_number text,
   p_dropdowns jsonb,       -- {"vessel": "mv-aster", "department": "deck", "category": "stores"}
   p_custom_fields jsonb,   -- [{"label": "...", "value": "..."}]
   p_columns jsonb,         -- [{"key": "<client token>", "label": "Part no."}]
@@ -51,8 +51,9 @@ begin
     raise exception 'Account is not active' using errcode = '28000';
   end if;
 
-  insert into public.purchase_requisitions (priority, requested_by, required_port, remarks, created_by)
-  values (p_priority, p_requested_by, p_required_port, p_remarks, v_uid)
+  insert into public.purchase_requisitions
+    (priority, requested_by, required_port, remarks, requisition_number, created_by)
+  values (p_priority, p_requested_by, p_required_port, p_remarks, p_requisition_number, v_uid)
   returning purchase_requisitions.id, purchase_requisitions.pr_number
     into v_requisition_id, v_pr_number;
 
@@ -111,6 +112,6 @@ $$;
 -- Postgres grants EXECUTE to PUBLIC by default — revoke that (PUBLIC covers
 -- Supabase's anon role too) and grant only to authenticated.
 revoke all on function public.create_purchase_requisition
-  (public.pr_priority, date, text, text, jsonb, jsonb, jsonb, jsonb) from public;
+  (public.pr_priority, date, text, text, text, jsonb, jsonb, jsonb, jsonb) from public;
 grant execute on function public.create_purchase_requisition
-  (public.pr_priority, date, text, text, jsonb, jsonb, jsonb, jsonb) to authenticated;
+  (public.pr_priority, date, text, text, text, jsonb, jsonb, jsonb, jsonb) to authenticated;

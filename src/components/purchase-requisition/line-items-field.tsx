@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   useFieldArray,
   type Control,
@@ -15,8 +15,10 @@ import { X } from "lucide-react";
 
 import { Button, Input, Label } from "@/components/atoms";
 import en from "@/locales/en.json";
+import { PR_CATEGORY, PR_LINE_ITEM_PRESET_COLUMN } from "@/lib/constants/purchase-requisition";
 import type { CreateRequisitionFormValues } from "@/lib/validation/purchase-requisition";
 import { AskLabelDialog } from "./ask-label-dialog";
+import { LineItemPhotosField } from "./line-item-photos-field";
 
 const t = en.staff.poRequests.createDialog;
 const askLabelT = en.staff.poRequests.askLabelDialog;
@@ -35,6 +37,11 @@ type LineItemsFieldProps = {
   columns: Array<LineItemColumn & { id: string }>;
   appendColumn: UseFieldArrayAppend<CreateRequisitionFormValues, "columns">;
   removeColumn: UseFieldArrayRemove;
+  // The selected `category` dropdown value — drives which line-item columns
+  // show (Service: description only; Stores/Spares: + Required Quantity,
+  // Approved Qty, Remarks, Photos). Undefined before a category is picked,
+  // treated the same as Stores/Spares (only Service is special-cased).
+  category?: string;
   readOnly?: boolean;
 };
 
@@ -47,13 +54,18 @@ export function LineItemsField({
   columns,
   appendColumn,
   removeColumn,
+  category,
   readOnly = false,
 }: LineItemsFieldProps) {
   const { fields, append, remove } = useFieldArray({ control, name: "lineItems" });
   const [addColumnOpen, setAddColumnOpen] = useState(false);
+  const [photosByLineItem, setPhotosByLineItem] = useState<Record<string, File[]>>({});
 
-  function handleAddColumn(label: string) {
-    const key = crypto.randomUUID();
+  const isService = category === PR_CATEGORY.SERVICE;
+  const isStoresOrSpares = category === PR_CATEGORY.STORES || category === PR_CATEGORY.SPARES;
+
+  function handleAddColumn(label: string, presetKey?: string) {
+    const key = presetKey ?? crypto.randomUUID();
     appendColumn({ key, label });
     // Backfill every existing row so its new input resolves to "" instead of undefined.
     fields.forEach((_, index) => {
@@ -69,12 +81,67 @@ export function LineItemsField({
     });
   }
 
+  // Category is immutable once a requisition is created (see
+  // create-requisition-dialog.tsx), so this only ever fires during the
+  // create flow, before first save — never mid-edit.
+  const prevCategoryRef = useRef(category);
+  useEffect(() => {
+    const prevCategory = prevCategoryRef.current;
+    prevCategoryRef.current = category;
+    // Never fires on mount (prevCategory === category the first time), so
+    // loading an existing requisition never touches its saved columns just
+    // by opening it.
+    if (readOnly || prevCategory === category) return;
+
+    const wasStoresOrSpares = prevCategory === PR_CATEGORY.STORES || prevCategory === PR_CATEGORY.SPARES;
+    const wasService = prevCategory === PR_CATEGORY.SERVICE;
+    const nowStoresOrSpares = category === PR_CATEGORY.STORES || category === PR_CATEGORY.SPARES;
+    const nowService = category === PR_CATEGORY.SERVICE;
+
+    // Match by stable key OR exact label — a preset column that's already
+    // been saved and reloaded comes back with the column's real DB uuid as
+    // its key (see getPurchaseRequisitionById), not the literal preset
+    // string, so label-matching is what prevents a duplicate from being
+    // appended in that case.
+    const find = (key: string, label: string) => columns.find((c) => c.key === key || c.label === label);
+
+    if (nowStoresOrSpares && !wasStoresOrSpares) {
+      if (!find(PR_LINE_ITEM_PRESET_COLUMN.APPROVED_QTY, t.columns.approvedQty)) {
+        handleAddColumn(t.columns.approvedQty, PR_LINE_ITEM_PRESET_COLUMN.APPROVED_QTY);
+      }
+      if (!find(PR_LINE_ITEM_PRESET_COLUMN.REMARKS, t.columns.lineItemRemarks)) {
+        handleAddColumn(t.columns.lineItemRemarks, PR_LINE_ITEM_PRESET_COLUMN.REMARKS);
+      }
+    } else if (nowService && !wasService) {
+      const approvedQty = find(PR_LINE_ITEM_PRESET_COLUMN.APPROVED_QTY, t.columns.approvedQty);
+      const remarks = find(PR_LINE_ITEM_PRESET_COLUMN.REMARKS, t.columns.lineItemRemarks);
+      if (approvedQty) handleRemoveColumn(approvedQty.key);
+      if (remarks) handleRemoveColumn(remarks.key);
+    }
+    // Intentionally gated on category (+ readOnly) alone: columns/fields/
+    // handleAddColumn/handleRemoveColumn must NOT be dependencies, otherwise
+    // a user's own manual add/remove of any column (which changes `columns`
+    // without changing `category`) would immediately re-run this effect and
+    // undo their edit (e.g. re-add a preset column they just removed).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category, readOnly]);
+
   function handleAddItem() {
     // Seed every currently-known column so a new row's extra inputs are all registered.
     append({
       description: "",
       qty: "",
       extra: Object.fromEntries(columns.map((column) => [column.key, ""])),
+    });
+  }
+
+  function handleRemoveItem(index: number) {
+    const removedId = fields[index].id;
+    remove(index);
+    setPhotosByLineItem((prev) => {
+      const next = { ...prev };
+      delete next[removedId];
+      return next;
     });
   }
 
@@ -98,7 +165,7 @@ export function LineItemsField({
         <thead>
           <tr className="border-b border-line">
             <th className={headerCellClass}>{t.columns.description}</th>
-            <th className={`${headerCellClass} w-28`}>{t.columns.qty}</th>
+            {isService ? null : <th className={`${headerCellClass} w-28`}>{t.columns.qty}</th>}
             {columns.map((column) => (
               <th key={column.key} className={headerCellClass}>
                 <span className="inline-flex items-center gap-1">
@@ -116,6 +183,7 @@ export function LineItemsField({
                 </span>
               </th>
             ))}
+            {isStoresOrSpares ? <th className={headerCellClass}>{t.columns.photos}</th> : null}
             {readOnly ? null : <th className={`${headerCellClass} w-10`} aria-hidden="true" />}
           </tr>
         </thead>
@@ -129,18 +197,31 @@ export function LineItemsField({
                   {...register(`lineItems.${index}.description`)}
                 />
               </td>
-              <td className={cellClass}>
-                <Input
-                  disabled={readOnly}
-                  error={errors.lineItems?.[index]?.qty?.message}
-                  {...register(`lineItems.${index}.qty`)}
-                />
-              </td>
+              {isService ? null : (
+                <td className={cellClass}>
+                  <Input
+                    disabled={readOnly}
+                    error={errors.lineItems?.[index]?.qty?.message}
+                    {...register(`lineItems.${index}.qty`)}
+                  />
+                </td>
+              )}
               {columns.map((column) => (
                 <td key={column.key} className={cellClass}>
                   <Input disabled={readOnly} {...register(`lineItems.${index}.extra.${column.key}`)} />
                 </td>
               ))}
+              {isStoresOrSpares ? (
+                <td className={cellClass}>
+                  <LineItemPhotosField
+                    files={photosByLineItem[field.id] ?? []}
+                    onChange={(next) =>
+                      setPhotosByLineItem((prev) => ({ ...prev, [field.id]: next }))
+                    }
+                    disabled={readOnly}
+                  />
+                </td>
+              ) : null}
               {readOnly ? null : (
                 <td className={cellClass}>
                   <Button
@@ -149,7 +230,7 @@ export function LineItemsField({
                     size="sm"
                     aria-label={t.removeLineItem}
                     disabled={fields.length === 1}
-                    onClick={() => remove(index)}
+                    onClick={() => handleRemoveItem(index)}
                   >
                     <X size={14} strokeWidth={1.7} aria-hidden="true" />
                   </Button>

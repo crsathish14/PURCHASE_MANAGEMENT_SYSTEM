@@ -61,13 +61,21 @@ and namespaced by page/section. No hardcoded strings in JSX. Add a new top-level
 
 ## 7. Constants
 
-Two files hold every value that would otherwise be a magic string:
+These files hold every value that would otherwise be a magic string:
 
 - `src/lib/constants/profile.ts` — `USER_ROLE` (`ADMIN`/`OFFICER`) and `PROFILE_STATUS`
   (`PENDING`/`ACTIVE`/`DISABLED`). **Never** compare `profiles.role`/`profiles.status` against a raw
   `"admin"`/`"active"`/etc. string literal, and never use one as a Zod enum value, a `<select>`
   option value, or a default form value — import the constant instead. `UserRole`/`ProfileStatus`
   types in `src/lib/types/database.ts` are derived from this file, not redeclared.
+- `src/lib/constants/purchase-requisition.ts` — `PR_PRIORITY`, `PR_STATUS`, `DATE_PRESET`,
+  `PR_CATEGORY` (`SERVICE`/`STORES`/`SPARES`, mirroring the `category` dropdown field's seeded
+  option *values* — used only for frontend conditional branching on which line-item columns to
+  show; the DB via `pr_dropdown_fields`/`pr_dropdown_field_options` stays the actual source of
+  truth for the dropdown's label/option list), and `PR_LINE_ITEM_PRESET_COLUMN`
+  (`APPROVED_QTY`/`REMARKS` — the two stable keys `LineItemsField` uses for its category-driven
+  preset line-item columns, kept distinct from a genuinely user-added custom column's random
+  `crypto.randomUUID()` key).
 - `src/lib/routes.ts` — `ROUTES`, every locale-prefixed path the app links to or redirects to (see
   §3).
 

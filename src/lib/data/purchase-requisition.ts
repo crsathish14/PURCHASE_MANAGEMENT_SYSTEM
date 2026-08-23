@@ -46,6 +46,7 @@ export type PrListRow = {
   categoryLabel: string | null;
   itemCount: number;
   requesterName: string | null;
+  requisitionNumber: string | null;
 };
 
 export type PrListFilters = {
@@ -105,6 +106,7 @@ export async function getPurchaseRequisitions({
     categoryLabel: row.category_label,
     itemCount: row.item_count,
     requesterName: row.requester_name,
+    requisitionNumber: row.requisition_number,
   }));
 
   return { rows, total: data?.[0]?.total_count ?? 0 };
@@ -118,6 +120,7 @@ export type PrDetail = {
   requestedBy: string | null;
   requiredPort: string | null;
   remarks: string | null;
+  requisitionNumber: string | null;
   dropdowns: Record<string, string>;
   customFields: Array<{ label: string; value: string }>;
   columns: Array<{ key: string; label: string }>;
@@ -136,7 +139,7 @@ export async function getPurchaseRequisitionById(id: string): Promise<PrDetail |
     .from("purchase_requisitions")
     .select(
       `
-      id, pr_number, status, priority, requested_by, required_port, remarks,
+      id, pr_number, status, priority, requested_by, required_port, remarks, requisition_number,
       purchase_requisition_dropdown_values ( option_value, pr_dropdown_fields ( key ) ),
       purchase_requisition_custom_fields ( label, value, sort_order ),
       purchase_requisition_line_item_columns ( id, label, sort_order ),
@@ -184,6 +187,7 @@ export async function getPurchaseRequisitionById(id: string): Promise<PrDetail |
     requestedBy: data.requested_by,
     requiredPort: data.required_port,
     remarks: data.remarks,
+    requisitionNumber: data.requisition_number,
     dropdowns,
     customFields,
     columns,

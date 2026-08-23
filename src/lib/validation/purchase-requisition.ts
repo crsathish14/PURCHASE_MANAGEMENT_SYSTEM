@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import en from "@/locales/en.json";
-import { PR_PRIORITY } from "@/lib/constants/purchase-requisition";
+import { PR_CATEGORY, PR_PRIORITY } from "@/lib/constants/purchase-requisition";
 import type { PrDropdownField } from "@/lib/data/purchase-requisition";
 
 const t = en.staff.poRequests.errors;
@@ -11,6 +11,7 @@ export type CreateRequisitionFormValues = {
   dropdowns: Record<string, string>;
   requestedBy: string;
   requiredPort: string;
+  requisitionNumber: string;
   remarks: string;
   customFields: Array<{ label: string; value: string }>;
   columns: Array<{ key: string; label: string }>;
@@ -39,27 +40,44 @@ export function buildCreateRequisitionSchema(
     }),
   );
 
-  // Only the backend-driven dropdown fields and Priority are required —
-  // Requested By, Required Port, Remarks, custom "Add more" fields, and line
-  // items are all optional.
-  return z.object({
-    priority: z.enum([PR_PRIORITY.HIGH, PR_PRIORITY.MEDIUM, PR_PRIORITY.LOW], {
-      error: t.fieldRequired,
-    }),
-    dropdowns: z.object(dropdownShape),
-    requestedBy: z.string(),
-    requiredPort: z.string(),
-    remarks: z.string(),
-    customFields: z.array(z.object({ label: z.string(), value: z.string() })),
-    columns: z.array(z.object({ key: z.string(), label: z.string() })),
-    lineItems: z.array(
-      z.object({
-        description: z.string(),
-        qty: z.string(),
-        extra: z.record(z.string(), z.string()),
+  // Only the backend-driven dropdown fields, Priority, and each line item's
+  // Description are unconditionally required — Requested By, Required Port,
+  // Requisition Number, Remarks, custom "Add more" fields, and Approved
+  // Qty/Remarks/Photos are all optional. Required Quantity (qty) is
+  // conditionally required below, only when category is Stores/Spares.
+  return z
+    .object({
+      priority: z.enum([PR_PRIORITY.HIGH, PR_PRIORITY.MEDIUM, PR_PRIORITY.LOW], {
+        error: t.fieldRequired,
       }),
-    ),
-  });
+      dropdowns: z.object(dropdownShape),
+      requestedBy: z.string(),
+      requiredPort: z.string(),
+      requisitionNumber: z.string(),
+      remarks: z.string(),
+      customFields: z.array(z.object({ label: z.string(), value: z.string() })),
+      columns: z.array(z.object({ key: z.string(), label: z.string() })),
+      lineItems: z.array(
+        z.object({
+          description: z.string().min(1, { error: t.fieldRequired }),
+          qty: z.string(),
+          extra: z.record(z.string(), z.string()),
+        }),
+      ),
+    })
+    .superRefine((data, ctx) => {
+      // 'category' is hardcoded here the same way this schema's own
+      // dropdownShape keys and the list-view's joins already hardcode
+      // 'vessel'/'department'/'category' — not a new precedent.
+      const category = data.dropdowns.category;
+      const qtyRequired = category === PR_CATEGORY.STORES || category === PR_CATEGORY.SPARES;
+      if (!qtyRequired) return;
+      data.lineItems.forEach((item, index) => {
+        if (!item.qty.trim()) {
+          ctx.addIssue({ code: "custom", path: ["lineItems", index, "qty"], message: t.fieldRequired });
+        }
+      });
+    });
 }
 
 export const askLabelSchema = z.object({

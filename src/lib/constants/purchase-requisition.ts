@@ -17,6 +17,23 @@ export const DATE_PRESET = {
   CUSTOM: "custom",
 } as const;
 
+// Frontend-only branching aid for the `category` dropdown field's concrete
+// values — this does NOT replace pr_dropdown_fields/pr_dropdown_field_options
+// as the source of truth for the dropdown's actual label/option list (still
+// DB-driven via getPrDropdownFields()); it exists only so line-items-field.tsx
+// and buildCreateRequisitionSchema can branch on "is this Service vs
+// Stores/Spares" without a raw string literal. Values must match the seeded
+// pr_dropdown_field_options.value rows (see the dropdown cleanup migration).
+export const PR_CATEGORY = { SERVICE: "service", STORES: "stores", SPARES: "spares" } as const;
+
+// Stable, well-known keys for the two category-driven preset line-item
+// columns (Approved Qty / Remarks) — deliberately NOT crypto.randomUUID()
+// like a genuinely user-added "+ Add column" entry, so line-items-field.tsx
+// can precisely add/remove exactly these two without touching a real custom
+// column.
+export const PR_LINE_ITEM_PRESET_COLUMN = { APPROVED_QTY: "approved_qty", REMARKS: "remarks" } as const;
+
 export type PrPriority = (typeof PR_PRIORITY)[keyof typeof PR_PRIORITY];
 export type PrStatus = (typeof PR_STATUS)[keyof typeof PR_STATUS];
 export type DatePreset = (typeof DATE_PRESET)[keyof typeof DATE_PRESET];
+export type PrCategory = (typeof PR_CATEGORY)[keyof typeof PR_CATEGORY];

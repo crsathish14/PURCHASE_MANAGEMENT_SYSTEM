@@ -140,6 +140,7 @@ export async function POST(request: Request) {
       p_requested_by: data.requestedBy || null,
       p_required_port: data.requiredPort || null,
       p_remarks: data.remarks || null,
+      p_requisition_number: data.requisitionNumber || null,
       p_dropdowns: data.dropdowns,
       p_custom_fields: data.customFields,
       p_columns: data.columns,
