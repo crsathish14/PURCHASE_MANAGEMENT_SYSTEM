@@ -296,6 +296,43 @@ export type Database = {
           },
         ];
       };
+      purchase_requisition_line_item_attachments: {
+        Row: {
+          id: string;
+          line_item_id: string;
+          storage_path: string;
+          file_name: string;
+          content_type: string;
+          size_bytes: number;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          line_item_id: string;
+          storage_path: string;
+          file_name: string;
+          content_type: string;
+          size_bytes: number;
+          sort_order?: number;
+        };
+        Update: {
+          storage_path?: string;
+          file_name?: string;
+          content_type?: string;
+          size_bytes?: number;
+          sort_order?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "purchase_requisition_line_item_attachments_line_item_id_fkey";
+            columns: ["line_item_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_requisition_line_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       pr_requisition_list: {

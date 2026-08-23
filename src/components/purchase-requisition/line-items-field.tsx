@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  Controller,
   useFieldArray,
   type Control,
   type FieldErrors,
@@ -43,6 +44,16 @@ type LineItemsFieldProps = {
   // treated the same as Stores/Spares (only Service is special-cased).
   category?: string;
   readOnly?: boolean;
+  // Top-level Storage path folder for any photos uploaded in this form
+  // session — a create-mode draft token or the real requisition.id in edit
+  // mode. See create-requisition-dialog.tsx.
+  scopeId: string;
+  // Fired the moment a photo finishes uploading to Storage (i.e. it's newly
+  // present in an attachments array that didn't have it before) — lets the
+  // dialog track every path this session wrote, so it can best-effort delete
+  // whichever ones never end up in a saved payload (Cancel, or removed again
+  // before Submit). See create-requisition-dialog.tsx's sessionUploadedPathsRef.
+  onPhotoUploaded?: (storagePath: string) => void;
 };
 
 export function LineItemsField({
@@ -56,10 +67,11 @@ export function LineItemsField({
   removeColumn,
   category,
   readOnly = false,
+  scopeId,
+  onPhotoUploaded,
 }: LineItemsFieldProps) {
   const { fields, append, remove } = useFieldArray({ control, name: "lineItems" });
   const [addColumnOpen, setAddColumnOpen] = useState(false);
-  const [photosByLineItem, setPhotosByLineItem] = useState<Record<string, File[]>>({});
 
   const isService = category === PR_CATEGORY.SERVICE;
   const isStoresOrSpares = category === PR_CATEGORY.STORES || category === PR_CATEGORY.SPARES;
@@ -132,17 +144,14 @@ export function LineItemsField({
       description: "",
       qty: "",
       extra: Object.fromEntries(columns.map((column) => [column.key, ""])),
+      attachments: [],
     });
   }
 
   function handleRemoveItem(index: number) {
-    const removedId = fields[index].id;
+    // attachments live on the row's own RHF value now, so remove() already
+    // drops them — no separate cleanup needed.
     remove(index);
-    setPhotosByLineItem((prev) => {
-      const next = { ...prev };
-      delete next[removedId];
-      return next;
-    });
   }
 
   const headerCellClass = "px-2 py-1.5 text-left font-mono text-[9.5px] font-bold tracking-wide text-slate-lt uppercase";
@@ -213,12 +222,26 @@ export function LineItemsField({
               ))}
               {isStoresOrSpares ? (
                 <td className={cellClass}>
-                  <LineItemPhotosField
-                    files={photosByLineItem[field.id] ?? []}
-                    onChange={(next) =>
-                      setPhotosByLineItem((prev) => ({ ...prev, [field.id]: next }))
-                    }
-                    disabled={readOnly}
+                  <Controller
+                    control={control}
+                    name={`lineItems.${index}.attachments`}
+                    render={({ field: attachmentsField }) => (
+                      <LineItemPhotosField
+                        scopeId={scopeId}
+                        lineItemFieldId={field.id}
+                        value={attachmentsField.value}
+                        onChange={(next) => {
+                          if (onPhotoUploaded) {
+                            const prevPaths = new Set(attachmentsField.value.map((a) => a.storagePath));
+                            next.forEach((a) => {
+                              if (!prevPaths.has(a.storagePath)) onPhotoUploaded(a.storagePath);
+                            });
+                          }
+                          attachmentsField.onChange(next);
+                        }}
+                        disabled={readOnly}
+                      />
+                    )}
                   />
                 </td>
               ) : null}

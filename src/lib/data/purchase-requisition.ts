@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { SIGNED_DISPLAY_URL_TTL_SECONDS, STORAGE_BUCKET } from "@/lib/constants/storage";
 import type { DatePreset, PrPriority, PrStatus } from "@/lib/constants/purchase-requisition";
 
 export type PrDropdownFieldOption = {
@@ -112,6 +113,20 @@ export async function getPurchaseRequisitions({
   return { rows, total: data?.[0]?.total_count ?? 0 };
 }
 
+export type PrLineItemAttachment = {
+  storagePath: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  // Pre-signed, ready-to-render Storage URL — signed here, server-side, so
+  // the client never needs its own signing logic for *display* (only for
+  // *upload*, via api/uploads/sign). Null if signing this particular path
+  // failed (e.g. the underlying object is somehow missing) — the photo tile
+  // renders a broken-image fallback rather than the whole PR detail fetch
+  // failing.
+  url: string | null;
+};
+
 export type PrDetail = {
   id: string;
   prNumber: string;
@@ -124,7 +139,12 @@ export type PrDetail = {
   dropdowns: Record<string, string>;
   customFields: Array<{ label: string; value: string }>;
   columns: Array<{ key: string; label: string }>;
-  lineItems: Array<{ description: string; qty: string; extra: Record<string, string> }>;
+  lineItems: Array<{
+    description: string;
+    qty: string;
+    extra: Record<string, string>;
+    attachments: PrLineItemAttachment[];
+  }>;
 };
 
 // Full detail for the edit/read-only modal — unlike pr_requisition_list
@@ -135,25 +155,44 @@ export type PrDetail = {
 // on every save, so the key never needs to persist across saves.
 export async function getPurchaseRequisitionById(id: string): Promise<PrDetail | null> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("purchase_requisitions")
-    .select(
-      `
-      id, pr_number, status, priority, requested_by, required_port, remarks, requisition_number,
-      purchase_requisition_dropdown_values ( option_value, pr_dropdown_fields ( key ) ),
-      purchase_requisition_custom_fields ( label, value, sort_order ),
-      purchase_requisition_line_item_columns ( id, label, sort_order ),
-      purchase_requisition_line_items (
-        id, description, qty, sort_order,
-        purchase_requisition_line_item_values ( column_id, value )
+  // Attachments are fetched as a separate, flat query — NOT nested under
+  // purchase_requisition_line_items in the main .select() below, even though
+  // that's how purchase_requisition_line_item_values is embedded. PostgREST
+  // can't embed two sibling one-to-many relationships three levels deep
+  // (purchase_requisitions -> line_items -> {values, attachments}) without
+  // erroring `42803: aggregate functions are not allowed in FROM clause of
+  // their own query level` (hit and confirmed live against this project).
+  // Querying attachments from their own table, inner-joined up to their
+  // owning requisition_id, sidesteps that — and runs in parallel with the
+  // main query rather than as a dependent second round trip.
+  const [{ data, error }, { data: attachmentRows, error: attachmentsError }] = await Promise.all([
+    supabase
+      .from("purchase_requisitions")
+      .select(
+        `
+        id, pr_number, status, priority, requested_by, required_port, remarks, requisition_number,
+        purchase_requisition_dropdown_values ( option_value, pr_dropdown_fields ( key ) ),
+        purchase_requisition_custom_fields ( label, value, sort_order ),
+        purchase_requisition_line_item_columns ( id, label, sort_order ),
+        purchase_requisition_line_items (
+          id, description, qty, sort_order,
+          purchase_requisition_line_item_values ( column_id, value )
+        )
+        `,
       )
-      `,
-    )
-    .eq("id", id)
-    .maybeSingle();
+      .eq("id", id)
+      .maybeSingle(),
+    supabase
+      .from("purchase_requisition_line_item_attachments")
+      .select(
+        "line_item_id, storage_path, file_name, content_type, size_bytes, sort_order, purchase_requisition_line_items!inner(requisition_id)",
+      )
+      .eq("purchase_requisition_line_items.requisition_id", id),
+  ]);
 
   if (error) throw error;
   if (!data) return null;
+  if (attachmentsError) throw attachmentsError;
 
   const dropdowns = Object.fromEntries(
     (data.purchase_requisition_dropdown_values ?? [])
@@ -169,6 +208,34 @@ export async function getPurchaseRequisitionById(id: string): Promise<PrDetail |
     .sort((a, b) => a.sort_order - b.sort_order)
     .map((row) => ({ key: row.id, label: row.label }));
 
+  const attachmentsByLineItemId = new Map<string, typeof attachmentRows>();
+  for (const row of attachmentRows ?? []) {
+    const existing = attachmentsByLineItemId.get(row.line_item_id);
+    if (existing) existing.push(row);
+    else attachmentsByLineItemId.set(row.line_item_id, [row]);
+  }
+
+  // One batched createSignedUrls call for every photo across every line item,
+  // instead of N createSignedUrl round trips.
+  const allStoragePaths = (attachmentRows ?? []).map((row) => row.storage_path);
+
+  const signedUrlByPath = new Map<string, string | null>();
+  if (allStoragePaths.length > 0) {
+    const { data: signedUrls, error: signError } = await supabase.storage
+      .from(STORAGE_BUCKET.ATTACHMENTS)
+      .createSignedUrls(allStoragePaths, SIGNED_DISPLAY_URL_TTL_SECONDS);
+    if (signError) {
+      // A signing failure shouldn't take down the whole PR detail view —
+      // every photo just renders with url: null instead of this fetch
+      // itself failing.
+      console.error("[getPurchaseRequisitionById] attachment signing failed", signError);
+    } else {
+      for (const entry of signedUrls ?? []) {
+        if (entry.path) signedUrlByPath.set(entry.path, entry.signedUrl);
+      }
+    }
+  }
+
   const lineItems = [...(data.purchase_requisition_line_items ?? [])]
     .sort((a, b) => a.sort_order - b.sort_order)
     .map((row) => ({
@@ -177,6 +244,15 @@ export async function getPurchaseRequisitionById(id: string): Promise<PrDetail |
       extra: Object.fromEntries(
         (row.purchase_requisition_line_item_values ?? []).map((value) => [value.column_id, value.value]),
       ),
+      attachments: [...(attachmentsByLineItemId.get(row.id) ?? [])]
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((attachment) => ({
+          storagePath: attachment.storage_path,
+          fileName: attachment.file_name,
+          contentType: attachment.content_type,
+          sizeBytes: attachment.size_bytes,
+          url: signedUrlByPath.get(attachment.storage_path) ?? null,
+        })),
     }));
 
   return {
@@ -193,4 +269,22 @@ export async function getPurchaseRequisitionById(id: string): Promise<PrDetail |
     columns,
     lineItems,
   };
+}
+
+// Used only by the DELETE route to clean up Storage objects the DB's own
+// on-delete-cascade can't reach (cascade only removes the metadata rows in
+// purchase_requisition_line_item_attachments, never the physical Storage
+// blob each row points at). Must be called BEFORE delete_purchase_requisition
+// runs, since that RPC's cascade deletes the only rows these paths live in.
+export async function getPurchaseRequisitionAttachmentPaths(id: string): Promise<string[]> {
+  const supabase = await createClient();
+  // Flat query, inner-joined up to the owning requisition — same shape (and
+  // same PostgREST nested-embed pitfall) as getPurchaseRequisitionById above.
+  const { data, error } = await supabase
+    .from("purchase_requisition_line_item_attachments")
+    .select("storage_path, purchase_requisition_line_items!inner(requisition_id)")
+    .eq("purchase_requisition_line_items.requisition_id", id);
+
+  if (error) throw error;
+  return (data ?? []).map((row) => row.storage_path);
 }

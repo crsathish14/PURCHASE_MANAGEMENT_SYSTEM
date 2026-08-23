@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, X } from "lucide-react";
@@ -8,7 +8,9 @@ import { Plus, X } from "lucide-react";
 import { Button, Dialog, Input, Label, Select, Textarea } from "@/components/atoms";
 import en from "@/locales/en.json";
 import { PR_PRIORITY, PR_STATUS } from "@/lib/constants/purchase-requisition";
+import { STORAGE_BUCKET } from "@/lib/constants/storage";
 import type { PrDetail, PrDropdownField } from "@/lib/data/purchase-requisition";
+import { createClient } from "@/lib/supabase/client";
 import {
   buildCreateRequisitionSchema,
   todayDateString,
@@ -67,11 +69,13 @@ export function CreateRequisitionDialog({
         remarks: "",
         customFields: [],
         columns: [],
-        lineItems: [{ description: "", qty: "", extra: {} }],
+        lineItems: [{ description: "", qty: "", extra: {}, attachments: [] }],
       };
     }
     const sourceLineItems =
-      requisition.lineItems.length > 0 ? requisition.lineItems : [{ description: "", qty: "", extra: {} }];
+      requisition.lineItems.length > 0
+        ? requisition.lineItems
+        : [{ description: "", qty: "", extra: {}, attachments: [] }];
     return {
       priority: requisition.priority,
       dropdowns: Object.fromEntries(
@@ -91,6 +95,7 @@ export function CreateRequisitionDialog({
         extra: Object.fromEntries(
           requisition.columns.map((column) => [column.key, item.extra[column.key] ?? ""]),
         ),
+        attachments: item.attachments,
       })),
     };
   }, [dropdownFields, requisition]);
@@ -130,15 +135,70 @@ export function CreateRequisitionDialog({
 
   const [addFieldOpen, setAddFieldOpen] = useState(false);
 
+  // Top-level Storage path folder for any photos uploaded in this dialog
+  // session, when creating a brand-new requisition (no real id exists yet
+  // until Submit). po-requests-view.tsx keys this dialog `key={editingRequisition?.id
+  // ?? "create"}` — a constant "create" in create mode — so the instance does
+  // NOT remount between repeated Cancel -> reopen cycles; the token is
+  // regenerated explicitly in close() below so each create session gets its
+  // own Storage folder rather than silently reusing the previous one.
+  const [draftToken, setDraftToken] = useState(() => crypto.randomUUID());
+  // requisition present (edit or readOnly) => its real, stable id;
+  // otherwise (create) => this session's draft token.
+  const scopeId = requisition ? requisition.id : draftToken;
+
+  // Every Storage path a photo upload has completed to during this dialog
+  // session (populated via LineItemsField's onPhotoUploaded, regardless of
+  // whether that photo is later removed again or the dialog is cancelled
+  // outright). close() diffs this against whatever actually got saved and
+  // best-effort deletes the rest — the accepted "delete on close" cleanup
+  // for the pick-uploads-immediately design (see the RPCs' own comments on
+  // why a DB row can't exist until Submit).
+  const sessionUploadedPathsRef = useRef<Set<string>>(new Set());
+
+  // The requisition's already-saved attachment paths as loaded (edit mode
+  // only — empty in create mode). update_purchase_requisition drops every
+  // existing attachment row and reinserts only what's in the submit payload
+  // (see that RPC's own header comment), so any of these missing from
+  // confirmedPaths after a successful save was deliberately removed by the
+  // user — those Storage objects are cleaned up alongside session-uploaded
+  // orphans in onSubmit below. Never touched on a plain Cancel: the DB rows
+  // (and their Storage objects) are still live and referenced until a save
+  // actually goes through.
+  const originalAttachmentPaths = useMemo(
+    () => requisition?.lineItems.flatMap((item) => item.attachments.map((a) => a.storagePath)) ?? [],
+    [requisition],
+  );
+
   const watchedDropdowns = watch("dropdowns");
   const priority = watch("priority");
   const requiredFieldsFilled =
     Boolean(priority) && dropdownFields.every((field) => watchedDropdowns?.[field.key]);
   const hasErrors = Object.keys(errors).length > 0;
 
-  function close() {
+  // confirmedPaths = paths that made it into a just-successful save (absent
+  // on a plain Cancel, so every session-uploaded path is orphaned then).
+  // extraCandidatePaths = originalAttachmentPaths, passed only from onSubmit
+  // on a successful edit save — never on Cancel, since an un-saved removal
+  // must leave the still-live DB row's Storage object alone.
+  // Best-effort only: never blocks the close, and a failure here just means
+  // the object waits for a future reconciliation sweep instead — see
+  // plans around "Known v1 limitations" for the RPC/Storage design.
+  function close(confirmedPaths?: Set<string>, extraCandidatePaths: string[] = []) {
+    const candidatePaths = new Set([...sessionUploadedPathsRef.current, ...extraCandidatePaths]);
+    const orphanedPaths = [...candidatePaths].filter((path) => !confirmedPaths?.has(path));
+    if (orphanedPaths.length > 0) {
+      void createClient()
+        .storage.from(STORAGE_BUCKET.ATTACHMENTS)
+        .remove(orphanedPaths)
+        .then(({ error }) => {
+          if (error) console.error("[create-requisition-dialog] orphaned photo cleanup failed", error);
+        });
+    }
+    sessionUploadedPathsRef.current = new Set();
     onClose();
     reset(defaultValues);
+    setDraftToken(crypto.randomUUID());
   }
 
   async function onSubmit(data: CreateRequisitionFormValues) {
@@ -164,7 +224,10 @@ export function CreateRequisitionDialog({
       // decide whether this was a create or an edit, and close() is what
       // clears that state via onClose().
       onSaved();
-      close();
+      const confirmedPaths = new Set(
+        data.lineItems.flatMap((item) => item.attachments.map((a) => a.storagePath)),
+      );
+      close(confirmedPaths, originalAttachmentPaths);
     } catch {
       toast.error(mode === "edit" ? t.updateError : t.createError);
     }
@@ -175,19 +238,19 @@ export function CreateRequisitionDialog({
   return (
     <Dialog
       open={open}
-      onClose={close}
+      onClose={() => close()}
       title={title}
       size="lg"
       footer={
         readOnly ? (
           <div className="flex justify-end">
-            <Button type="button" variant="secondary" onClick={close}>
+            <Button type="button" variant="secondary" onClick={() => close()}>
               {t.close}
             </Button>
           </div>
         ) : (
           <div className="flex justify-end gap-2.5">
-            <Button type="button" variant="secondary" onClick={close}>
+            <Button type="button" variant="secondary" onClick={() => close()}>
               {t.cancel}
             </Button>
             <Button
@@ -359,6 +422,8 @@ export function CreateRequisitionDialog({
           removeColumn={removeColumn}
           category={watchedDropdowns?.category}
           readOnly={readOnly}
+          scopeId={scopeId}
+          onPhotoUploaded={(path) => sessionUploadedPathsRef.current.add(path)}
         />
 
         <div className="mt-5">

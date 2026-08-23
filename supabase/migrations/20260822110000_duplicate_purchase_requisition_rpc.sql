@@ -5,6 +5,13 @@
 -- columns get new ids (their old-id -> new-id map mirrors the client-token
 -- map create_purchase_requisition already builds for brand-new columns), so
 -- their values are remapped rather than copied by column_id directly.
+--
+-- Deliberately does NOT copy purchase_requisition_line_item_attachments — a
+-- duplicated PR's (copied) line items start with zero photos. Known v1
+-- limitation, not an oversight: duplicating a photo would mean copying the
+-- underlying Storage object too (a plain row copy would leave two DB rows
+-- pointing at the same storage_path, so deleting either PR would orphan or
+-- break the other's photo), which is out of scope for this pass.
 create or replace function public.duplicate_purchase_requisition(p_id uuid)
 returns table (id uuid, pr_number text)
 language plpgsql

@@ -270,6 +270,10 @@
         "addColumn": "Add column",
         "addPhoto": "Add photo",
         "removePhoto": "Remove photo",
+        "retryPhoto": "Retry upload",
+        "photoUploadError": "Couldn't upload this photo. Try again.",
+        "photoTooLarge": "Photo is larger than 5 MB.",
+        "photoUnsupportedType": "Unsupported file type. Use JPG, PNG, WEBP, or HEIC.",
         "removeLineItem": "Remove line item",
         "removeColumn": "Remove column",
         "removeField": "Remove field",
@@ -376,7 +380,8 @@
       "errors": {
         "fieldRequired": "This field is required.",
         "labelRequired": "Enter a label.",
-        "pastDateNotAllowed": "Date cannot be in the past."
+        "pastDateNotAllowed": "Date cannot be in the past.",
+        "tooManyPhotos": "Too many photos on this line item."
       }
     }
   }

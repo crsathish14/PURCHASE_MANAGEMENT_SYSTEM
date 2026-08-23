@@ -2,6 +2,12 @@ import { z } from "zod";
 
 import en from "@/locales/en.json";
 import { PR_CATEGORY, PR_PRIORITY } from "@/lib/constants/purchase-requisition";
+import {
+  ALLOWED_PHOTO_MIME_TYPES,
+  MAX_PHOTO_SIZE_BYTES,
+  MAX_PHOTOS_PER_LINE_ITEM,
+  PR_LINE_ITEM_PHOTO_PATH_PREFIX,
+} from "@/lib/constants/storage";
 import type { PrDropdownField } from "@/lib/data/purchase-requisition";
 
 const t = en.staff.poRequests.errors;
@@ -25,7 +31,21 @@ export type CreateRequisitionFormValues = {
   remarks: string;
   customFields: Array<{ label: string; value: string }>;
   columns: Array<{ key: string; label: string }>;
-  lineItems: Array<{ description: string; qty: string; extra: Record<string, string> }>;
+  lineItems: Array<{
+    description: string;
+    qty: string;
+    extra: Record<string, string>;
+    attachments: Array<{
+      storagePath: string;
+      fileName: string;
+      contentType: string;
+      sizeBytes: number;
+      // Display-only, seeded from PrLineItemAttachment.url when editing an
+      // existing PR — never read by the RPC, never used to construct a
+      // Storage path.
+      url: string | null;
+    }>;
+  }>;
 };
 
 // The set of required dropdown fields isn't known until getPrDropdownFields()
@@ -72,6 +92,23 @@ export function buildCreateRequisitionSchema(
           description: z.string().min(1, { error: t.fieldRequired }),
           qty: z.string(),
           extra: z.record(z.string(), z.string()),
+          // Re-validates already-uploaded-object metadata — NOT proof the
+          // real bytes match (bytes never transit this server; the bucket's
+          // file_size_limit/allowed_mime_types is that proof). Defense in
+          // depth against an obviously malformed payload; count is the one
+          // limit genuinely enforceable here since it rides in this JSON
+          // body rather than in file bytes.
+          attachments: z
+            .array(
+              z.object({
+                storagePath: z.string().min(1).startsWith(`${PR_LINE_ITEM_PHOTO_PATH_PREFIX}/`),
+                fileName: z.string().min(1),
+                contentType: z.enum(ALLOWED_PHOTO_MIME_TYPES),
+                sizeBytes: z.number().int().positive().max(MAX_PHOTO_SIZE_BYTES),
+                url: z.string().nullable(),
+              }),
+            )
+            .max(MAX_PHOTOS_PER_LINE_ITEM, { error: t.tooManyPhotos }),
         }),
       ),
     })
