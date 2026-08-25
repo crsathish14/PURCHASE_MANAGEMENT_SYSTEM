@@ -13,6 +13,7 @@ import { CancelPrDialog } from "./cancel-pr-dialog";
 import { CreateRequisitionDialog } from "./create-requisition-dialog";
 import { DeletePrDialog } from "./delete-pr-dialog";
 import { EmptyState } from "./empty-state";
+import { IssueRfqDialog } from "./issue-rfq-dialog";
 import { PrPager } from "./pr-pager";
 import { PrTable } from "./pr-table";
 import { PrToolbar } from "./pr-toolbar";
@@ -58,6 +59,7 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
   const [deleteTarget, setDeleteTarget] = useState<PrListRow | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [issueRfqTarget, setIssueRfqTarget] = useState<PrListRow | null>(null);
 
   const [rows, setRows] = useState(initialRows);
   const [total, setTotal] = useState(initialTotal);
@@ -249,6 +251,10 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
     }
   }
 
+  function handleRfqIssued() {
+    fetchList({ page, pageSize, ...appliedParams });
+  }
+
   function handleSearchSettled(search: string) {
     fetchList({
       page: 1,
@@ -366,6 +372,7 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
             onDeleteRequested={setDeleteTarget}
             onDuplicate={handleDuplicate}
             duplicatingId={duplicatingId}
+            onIssueRfqRequested={setIssueRfqTarget}
           />
           <PrPager
             page={page}
@@ -400,6 +407,14 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
         onConfirm={handleDeleteConfirmed}
         prNumber={deleteTarget?.prNumber ?? ""}
         loading={deleting}
+      />
+
+      <IssueRfqDialog
+        open={issueRfqTarget !== null}
+        onClose={() => setIssueRfqTarget(null)}
+        requisitionId={issueRfqTarget?.id ?? ""}
+        prNumber={issueRfqTarget?.prNumber ?? ""}
+        onIssued={handleRfqIssued}
       />
     </div>
   );

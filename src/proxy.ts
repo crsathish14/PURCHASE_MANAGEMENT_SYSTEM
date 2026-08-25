@@ -51,6 +51,11 @@ function redirectTo(request: NextRequest, response: NextResponse, pathname: stri
 //    that instruction — curl, a bot, a vulnerability scanner — would
 //    otherwise receive the actual protected page content with a 200. Proxy
 //    runs before any rendering, so its redirect is always a real 307.
+//
+//    PUBLIC_PATHS plus the ROUTES.QUOTE_FORM prefix check below are the
+//    app's *entire* public surface — /en/quote/{token} (the vendor
+//    magic-link RFQ form) can't live in PUBLIC_PATHS itself since it's a
+//    dynamic per-token path and that Set only does exact matches.
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -101,7 +106,13 @@ export async function proxy(request: NextRequest) {
     return redirectTo(request, response, targetPathname);
   }
 
-  if (!PUBLIC_PATHS.has(pathname)) {
+  // Deliberately not conditioned on `!user` — a staff member opening their
+  // own generated link while still logged in must see the same public page
+  // too (e.g. to preview it), not get redirected by the must_change_password
+  // / admin-only checks below, which are meant for the staff app.
+  const isPublicPath = PUBLIC_PATHS.has(pathname) || pathname.startsWith(`${ROUTES.QUOTE_FORM}/`);
+
+  if (!isPublicPath) {
     if (!user) {
       return redirectTo(request, response, ROUTES.LOGIN);
     }

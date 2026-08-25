@@ -329,6 +329,39 @@
         "cancel": "Cancel",
         "add": "Add"
       },
+      "issueRfqDialog": {
+        "title": "Issue RFQ",
+        "description": "Generate a unique quotation link for one vendor. Nothing is emailed automatically — you'll copy and send this yourself.",
+        "vendorName": "Vendor name",
+        "vendorNamePlaceholder": "e.g. Anchor Marine Supplies",
+        "vendorEmail": "Vendor email",
+        "vendorEmailPlaceholder": "vendor@example.com",
+        "expiresAt": "Link expires on",
+        "expiresAtDateLabel": "Expiry date",
+        "expiresAtTimeLabel": "Expiry time",
+        "message": "Message",
+        "messageDefault": "Hello,\n\nPlease find below a request for quotation. Kindly review and submit your quotation using the secure link below before it expires.\n\nThank you.",
+        "cancel": "Cancel",
+        "submit": "Create Link",
+        "submitting": "Creating…",
+        "issueError": "Couldn't create this RFQ link. Try again.",
+        "issueConflictError": "RFQ links can no longer be issued for this requisition.",
+        "resultTitle": "RFQ link ready",
+        "resultDescription": "Copy the link and message below and send them to the vendor yourself.",
+        "linkLabel": "Shareable link",
+        "messageLabel": "Email message",
+        "copy": "Copy",
+        "copied": "Copied",
+        "done": "Done",
+        "errors": {
+          "vendorNameRequired": "Vendor name is required",
+          "vendorEmailRequired": "Vendor email is required",
+          "vendorEmailInvalid": "Enter a valid email address",
+          "expiresAtRequired": "Choose an expiry date and time",
+          "expiresAtPast": "Expiry cannot be in the past",
+          "messageRequired": "Enter a message for the vendor"
+        }
+      },
       "table": {
         "columns": {
           "ref": "Ref",
@@ -372,6 +405,7 @@
         "cancelError": "Couldn't cancel this requisition. Try again.",
         "duplicateSuccess": "Requisition duplicated.",
         "duplicateError": "Couldn't duplicate this requisition. Try again.",
+        "duplicateConflictError": "Only requisitions pending RFQ can be duplicated.",
         "deleteDialog": {
           "title": "Delete requisition?",
           "message": "Permanently delete {prNumber}? This can't be undone and no record of it will remain.",
@@ -415,5 +449,20 @@
         "tooManyPhotos": "Too many photos on this line item."
       }
     }
+  },
+  "vendorQuote": {
+    "title": "Submit Quotation",
+    "refLabel": "Purchase Requisition Ref",
+    "description": "You've been sent this link to submit your quotation for the request above. Full quotation details will be collected here in a future update — for now, click Submit to confirm.",
+    "submit": "Submit",
+    "submitting": "Submitting…",
+    "submittedTitle": "Thank you",
+    "submittedDescription": "Your submission has been recorded. The purchase officer will follow up with you directly.",
+    "submitError": "Couldn't submit. Try again.",
+    "linkInvalid": "This link is no longer valid.",
+    "invalidTitle": "This link is no longer valid",
+    "notFoundDescription": "We couldn't find this quotation link. Double check the link you were sent, or contact the purchase officer who sent it.",
+    "alreadySubmittedDescription": "A quotation has already been submitted using this link.",
+    "expiredDescription": "This link has expired. Contact the purchase officer for a new one."
   }
 }

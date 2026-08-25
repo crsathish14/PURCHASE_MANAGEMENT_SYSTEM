@@ -351,6 +351,54 @@ export type Database = {
           },
         ];
       };
+      purchase_requisition_rfq_links: {
+        Row: {
+          id: string;
+          requisition_id: string;
+          vendor_name: string;
+          vendor_email: string;
+          access_token: string;
+          message: string;
+          expires_at: string;
+          submitted_at: string | null;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          requisition_id: string;
+          vendor_name: string;
+          vendor_email: string;
+          access_token: string;
+          message: string;
+          expires_at: string;
+          submitted_at?: string | null;
+          created_by: string;
+        };
+        Update: {
+          vendor_name?: string;
+          vendor_email?: string;
+          message?: string;
+          expires_at?: string;
+          submitted_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "purchase_requisition_rfq_links_requisition_id_fkey";
+            columns: ["requisition_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_requisitions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_requisition_rfq_links_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       pr_requisition_list: {
@@ -413,7 +461,11 @@ export type Database = {
       };
       duplicate_purchase_requisition: {
         Args: { p_id: string };
-        Returns: { id: string; pr_number: string }[];
+        Returns: { id: string; pr_number: string; line_item_id_map: Json }[];
+      };
+      duplicate_purchase_requisition_line_item_attachments: {
+        Args: { p_attachments: Json };
+        Returns: undefined;
       };
       delete_purchase_requisition: {
         Args: { p_id: string };
@@ -445,6 +497,31 @@ export type Database = {
           requisition_number: string | null;
           total_count: number;
         }[];
+      };
+      issue_rfq_link: {
+        Args: {
+          p_requisition_id: string;
+          p_vendor_name: string;
+          p_vendor_email: string;
+          p_expires_at: string;
+          p_message: string;
+        };
+        Returns: { id: string; access_token: string }[];
+      };
+      get_rfq_link_by_token: {
+        Args: { p_token: string };
+        Returns: {
+          requisition_id: string;
+          pr_number: string;
+          vendor_name: string;
+          expires_at: string;
+          submitted_at: string | null;
+          is_expired: boolean;
+        }[];
+      };
+      submit_rfq_link: {
+        Args: { p_token: string };
+        Returns: { success: boolean }[];
       };
     };
     Enums: {

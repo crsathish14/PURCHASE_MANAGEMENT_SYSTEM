@@ -36,6 +36,7 @@ export type PrTableProps = {
   onDeleteRequested: (row: PrListRow) => void;
   onDuplicate: (row: PrListRow) => void;
   duplicatingId: string | null;
+  onIssueRfqRequested: (row: PrListRow) => void;
 };
 
 export function PrTable({
@@ -46,6 +47,7 @@ export function PrTable({
   onDeleteRequested,
   onDuplicate,
   duplicatingId,
+  onIssueRfqRequested,
 }: PrTableProps) {
   return (
     <div className="overflow-x-auto rounded-xl border border-line bg-paper shadow-(--shadow-e1)">
@@ -68,6 +70,11 @@ export function PrTable({
           {rows.map((row) => {
             const cancelDisabled = row.status === PR_STATUS.AWARDED || row.status === PR_STATUS.CANCELLED;
             const deleteDisabled = row.status !== PR_STATUS.PENDING_RFQ;
+            const duplicateDisabled = row.status !== PR_STATUS.PENDING_RFQ || duplicatingId === row.id;
+            // Stays enabled through Quotes Recv'd — the officer can keep
+            // inviting more vendors even after the first quote comes in,
+            // right up until the PR is actually awarded (or cancelled).
+            const issueRfqDisabled = row.status === PR_STATUS.AWARDED || row.status === PR_STATUS.CANCELLED;
             return (
               <tr
                 key={row.id}
@@ -122,10 +129,12 @@ export function PrTable({
                     <MenuItem tone="danger" disabled={cancelDisabled} onClick={() => onCancelRequested(row)}>
                       {t.rowMenu.cancel}
                     </MenuItem>
-                    <MenuItem disabled={duplicatingId === row.id} onClick={() => onDuplicate(row)}>
+                    <MenuItem disabled={duplicateDisabled} onClick={() => onDuplicate(row)}>
                       {t.rowMenu.duplicate}
                     </MenuItem>
-                    <MenuItem disabled>{t.rowMenu.issueRfq}</MenuItem>
+                    <MenuItem disabled={issueRfqDisabled} onClick={() => onIssueRfqRequested(row)}>
+                      {t.rowMenu.issueRfq}
+                    </MenuItem>
                     <MenuItem disabled>{t.rowMenu.export}</MenuItem>
                     <div className="my-1 border-t border-line" aria-hidden="true" />
                     <MenuItem tone="danger" disabled={deleteDisabled} onClick={() => onDeleteRequested(row)}>
