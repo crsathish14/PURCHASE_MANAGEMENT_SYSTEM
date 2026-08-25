@@ -94,6 +94,24 @@ export type Database = {
           },
         ];
       };
+      vessels: {
+        Row: {
+          id: string;
+          name: string;
+          imo_no: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          imo_no: string;
+        };
+        Update: {
+          name?: string;
+          imo_no?: string;
+        };
+        Relationships: [];
+      };
       purchase_requisitions: {
         Row: {
           id: string;
@@ -356,6 +374,10 @@ export type Database = {
       };
     };
     Functions: {
+      add_vessel: {
+        Args: { p_name: string; p_imo_no: string };
+        Returns: { id: string; name: string; imo_no: string; created_at: string }[];
+      };
       create_purchase_requisition: {
         Args: {
           p_priority: PrPriority;

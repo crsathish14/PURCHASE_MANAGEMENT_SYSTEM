@@ -224,9 +224,40 @@
       "resetError": "Couldn't reset this person's password. Try again.",
       "resetErrors": {
         "passwordMin": "Password must be at least 8 characters"
+      }
+    },
+    "settingsSubnav": {
+      "team": "Team",
+      "vessels": "Vessel"
+    },
+    "vessels": {
+      "title": "Vessels",
+      "subtitle": "The vessels available to select when creating a purchase requisition.",
+      "breadcrumbSettings": "Settings",
+      "breadcrumbCurrent": "Vessel",
+      "addVessel": "Add vessel",
+      "columns": {
+        "name": "Name",
+        "imoNo": "IMO No"
       },
-      "subnav": {
-        "team": "Team"
+      "empty": "No vessels yet.",
+      "loadError": "Couldn't load vessels.",
+      "addFormTitle": "Add vessel",
+      "addFormDescription": "It becomes available in the Create Requisition vessel dropdown immediately.",
+      "name": "Vessel name",
+      "namePlaceholder": "e.g. MV Aster",
+      "imoNo": "IMO No",
+      "imoNoPlaceholder": "e.g. 9876543",
+      "addSubmit": "Add vessel",
+      "addSubmitting": "Adding…",
+      "addCancel": "Cancel",
+      "addSuccess": "Vessel added.",
+      "addError": "Couldn't add this vessel. Try again.",
+      "addErrors": {
+        "nameRequired": "Vessel name is required",
+        "imoNoRequired": "IMO No is required",
+        "nameInUse": "A vessel with this name already exists.",
+        "imoNoInUse": "A vessel with this IMO No already exists."
       }
     },
     "poRequests": {
