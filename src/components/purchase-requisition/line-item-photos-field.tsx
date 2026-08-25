@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RotateCw, X } from "lucide-react";
 
+import { ImagePreviewModal, type PreviewImage } from "@/components/atoms";
 import en from "@/locales/en.json";
 import {
   ALLOWED_PHOTO_MIME_TYPES,
@@ -108,6 +109,7 @@ export function LineItemPhotosField({
 }: LineItemPhotosFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<PendingTile[]>([]);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   // A freshly uploaded photo's `url` is null — display signing only happens
   // server-side, in getPurchaseRequisitionById, when an existing PR is
   // loaded. Without this, a photo uploaded earlier in the *current* dialog
@@ -267,21 +269,34 @@ export function LineItemPhotosField({
 
   const atLimit = value.length + pending.length >= MAX_PHOTOS_PER_LINE_ITEM;
 
+  const previewImages: PreviewImage[] = value.map((attachment) => ({
+    url: attachment.url ?? localPreviewUrlByPath[attachment.storagePath] ?? null,
+    fileName: attachment.fileName,
+  }));
+
   return (
+    <>
     <div className="flex flex-wrap items-center gap-1.5">
       {value.map((attachment, index) => (
         <div
           key={attachment.storagePath}
           className="group relative h-10 w-10 overflow-hidden rounded-md border border-line"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element -- signed Storage
-              URL (or a local blob: preview for a not-yet-reloaded upload),
-              next/image's remote loader isn't configured for either. */}
-          <img
-            src={attachment.url ?? localPreviewUrlByPath[attachment.storagePath] ?? undefined}
-            alt=""
-            className="h-full w-full object-cover"
-          />
+          <button
+            type="button"
+            onClick={() => setPreviewIndex(index)}
+            aria-label={t.viewPhoto}
+            className="block h-full w-full"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element -- signed Storage
+                URL (or a local blob: preview for a not-yet-reloaded upload),
+                next/image's remote loader isn't configured for either. */}
+            <img
+              src={attachment.url ?? localPreviewUrlByPath[attachment.storagePath] ?? undefined}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          </button>
           {disabled ? null : (
             <button
               type="button"
@@ -350,5 +365,12 @@ export function LineItemPhotosField({
         onChange={handlePick}
       />
     </div>
+    <ImagePreviewModal
+      open={previewIndex !== null}
+      onClose={() => setPreviewIndex(null)}
+      images={previewImages}
+      initialIndex={previewIndex ?? 0}
+    />
+    </>
   );
 }

@@ -13,6 +13,9 @@ export type { CheckboxProps } from "./checkbox";
 export { Dialog } from "./dialog";
 export type { DialogProps, DialogSize } from "./dialog";
 
+export { ImagePreviewModal } from "./image-preview-modal";
+export type { ImagePreviewModalProps, PreviewImage } from "./image-preview-modal";
+
 export { Input } from "./input";
 export type { InputProps } from "./input";
 
