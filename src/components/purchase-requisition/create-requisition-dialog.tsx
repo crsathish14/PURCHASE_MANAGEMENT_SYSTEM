@@ -7,7 +7,7 @@ import { Plus, X } from "lucide-react";
 
 import { Button, Dialog, Input, Label, Select, Textarea } from "@/components/atoms";
 import en from "@/locales/en.json";
-import { PR_PRIORITY, PR_STATUS } from "@/lib/constants/purchase-requisition";
+import { PR_CATEGORY, PR_PRIORITY, PR_STATUS } from "@/lib/constants/purchase-requisition";
 import { STORAGE_BUCKET } from "@/lib/constants/storage";
 import type { PrDetail, PrDropdownField } from "@/lib/data/purchase-requisition";
 import { createClient } from "@/lib/supabase/client";
@@ -40,6 +40,12 @@ export type CreateRequisitionDialogProps = {
   // renders this dialog with a `key` derived from requisition?.id so
   // switching rows remounts it and defaultValues reinitialize cleanly.
   requisition?: PrDetail | null;
+  // Create-mode only: a parsed import-template's values, used to seed
+  // defaultValues instead of the all-blank create form. Distinct from
+  // `requisition` since that's server-shaped (PrDetail, with id/status/etc.)
+  // while this is raw, still-unsaved form values — the user still reviews and
+  // Submits normally, nothing is written until they do.
+  initialImportValues?: Partial<CreateRequisitionFormValues> | null;
 };
 
 export function CreateRequisitionDialog({
@@ -48,6 +54,7 @@ export function CreateRequisitionDialog({
   dropdownFields,
   onSaved,
   requisition = null,
+  initialImportValues = null,
 }: CreateRequisitionDialogProps) {
   const mode: "create" | "edit" | "readOnly" = !requisition
     ? "create"
@@ -60,17 +67,31 @@ export function CreateRequisitionDialog({
 
   const defaultValues = useMemo<CreateRequisitionFormValues>(() => {
     if (!requisition) {
-      return {
+      const blank: CreateRequisitionFormValues = {
         priority: "",
         dropdowns: Object.fromEntries(dropdownFields.map((field) => [field.key, ""])),
         requestedBy: "",
         requiredPort: "",
         requisitionNumber: "",
+        requisitionDate: "",
+        title: "",
         remarks: "",
+        equipmentName: "",
+        equipmentType: "",
+        equipmentMake: "",
+        equipmentSerialNo: "",
+        equipmentModel: "",
+        equipmentSpecifications: "",
+        equipmentOtherDetails: "",
         customFields: [],
         columns: [],
         lineItems: [{ description: "", qty: "", extra: {}, attachments: [] }],
       };
+      // A shallow merge is correct here: a scalar field (priority, title, ...)
+      // either comes from the import or falls back to blank, and an array/
+      // record field the parser did include (dropdowns, columns, lineItems)
+      // is meant to fully replace the blank default, not merge entry-by-entry.
+      return initialImportValues ? { ...blank, ...initialImportValues } : blank;
     }
     const sourceLineItems =
       requisition.lineItems.length > 0
@@ -84,7 +105,16 @@ export function CreateRequisitionDialog({
       requestedBy: requisition.requestedBy ?? "",
       requiredPort: requisition.requiredPort ?? "",
       requisitionNumber: requisition.requisitionNumber ?? "",
+      requisitionDate: requisition.requisitionDate ?? "",
+      title: requisition.title ?? "",
       remarks: requisition.remarks ?? "",
+      equipmentName: requisition.equipmentName ?? "",
+      equipmentType: requisition.equipmentType ?? "",
+      equipmentMake: requisition.equipmentMake ?? "",
+      equipmentSerialNo: requisition.equipmentSerialNo ?? "",
+      equipmentModel: requisition.equipmentModel ?? "",
+      equipmentSpecifications: requisition.equipmentSpecifications ?? "",
+      equipmentOtherDetails: requisition.equipmentOtherDetails ?? "",
       customFields: requisition.customFields,
       columns: requisition.columns,
       // Backfill every line item's extra with every known column key so
@@ -98,7 +128,7 @@ export function CreateRequisitionDialog({
         attachments: item.attachments,
       })),
     };
-  }, [dropdownFields, requisition]);
+  }, [dropdownFields, requisition, initialImportValues]);
 
   const {
     register,
@@ -373,6 +403,33 @@ export function CreateRequisitionDialog({
             />
           </div>
 
+          <div>
+            <Label htmlFor="pr-requisition-date" error={!!errors.requisitionDate}>
+              {t.requisitionDate}
+            </Label>
+            <Input
+              id="pr-requisition-date"
+              type="date"
+              disabled={readOnly}
+              error={errors.requisitionDate?.message}
+              {...register("requisitionDate")}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="pr-requisition-title" error={!!errors.title}>
+              {t.requisitionTitle}
+            </Label>
+            <Input
+              id="pr-requisition-title"
+              type="text"
+              placeholder={t.requisitionTitlePlaceholder}
+              disabled={readOnly}
+              error={errors.title?.message}
+              {...register("title")}
+            />
+          </div>
+
           {customFields.map((field, index) => (
             <div key={field.id}>
               <Label htmlFor={`pr-custom-${index}`}>{field.label}</Label>
@@ -410,6 +467,63 @@ export function CreateRequisitionDialog({
             {t.addMoreField}
           </Button>
         )}
+
+        {/* Spares-only, per the source paper form's own note ("Each
+            Requisition should be for one Equipment only") — placed above line
+            items since it scopes them, matching that form's layout. Always
+            optional; hidden (not just disabled) for every other category so
+            its fields never confuse a Stores/Service submission, but their
+            values stay in the form state either way (blank unless the user
+            had switched into Spares and back). */}
+        {watchedDropdowns?.category === PR_CATEGORY.SPARES ? (
+          <div className="mt-5">
+            <Label>{t.equipmentDetails.title}</Label>
+            <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-4 rounded-lg border border-line p-4">
+              <div>
+                <Label htmlFor="pr-equipment-name">{t.equipmentDetails.nameOfEquipment}</Label>
+                <Input id="pr-equipment-name" type="text" disabled={readOnly} {...register("equipmentName")} />
+              </div>
+              <div>
+                <Label htmlFor="pr-equipment-type">{t.equipmentDetails.type}</Label>
+                <Input id="pr-equipment-type" type="text" disabled={readOnly} {...register("equipmentType")} />
+              </div>
+              <div>
+                <Label htmlFor="pr-equipment-make">{t.equipmentDetails.make}</Label>
+                <Input id="pr-equipment-make" type="text" disabled={readOnly} {...register("equipmentMake")} />
+              </div>
+              <div>
+                <Label htmlFor="pr-equipment-serial-no">{t.equipmentDetails.serialNo}</Label>
+                <Input
+                  id="pr-equipment-serial-no"
+                  type="text"
+                  disabled={readOnly}
+                  {...register("equipmentSerialNo")}
+                />
+              </div>
+              <div>
+                <Label htmlFor="pr-equipment-model">{t.equipmentDetails.model}</Label>
+                <Input id="pr-equipment-model" type="text" disabled={readOnly} {...register("equipmentModel")} />
+              </div>
+              <div />
+              <div className="col-span-2">
+                <Label htmlFor="pr-equipment-specifications">{t.equipmentDetails.specifications}</Label>
+                <Textarea
+                  id="pr-equipment-specifications"
+                  disabled={readOnly}
+                  {...register("equipmentSpecifications")}
+                />
+              </div>
+              <div className="col-span-2">
+                <Label htmlFor="pr-equipment-other-details">{t.equipmentDetails.otherDetails}</Label>
+                <Textarea
+                  id="pr-equipment-other-details"
+                  disabled={readOnly}
+                  {...register("equipmentOtherDetails")}
+                />
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <LineItemsField
           control={control}

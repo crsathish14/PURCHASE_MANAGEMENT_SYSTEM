@@ -28,7 +28,22 @@ export type CreateRequisitionFormValues = {
   requestedBy: string;
   requiredPort: string;
   requisitionNumber: string;
+  requisitionDate: string;
+  title: string;
   remarks: string;
+  // Spares-only ("Equipment Details" section) — kept as direct fields rather
+  // than the generic customFields mechanism since these are fixed, known
+  // concepts (not a user-invented label) that the import-template parser
+  // must be able to map to deterministically every time. Always optional and
+  // always present in the payload (blank when category isn't Spares), same
+  // as requiredPort/remarks.
+  equipmentName: string;
+  equipmentType: string;
+  equipmentMake: string;
+  equipmentSerialNo: string;
+  equipmentModel: string;
+  equipmentSpecifications: string;
+  equipmentOtherDetails: string;
   customFields: Array<{ label: string; value: string }>;
   columns: Array<{ key: string; label: string }>;
   lineItems: Array<{
@@ -84,7 +99,16 @@ export function buildCreateRequisitionSchema(
       requestedBy: z.string(),
       requiredPort: z.string(),
       requisitionNumber: z.string(),
+      requisitionDate: z.string(),
+      title: z.string(),
       remarks: z.string(),
+      equipmentName: z.string(),
+      equipmentType: z.string(),
+      equipmentMake: z.string(),
+      equipmentSerialNo: z.string(),
+      equipmentModel: z.string(),
+      equipmentSpecifications: z.string(),
+      equipmentOtherDetails: z.string(),
       customFields: z.array(z.object({ label: z.string(), value: z.string() })),
       columns: z.array(z.object({ key: z.string(), label: z.string() })),
       lineItems: z.array(

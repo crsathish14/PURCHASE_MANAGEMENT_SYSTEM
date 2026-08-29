@@ -136,6 +136,15 @@ export type PrDetail = {
   requiredPort: string | null;
   remarks: string | null;
   requisitionNumber: string | null;
+  requisitionDate: string | null;
+  title: string | null;
+  equipmentName: string | null;
+  equipmentType: string | null;
+  equipmentMake: string | null;
+  equipmentSerialNo: string | null;
+  equipmentModel: string | null;
+  equipmentSpecifications: string | null;
+  equipmentOtherDetails: string | null;
   dropdowns: Record<string, string>;
   customFields: Array<{ label: string; value: string }>;
   columns: Array<{ key: string; label: string }>;
@@ -171,6 +180,8 @@ export async function getPurchaseRequisitionById(id: string): Promise<PrDetail |
       .select(
         `
         id, pr_number, status, priority, requested_by, required_port, remarks, requisition_number,
+        requisition_date, title, equipment_name, equipment_type, equipment_make,
+        equipment_serial_no, equipment_model, equipment_specifications, equipment_other_details,
         purchase_requisition_dropdown_values ( option_value, pr_dropdown_fields ( key ) ),
         purchase_requisition_custom_fields ( label, value, sort_order ),
         purchase_requisition_line_item_columns ( id, label, sort_order ),
@@ -264,6 +275,15 @@ export async function getPurchaseRequisitionById(id: string): Promise<PrDetail |
     requiredPort: data.required_port,
     remarks: data.remarks,
     requisitionNumber: data.requisition_number,
+    requisitionDate: data.requisition_date,
+    title: data.title,
+    equipmentName: data.equipment_name,
+    equipmentType: data.equipment_type,
+    equipmentMake: data.equipment_make,
+    equipmentSerialNo: data.equipment_serial_no,
+    equipmentModel: data.equipment_model,
+    equipmentSpecifications: data.equipment_specifications,
+    equipmentOtherDetails: data.equipment_other_details,
     dropdowns,
     customFields,
     columns,

@@ -26,12 +26,21 @@ export const DATE_PRESET = {
 // pr_dropdown_field_options.value rows (see the dropdown cleanup migration).
 export const PR_CATEGORY = { SERVICE: "service", STORES: "stores", SPARES: "spares" } as const;
 
-// Stable, well-known keys for the two category-driven preset line-item
-// columns (Approved Qty / Remarks) — deliberately NOT crypto.randomUUID()
-// like a genuinely user-added "+ Add column" entry, so line-items-field.tsx
-// can precisely add/remove exactly these two without touching a real custom
-// column.
-export const PR_LINE_ITEM_PRESET_COLUMN = { APPROVED_QTY: "approved_qty", REMARKS: "remarks" } as const;
+// Stable, well-known keys for the category-driven preset line-item columns —
+// deliberately NOT crypto.randomUUID() like a genuinely user-added "+ Add
+// column" entry, so line-items-field.tsx can precisely add/remove exactly
+// these without touching a real custom column. APPROVED_QTY/REMARKS apply to
+// both Stores and Spares; PART_NO is Spares-only and IMPA_CODE/UOM are
+// Stores-only (Spares' own sample form has no UOM column) — see the
+// category -> preset-set lookup in line-items-field.tsx.
+export const PR_LINE_ITEM_PRESET_COLUMN = {
+  APPROVED_QTY: "approved_qty",
+  REMARKS: "remarks",
+  PART_NO: "part_no",
+  IMPA_CODE: "impa_code",
+  UOM: "uom",
+  ROB: "rob",
+} as const;
 
 export type PrPriority = (typeof PR_PRIORITY)[keyof typeof PR_PRIORITY];
 export type PrStatus = (typeof PR_STATUS)[keyof typeof PR_STATUS];

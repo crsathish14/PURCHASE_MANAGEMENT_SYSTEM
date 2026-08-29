@@ -73,9 +73,14 @@ These files hold every value that would otherwise be a magic string:
   option *values* — used only for frontend conditional branching on which line-item columns to
   show; the DB via `pr_dropdown_fields`/`pr_dropdown_field_options` stays the actual source of
   truth for the dropdown's label/option list), and `PR_LINE_ITEM_PRESET_COLUMN`
-  (`APPROVED_QTY`/`REMARKS` — the two stable keys `LineItemsField` uses for its category-driven
-  preset line-item columns, kept distinct from a genuinely user-added custom column's random
-  `crypto.randomUUID()` key).
+  (`APPROVED_QTY`/`REMARKS`/`ROB` — apply to both Stores and Spares; `PART_NO` — Spares only;
+  `IMPA_CODE`/`UOM` — Stores only, Spares has no UOM column — the stable keys `LineItemsField` uses
+  for its category-driven preset line-item columns, kept distinct from a genuinely user-added custom
+  column's random `crypto.randomUUID()` key). The category → preset-column-set mapping itself lives
+  in one place, `getPresetColumnsForCategory()` in `src/lib/purchase-requisition/preset-columns.ts`
+  — both `LineItemsField` (manual create/edit) and the import-template parser (§16) import it, so
+  they can't drift apart. `APPROVED_QTY` is office-only (filled in during review, never sourced from
+  the import template) but is still part of this set, since the column must exist either way.
 - `src/lib/routes.ts` — `ROUTES`, every locale-prefixed path the app links to or redirects to (see
   §3).
 - `src/lib/constants/storage.ts` — `STORAGE_BUCKET` (currently just `ATTACHMENTS`), `MAX_PHOTO_SIZE_BYTES`,
@@ -181,7 +186,47 @@ a dev server when practical, not just that it compiles.
    using the §12 pattern.
 6. Verify per §14.
 
-## 16. Keeping this file current
+## 16. Spreadsheet import (generate + parse a `.xlsx` template)
+
+The Create Requisition "Import Excel" menu (`po-requests-view.tsx`) is the first feature to
+generate and parse spreadsheets — `exceljs` is the one dependency for both directions (its
+`package.json` `browser`/`main` fields resolve to the right build automatically for a client
+component vs. a Route Handler; no separate library needed per side).
+
+- **Generate**: `GET src/app/api/purchase-requisitions/import-template/route.ts?category=stores|spares`
+  builds the workbook server-side from live data (`getPrDropdownFields()` for Vessel/Department
+  dropdown-validated cells), so the template can never go stale the way a static checked-in file
+  would. Returned with `Content-Disposition: attachment` — a plain `<a href>` download link, no
+  client-side blob handling needed.
+- **Marker convention**: every generated template carries a hidden `veryHidden` sheet
+  (`_pms_meta`, cell `A1` = `pms-pr-template:<category>:v1`) so the parser can confirm a file really
+  is one of these templates (not an unrelated spreadsheet) and recover which category it was
+  generated for, without relying on the visible sheet layout at all.
+- **Parse**: `src/lib/purchase-requisition/import-template.ts` (client-side, called from
+  `po-requests-view.tsx`'s upload handler) reads the workbook via `exceljs`'s browser build, matches
+  header fields by **label text**, not fixed cell refs (scans every cell, pairs each known label
+  with whatever's immediately to its right) — the same tolerance-to-drift approach as line-item
+  columns, matched by header text so their order in the template isn't load-bearing either.
+- Parsed output feeds `CreateRequisitionDialog`'s new `initialImportValues` prop, which seeds the
+  normal create form — nothing is written to the DB until the user reviews and Submits through the
+  existing POST `/api/purchase-requisitions` path. A future upload-a-file-and-prefill-a-form feature
+  should follow this same shape (generate from live data + hidden marker + label-matched parse into
+  existing form state) rather than inventing a new one.
+- **Not every preset column is importable.** The parser always sets `columns` to the category's full
+  `getPresetColumnsForCategory()` set (§7), not just whatever headers the file had — so a column like
+  Approved Qty that the template deliberately omits (office-only, filled in during review) still
+  exists after import, just blank. A future column that's manual-only the same way should follow that
+  pattern: keep it out of the generator's `lineItemHeaders` list, and don't add it to
+  `LINE_ITEM_COLUMN_KEY_BY_LABEL` — no other change is needed for it to still show up post-import.
+- **ExcelJS gotcha**: a `dataValidation` of `type: "list"` cannot reference a range on another sheet
+  directly (e.g. `formulae: ["Lists!$A$2:$A$4"]`) — Excel's own UI can't author that either, and a
+  file with one throws "repaired/removed unreadable content" on open. Cross-sheet list sources must
+  go through a workbook-level defined name instead (`workbook.definedNames.add(rangeRef, name)`, then
+  `formulae: [name]`) — see `addListValidation()` in the generate route. Also skip validation entirely
+  for an empty option list (an empty list makes `$A$2:$A$1`, an inverted/invalid range — the same
+  failure mode) rather than adding it and hoping the range is never actually empty.
+
+## 17. Keeping this file current
 
 This file is auto-loaded into every session via `CLAUDE.md`'s `@plans/development.md` import — it's
 only useful if it matches what the code actually does. Update the relevant section **in the same

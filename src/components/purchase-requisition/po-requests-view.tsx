@@ -3,11 +3,13 @@
 import { useRef, useState } from "react";
 import { Plus, Upload } from "lucide-react";
 
-import { Button } from "@/components/atoms";
+import { Button, Menu, MenuItem } from "@/components/atoms";
 import en from "@/locales/en.json";
-import { PR_STATUS } from "@/lib/constants/purchase-requisition";
+import { PR_CATEGORY, PR_STATUS } from "@/lib/constants/purchase-requisition";
 import type { DatePreset } from "@/lib/constants/purchase-requisition";
 import type { PrDetail, PrDropdownField, PrListRow } from "@/lib/data/purchase-requisition";
+import { parseRequisitionTemplateFile } from "@/lib/purchase-requisition/import-template";
+import type { CreateRequisitionFormValues } from "@/lib/validation/purchase-requisition";
 import { toast } from "@/store/toast-store";
 import { CancelPrDialog } from "./cancel-pr-dialog";
 import { CreateRequisitionDialog } from "./create-requisition-dialog";
@@ -53,6 +55,13 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
   const [createOpen, setCreateOpen] = useState(false);
   const [editingRequisition, setEditingRequisition] = useState<PrDetail | null>(null);
   const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
+  // Set right before opening the create dialog for an import, cleared by
+  // handleDialogClose — kept separate from `editingRequisition` since a
+  // template import seeds raw, still-unsaved form values (Partial<
+  // CreateRequisitionFormValues>), not a server-shaped PrDetail.
+  const [importValues, setImportValues] = useState<Partial<CreateRequisitionFormValues> | null>(null);
+  const [importing, setImporting] = useState(false);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
 
   const [cancelTarget, setCancelTarget] = useState<PrListRow | null>(null);
   const [cancelling, setCancelling] = useState(false);
@@ -174,6 +183,34 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
   function handleDialogClose() {
     setCreateOpen(false);
     setEditingRequisition(null);
+    setImportValues(null);
+  }
+
+  async function handleImportFilePicked(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setImporting(true);
+    try {
+      const result = await parseRequisitionTemplateFile(file, initialDropdownFields);
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      setImportValues(result.values);
+      setEditingRequisition(null);
+      setCreateOpen(true);
+      const lineItemCount = result.values.lineItems?.filter((item) => item.description.trim()).length ?? 0;
+      const baseMessage = t.importMenu.importSuccess
+        .replace("{count}", String(lineItemCount))
+        .replace("{fileName}", result.fileName);
+      toast.success(result.warnings.length ? baseMessage + t.importMenu.importWarningsSuffix : baseMessage);
+    } catch {
+      toast.error(t.importMenu.parseError);
+    } finally {
+      setImporting(false);
+    }
   }
 
   // Reads editingRequisition before handleDialogClose (called right after by
@@ -324,10 +361,37 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
           <p className="mt-1.5 text-sm text-slate">{t.subtitle}</p>
         </div>
         <div className="flex gap-2.5">
-          <Button variant="secondary" disabled>
-            <Upload size={15} strokeWidth={2} aria-hidden="true" />
-            {t.importExcel}
-          </Button>
+          <Menu
+            trigger={
+              <Button variant="secondary" loading={importing}>
+                <Upload size={15} strokeWidth={2} aria-hidden="true" />
+                {t.importExcel}
+              </Button>
+            }
+          >
+            <a
+              href={`/api/purchase-requisitions/import-template?category=${PR_CATEGORY.STORES}`}
+              className="block w-full px-3.5 py-2 text-left text-[13px] text-ink hover:bg-mist"
+            >
+              {t.importMenu.downloadStoreTemplate}
+            </a>
+            <a
+              href={`/api/purchase-requisitions/import-template?category=${PR_CATEGORY.SPARES}`}
+              className="block w-full px-3.5 py-2 text-left text-[13px] text-ink hover:bg-mist"
+            >
+              {t.importMenu.downloadSparesTemplate}
+            </a>
+            <MenuItem onClick={() => importFileInputRef.current?.click()}>
+              {t.importMenu.uploadTemplate}
+            </MenuItem>
+          </Menu>
+          <input
+            ref={importFileInputRef}
+            type="file"
+            accept=".xlsx"
+            hidden
+            onChange={handleImportFilePicked}
+          />
           <Button variant="primary" onClick={() => setCreateOpen(true)}>
             <Plus size={15} strokeWidth={2} aria-hidden="true" />
             {t.createRequisition}
@@ -391,6 +455,7 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
         dropdownFields={initialDropdownFields}
         onSaved={handleDialogSaved}
         requisition={editingRequisition}
+        initialImportValues={importValues}
       />
 
       <CancelPrDialog

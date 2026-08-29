@@ -271,6 +271,16 @@
       "title": "Purchase Requisition",
       "subtitle": "Every request raised across the fleet, from draft to RFQ.",
       "importExcel": "Import Excel",
+      "importMenu": {
+        "downloadStoreTemplate": "Download Store template",
+        "downloadSparesTemplate": "Download Spares template",
+        "uploadTemplate": "Upload filled template…",
+        "parsing": "Reading file…",
+        "parseError": "Couldn't read this file. Make sure it's an unmodified downloaded template.",
+        "unsupportedFileType": "Please upload the .xlsx template file.",
+        "importSuccess": "Imported {count} line item(s) from \"{fileName}\". Review the form below and Save when ready.",
+        "importWarningsSuffix": " Some fields need your attention — see the highlighted rows below."
+      },
       "createRequisition": "Create Requisition",
       "empty": {
         "title": "No purchase requisitions yet",
@@ -291,18 +301,35 @@
         "requiredPortPlaceholder": "e.g. Singapore",
         "requisitionNumber": "Requisition Number",
         "requisitionNumberPlaceholder": "e.g. REQ-2045",
+        "requisitionDate": "Requisition Date",
+        "requisitionTitle": "Title",
+        "requisitionTitlePlaceholder": "e.g. Deck consumables restock",
         "categoryLocked": "Locked after creation",
         "remarks": "Remarks",
         "remarksPlaceholder": "Notes for your own record — not sent to vendors",
         "optional": "optional",
         "addMoreField": "Add more",
+        "equipmentDetails": {
+          "title": "Equipment Details",
+          "nameOfEquipment": "Name of Equipment",
+          "type": "Type",
+          "make": "Make",
+          "serialNo": "Sr. No.",
+          "model": "Model",
+          "specifications": "Specifications",
+          "otherDetails": "Any Other Details"
+        },
         "lineItemsTitle": "Line items",
         "columns": {
           "description": "Description",
           "qty": "Required Qty",
           "approvedQty": "Approved Qty",
           "lineItemRemarks": "Remarks",
-          "photos": "Photos"
+          "photos": "Photos",
+          "partNo": "Part No./Ref. No.",
+          "impaCode": "IMPA/ISSA Code",
+          "uom": "UOM",
+          "rob": "ROB"
         },
         "addItem": "Add item",
         "addColumn": "Add column",

@@ -16,7 +16,8 @@ import { X } from "lucide-react";
 
 import { Button, Input, Label } from "@/components/atoms";
 import en from "@/locales/en.json";
-import { PR_CATEGORY, PR_LINE_ITEM_PRESET_COLUMN } from "@/lib/constants/purchase-requisition";
+import { PR_CATEGORY } from "@/lib/constants/purchase-requisition";
+import { getPresetColumnsForCategory } from "@/lib/purchase-requisition/preset-columns";
 import type { CreateRequisitionFormValues } from "@/lib/validation/purchase-requisition";
 import { AskLabelDialog } from "./ask-label-dialog";
 import { LineItemPhotosField } from "./line-item-photos-field";
@@ -105,11 +106,6 @@ export function LineItemsField({
     // by opening it.
     if (readOnly || prevCategory === category) return;
 
-    const wasStoresOrSpares = prevCategory === PR_CATEGORY.STORES || prevCategory === PR_CATEGORY.SPARES;
-    const wasService = prevCategory === PR_CATEGORY.SERVICE;
-    const nowStoresOrSpares = category === PR_CATEGORY.STORES || category === PR_CATEGORY.SPARES;
-    const nowService = category === PR_CATEGORY.SERVICE;
-
     // Match by stable key OR exact label — a preset column that's already
     // been saved and reloaded comes back with the column's real DB uuid as
     // its key (see getPurchaseRequisitionById), not the literal preset
@@ -117,18 +113,20 @@ export function LineItemsField({
     // appended in that case.
     const find = (key: string, label: string) => columns.find((c) => c.key === key || c.label === label);
 
-    if (nowStoresOrSpares && !wasStoresOrSpares) {
-      if (!find(PR_LINE_ITEM_PRESET_COLUMN.APPROVED_QTY, t.columns.approvedQty)) {
-        handleAddColumn(t.columns.approvedQty, PR_LINE_ITEM_PRESET_COLUMN.APPROVED_QTY);
-      }
-      if (!find(PR_LINE_ITEM_PRESET_COLUMN.REMARKS, t.columns.lineItemRemarks)) {
-        handleAddColumn(t.columns.lineItemRemarks, PR_LINE_ITEM_PRESET_COLUMN.REMARKS);
-      }
-    } else if (nowService && !wasService) {
-      const approvedQty = find(PR_LINE_ITEM_PRESET_COLUMN.APPROVED_QTY, t.columns.approvedQty);
-      const remarks = find(PR_LINE_ITEM_PRESET_COLUMN.REMARKS, t.columns.lineItemRemarks);
-      if (approvedQty) handleRemoveColumn(approvedQty.key);
-      if (remarks) handleRemoveColumn(remarks.key);
+    const prevSet = getPresetColumnsForCategory(prevCategory);
+    const nextSet = getPresetColumnsForCategory(category);
+
+    // Remove whatever the previous category's preset set had that the new
+    // one doesn't (e.g. Stores' IMPA Code/UOM when switching into Spares).
+    for (const preset of prevSet) {
+      if (nextSet.some((p) => p.key === preset.key)) continue;
+      const existing = find(preset.key, preset.label);
+      if (existing) handleRemoveColumn(existing.key);
+    }
+    // Add whatever the new category's preset set has that wasn't already
+    // there (e.g. Part No./Ref. No. when switching into Spares).
+    for (const preset of nextSet) {
+      if (!find(preset.key, preset.label)) handleAddColumn(preset.label, preset.key);
     }
     // Intentionally gated on category (+ readOnly) alone: columns/fields/
     // handleAddColumn/handleRemoveColumn must NOT be dependencies, otherwise

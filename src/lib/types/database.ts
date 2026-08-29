@@ -122,6 +122,15 @@ export type Database = {
           required_port: string | null;
           remarks: string | null;
           requisition_number: string | null;
+          requisition_date: string | null;
+          title: string | null;
+          equipment_name: string | null;
+          equipment_type: string | null;
+          equipment_make: string | null;
+          equipment_serial_no: string | null;
+          equipment_model: string | null;
+          equipment_specifications: string | null;
+          equipment_other_details: string | null;
           created_by: string;
           created_at: string;
           updated_at: string;
@@ -135,6 +144,15 @@ export type Database = {
           required_port?: string | null;
           remarks?: string | null;
           requisition_number?: string | null;
+          requisition_date?: string | null;
+          title?: string | null;
+          equipment_name?: string | null;
+          equipment_type?: string | null;
+          equipment_make?: string | null;
+          equipment_serial_no?: string | null;
+          equipment_model?: string | null;
+          equipment_specifications?: string | null;
+          equipment_other_details?: string | null;
           created_by: string;
         };
         Update: {
@@ -144,6 +162,15 @@ export type Database = {
           required_port?: string | null;
           remarks?: string | null;
           requisition_number?: string | null;
+          requisition_date?: string | null;
+          title?: string | null;
+          equipment_name?: string | null;
+          equipment_type?: string | null;
+          equipment_make?: string | null;
+          equipment_serial_no?: string | null;
+          equipment_model?: string | null;
+          equipment_specifications?: string | null;
+          equipment_other_details?: string | null;
         };
         Relationships: [
           {
@@ -433,6 +460,15 @@ export type Database = {
           p_required_port: string | null;
           p_remarks: string | null;
           p_requisition_number: string | null;
+          p_requisition_date: string | null;
+          p_title: string | null;
+          p_equipment_name: string | null;
+          p_equipment_type: string | null;
+          p_equipment_make: string | null;
+          p_equipment_serial_no: string | null;
+          p_equipment_model: string | null;
+          p_equipment_specifications: string | null;
+          p_equipment_other_details: string | null;
           p_dropdowns: Json;
           p_custom_fields: Json;
           p_columns: Json;
@@ -448,6 +484,15 @@ export type Database = {
           p_required_port: string | null;
           p_remarks: string | null;
           p_requisition_number: string | null;
+          p_requisition_date: string | null;
+          p_title: string | null;
+          p_equipment_name: string | null;
+          p_equipment_type: string | null;
+          p_equipment_make: string | null;
+          p_equipment_serial_no: string | null;
+          p_equipment_model: string | null;
+          p_equipment_specifications: string | null;
+          p_equipment_other_details: string | null;
           p_dropdowns: Json;
           p_custom_fields: Json;
           p_columns: Json;
