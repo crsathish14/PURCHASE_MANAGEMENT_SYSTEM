@@ -5,6 +5,7 @@
       "close": "Close preview",
       "previous": "Previous photo",
       "next": "Next photo",
+      "remove": "Remove photo",
       "unavailable": "Image unavailable",
       "counter": "{index} of {total}"
     }
@@ -340,6 +341,7 @@
         "addColumn": "Add column",
         "addPhoto": "Add photo",
         "viewPhoto": "View photo",
+        "viewPhotoStack": "View {count} photos",
         "removePhoto": "Remove photo",
         "retryPhoto": "Retry upload",
         "photoUploadError": "Couldn't upload this photo. Try again.",
@@ -545,6 +547,8 @@
           "remarks": "Remarks"
         },
         "noPhotos": "No photos",
+        "viewPhoto": "View photo",
+        "viewPhotoStack": "View {count} photos",
         "grandTotal": "Grand Total"
       },
       "quotationSummary": {

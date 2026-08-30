@@ -41,8 +41,8 @@ automatic — no `dark:` variants needed. Canonical source: `Design-docs/design-
 ## 5. Component library
 
 - `src/components/atoms/` — reusable primitives (Button, Badge, Input, Textarea, Select, Label,
-  Checkbox, Avatar, Spinner, Menu, Dialog, PasswordInput, PasswordStrengthMeter), imported via the
-  barrel: `import { Button, Badge } from "@/components/atoms"`.
+  Checkbox, Avatar, Spinner, Menu, Dialog, PasswordInput, PasswordStrengthMeter, ImagePreviewModal,
+  PhotoThumbnailStack), imported via the barrel: `import { Button, Badge } from "@/components/atoms"`.
 - `src/components/<feature>/` — everything else, grouped by feature area: `auth/` (login,
   request-access, change-password forms + shared icons), `staff/` (sidebar, topbar, shell,
   nav-items), `team-access/` (the Team & Access page's view/table/member-dialog — the latter
@@ -368,6 +368,19 @@ this feature — everything below is additive, sitting alongside it.
   components following `StoresQuoteForm`'s pattern (its own category-specific bits — which columns
   to surface as locked fields, which labels to match on — are the only genuinely Stores-specific
   code in this feature).
+- **Photo thumbnails — shared between the editable and read-only views.** `PhotoThumbnailStack`
+  (`src/components/atoms/photo-thumbnail-stack.tsx`) renders 0-1 photos as a single square tile and
+  2+ as one collapsed stack tile (front photo, thin peeking edges behind it, a count badge) rather
+  than a growing row of squares — used by both `LineItemPhotosField` (the office-side create/edit
+  form, `src/components/purchase-requisition/line-item-photos-field.tsx`) and this file's own
+  `ItemPhotos`, so a line item with many photos looks and behaves the same on both sides of the RFQ
+  link. Selecting the tile always opens `ImagePreviewModal` at the front photo. The one difference
+  between the two call sites is `onRemove`: `LineItemPhotosField` passes one (its own `removeDone`,
+  gated on its `disabled` prop) since it's editable, so a delete button appears in the gallery
+  toolbar; `ItemPhotos` never passes one, since a vendor can only view the requisition's own photos,
+  never remove them. `ImagePreviewModal` itself derives its displayed index fresh from `images`
+  every render (rather than mirroring it into state via an effect) precisely so it stays correct —
+  and closes cleanly instead of getting stuck — when `onRemove` shrinks the array while it's open.
 - React Hook Form gotcha worth knowing if this file's pattern is reused: don't `useMemo` a
   computed value keyed on a `watch()` return for a nested array path — `watch("items")` doesn't
   reliably return a referentially-new array on every change, so the memo can silently stop

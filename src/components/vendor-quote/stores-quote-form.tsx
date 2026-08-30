@@ -4,7 +4,15 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { Button, ImagePreviewModal, Input, Label, Textarea, type PreviewImage } from "@/components/atoms";
+import {
+  Button,
+  ImagePreviewModal,
+  Input,
+  Label,
+  PhotoThumbnailStack,
+  Textarea,
+  type PreviewImage,
+} from "@/components/atoms";
 import en from "@/locales/en.json";
 import { VENDOR_QUOTE_CURRENCY } from "@/lib/constants/vendor-quote";
 import type { RfqQuoteDetail, RfqQuoteLineItem } from "@/lib/data/rfq-quote";
@@ -67,19 +75,13 @@ function ItemPhotos({ attachments }: { attachments: RfqQuoteLineItem["attachment
 
   return (
     <>
-      <div className="flex flex-wrap gap-1.5">
-        {attachments.map((attachment, index) => (
-          <button
-            key={index}
-            type="button"
-            onClick={() => setPreviewIndex(index)}
-            className="h-10 w-10 overflow-hidden rounded-md border border-line"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element -- signed Storage URL, next/image's remote loader isn't configured for it. */}
-            <img src={attachment.url ?? undefined} alt="" className="h-full w-full object-cover" />
-          </button>
-        ))}
-      </div>
+      <PhotoThumbnailStack
+        images={previewImages}
+        onSelect={(index) => setPreviewIndex(index)}
+        ariaLabel={(count) =>
+          count > 1 ? t.itemDetails.viewPhotoStack.replace("{count}", String(count)) : t.itemDetails.viewPhoto
+        }
+      />
       <ImagePreviewModal
         open={previewIndex !== null}
         onClose={() => setPreviewIndex(null)}

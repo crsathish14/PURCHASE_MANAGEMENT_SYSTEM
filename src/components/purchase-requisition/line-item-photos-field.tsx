@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RotateCw, X } from "lucide-react";
 
-import { ImagePreviewModal, type PreviewImage } from "@/components/atoms";
+import { ImagePreviewModal, PhotoThumbnailStack, type PreviewImage } from "@/components/atoms";
 import en from "@/locales/en.json";
 import { ALLOWED_PHOTO_MIME_TYPES, MAX_PHOTO_SIZE_BYTES } from "@/lib/constants/storage";
 import type { AllowedPhotoMimeType } from "@/lib/constants/storage";
@@ -202,38 +202,25 @@ export function LineItemPhotosField({
   return (
     <>
     <div className="flex flex-wrap items-center gap-1.5">
-      {value.map((attachment, index) => (
-        <div
-          key={attachment.storagePath}
-          className="group relative h-10 w-10 overflow-hidden rounded-md border border-line"
-        >
-          <button
-            type="button"
-            onClick={() => setPreviewIndex(index)}
-            aria-label={t.viewPhoto}
-            className="block h-full w-full"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element -- signed Storage
-                URL (or a local blob: preview for a not-yet-reloaded upload),
-                next/image's remote loader isn't configured for either. */}
-            <img
-              src={attachment.url ?? localPreviewUrlByPath[attachment.storagePath] ?? undefined}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-          </button>
-          {disabled ? null : (
-            <button
-              type="button"
-              aria-label={t.removePhoto}
-              onClick={() => removeDone(index)}
-              className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center bg-ink/60 text-paper opacity-0 group-hover:opacity-100"
-            >
-              <X size={10} strokeWidth={2} aria-hidden="true" />
-            </button>
-          )}
-        </div>
-      ))}
+      <PhotoThumbnailStack
+        images={previewImages}
+        onSelect={(index) => setPreviewIndex(index)}
+        ariaLabel={(count) => (count > 1 ? t.viewPhotoStack.replace("{count}", String(count)) : t.viewPhoto)}
+        renderSingleOverlay={
+          disabled
+            ? undefined
+            : (_image, index) => (
+                <button
+                  type="button"
+                  aria-label={t.removePhoto}
+                  onClick={() => removeDone(index)}
+                  className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center bg-ink/60 text-paper opacity-0 group-hover:opacity-100"
+                >
+                  <X size={10} strokeWidth={2} aria-hidden="true" />
+                </button>
+              )
+        }
+      />
 
       {pending.map((tile) => (
         <div
@@ -295,6 +282,7 @@ export function LineItemPhotosField({
       onClose={() => setPreviewIndex(null)}
       images={previewImages}
       initialIndex={previewIndex ?? 0}
+      onRemove={disabled ? undefined : removeDone}
     />
     </>
   );

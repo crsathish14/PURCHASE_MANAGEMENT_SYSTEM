@@ -30,6 +30,9 @@ export type { PasswordInputProps } from "./password-input";
 
 export { PasswordStrengthMeter, passwordStrength } from "./password-strength-meter";
 
+export { PhotoThumbnailStack } from "./photo-thumbnail-stack";
+export type { PhotoThumbnailStackProps } from "./photo-thumbnail-stack";
+
 export { Select } from "./select";
 export type { SelectProps } from "./select";
 
