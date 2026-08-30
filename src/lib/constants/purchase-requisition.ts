@@ -29,9 +29,11 @@ export const PR_CATEGORY = { SERVICE: "service", STORES: "stores", SPARES: "spar
 // Stable, well-known keys for the category-driven preset line-item columns —
 // deliberately NOT crypto.randomUUID() like a genuinely user-added "+ Add
 // column" entry, so line-items-field.tsx can precisely add/remove exactly
-// these without touching a real custom column. APPROVED_QTY/REMARKS/UOM
-// apply to both Stores and Spares; PART_NO is Spares-only and IMPA_CODE is
-// Stores-only (Spares has no IMPA/ISSA code equivalent) — see the
+// these without touching a real custom column. REMARKS applies to all three
+// categories; APPROVED_QTY/UOM/ROB apply to Stores and Spares only (Service
+// has no Qty concept at all — see the existing isService Qty-column-hiding
+// behavior in line-items-field.tsx); PART_NO is Spares-only, IMPA_CODE is
+// Stores-only, and AVAILABLE_ONBOARD is Service-only — see the
 // category -> preset-set lookup in line-items-field.tsx.
 export const PR_LINE_ITEM_PRESET_COLUMN = {
   APPROVED_QTY: "approved_qty",
@@ -40,6 +42,7 @@ export const PR_LINE_ITEM_PRESET_COLUMN = {
   IMPA_CODE: "impa_code",
   UOM: "uom",
   ROB: "rob",
+  AVAILABLE_ONBOARD: "available_onboard",
 } as const;
 
 export type PrPriority = (typeof PR_PRIORITY)[keyof typeof PR_PRIORITY];

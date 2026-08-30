@@ -1,0 +1,32 @@
+' =================================================================
+' PASTE THIS INTO: the "Service Requisition Form" worksheet's own
+' code module - in the VBA Project pane, double-click the sheet
+' itself (listed under Microsoft Excel Objects), NOT a standard
+' module and NOT ThisWorkbook.
+' =================================================================
+Option Explicit
+
+' Excel's native Data Validation (already on the template's Date
+' cell) only checks values entered by TYPING - it does not enforce
+' the rule on pasted values, whether pasted natively or through this
+' project's own Ctrl+V handler (which falls back to a plain
+' values-only paste for ordinary text fields, Date included). This
+' catches both paths: Worksheet_Change fires for a cell edit
+' regardless of whether it was typed, pasted, or written by VBA.
+Private Sub Worksheet_Change(ByVal Target As Range)
+    Const DATE_CELL As String = "C13"   ' anchor of the Date input (merged C13:G13)
+    Dim dateCell As Range
+
+    Set dateCell = Me.Range(DATE_CELL)
+    If Application.Intersect(Target, dateCell) Is Nothing Then Exit Sub
+    If IsEmpty(dateCell.Value) Then Exit Sub   ' blank is fine - Date is optional
+    If IsDate(dateCell.Value) Then Exit Sub    ' a genuine date - nothing to do
+
+    ' Don't clear the cell right here. Modifying a merged cell
+    ' synchronously from inside its OWN Change event can itself throw
+    ' "We can't do that to a merged cell" - Excel is still finishing
+    ' the commit of the edit that just triggered this event. Defer the
+    ' actual correction (see modSecurity.FixInvalidDateEntry) to run
+    ' just after this event finishes instead.
+    Application.OnTime Now, "FixInvalidDateEntry"
+End Sub

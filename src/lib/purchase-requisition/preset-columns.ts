@@ -21,11 +21,17 @@ export type PresetColumn = { key: string; label: string };
 // (Remaining On Board), by contrast, is exactly what the crew records on
 // the paper form, so it's both in this set AND importable from the file.
 export function getPresetColumnsForCategory(category?: string): PresetColumn[] {
-  if (category === PR_CATEGORY.SERVICE) return [];
+  const remarks: PresetColumn = { key: PR_LINE_ITEM_PRESET_COLUMN.REMARKS, label: t.columns.lineItemRemarks };
+
+  // Service has no Qty concept at all (line-items-field.tsx's isService flag
+  // hides the Qty field entirely), so it gets none of the Qty-family columns
+  // (Approved Qty/ROB) — just its own Available Onboard field plus Remarks.
+  if (category === PR_CATEGORY.SERVICE) {
+    return [{ key: PR_LINE_ITEM_PRESET_COLUMN.AVAILABLE_ONBOARD, label: t.columns.availableOnboard }, remarks];
+  }
 
   const rob: PresetColumn = { key: PR_LINE_ITEM_PRESET_COLUMN.ROB, label: t.columns.rob };
   const approvedQty: PresetColumn = { key: PR_LINE_ITEM_PRESET_COLUMN.APPROVED_QTY, label: t.columns.approvedQty };
-  const remarks: PresetColumn = { key: PR_LINE_ITEM_PRESET_COLUMN.REMARKS, label: t.columns.lineItemRemarks };
 
   if (category === PR_CATEGORY.STORES) {
     return [

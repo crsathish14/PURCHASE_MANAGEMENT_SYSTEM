@@ -10,6 +10,7 @@ import type { CreateRequisitionFormValues } from "@/lib/validation/purchase-requ
 import { cellText, matchDropdownOption, type ParsedImportResult, type ParseImportError } from "./import-template-shared";
 import { parseVbaRequisitionTemplate } from "./import-template-vba";
 import { isVbaRequisitionSheet } from "./import-template-vba-shared";
+import { parseServiceVbaRequisitionTemplate } from "./import-template-vba-service";
 import { parseSparesVbaRequisitionTemplate } from "./import-template-vba-spares";
 
 export type { ParsedImportResult, ParseImportError } from "./import-template-shared";
@@ -31,9 +32,11 @@ const REQUISITION_SHEET_NAME = "Requisition";
 // named "Requisition Form") are no longer recognized; the paper form itself
 // was revised, so this is a full replacement, not a dual-format dispatch.
 const VBA_SHEET_NAME = "Stores Requisition Form";
-// The Spares VBA workbook is a completely independent project (own sheet
-// name, own layout) — see import-template-vba-spares.ts.
+// The Spares and Service VBA workbooks are each a completely independent
+// project (own sheet name, own layout) — see import-template-vba-spares.ts /
+// import-template-vba-service.ts.
 const SPARES_VBA_SHEET_NAME = "Spares Requisition Form";
+const SERVICE_VBA_SHEET_NAME = "Service Requisition Form";
 
 // Scans every cell in the sheet for a known label and records whatever's in
 // the cell immediately to its right as that label's value — robust to the
@@ -233,6 +236,11 @@ export async function parseRequisitionTemplateFile(
   const sparesVbaSheet = workbook.getWorksheet(SPARES_VBA_SHEET_NAME);
   if (sparesVbaSheet && isVbaRequisitionSheet(sparesVbaSheet)) {
     return parseSparesVbaRequisitionTemplate(workbook, sparesVbaSheet, dropdownFields, vessels, file.name);
+  }
+
+  const serviceVbaSheet = workbook.getWorksheet(SERVICE_VBA_SHEET_NAME);
+  if (serviceVbaSheet && isVbaRequisitionSheet(serviceVbaSheet)) {
+    return parseServiceVbaRequisitionTemplate(workbook, serviceVbaSheet, dropdownFields, vessels, file.name);
   }
 
   return { error: importT.parseError };

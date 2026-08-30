@@ -274,6 +274,7 @@
       "importMenu": {
         "downloadStoreTemplate": "Download Store template",
         "downloadSparesTemplate": "Download Spares template",
+        "downloadServiceTemplate": "Download Service template",
         "uploadTemplate": "Upload filled template…",
         "parsing": "Reading file…",
         "parseError": "Couldn't read this file. Make sure it's an unmodified downloaded template.",
@@ -332,7 +333,8 @@
           "partNo": "Part No./Ref. No.",
           "impaCode": "IMPA/ISSA Code",
           "uom": "UOM",
-          "rob": "ROB"
+          "rob": "ROB",
+          "availableOnboard": "Available Onboard (Y/N)"
         },
         "addItem": "Add item",
         "addColumn": "Add column",

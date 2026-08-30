@@ -448,6 +448,12 @@ export function PoRequestsView({
             >
               {t.importMenu.downloadSparesTemplate}
             </a>
+            <a
+              href={`/api/purchase-requisitions/import-template?category=${PR_CATEGORY.SERVICE}`}
+              className="block w-full px-3.5 py-2 text-left text-[13px] text-ink hover:bg-mist"
+            >
+              {t.importMenu.downloadServiceTemplate}
+            </a>
             <MenuItem onClick={() => importFileInputRef.current?.click()}>
               {t.importMenu.uploadTemplate}
             </MenuItem>

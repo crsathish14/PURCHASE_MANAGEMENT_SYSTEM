@@ -512,14 +512,14 @@ export function CreateRequisitionDialog({
           </Button>
         )}
 
-        {/* Spares-only, per the source paper form's own note ("Each
-            Requisition should be for one Equipment only") — placed above line
-            items since it scopes them, matching that form's layout. Always
-            optional; hidden (not just disabled) for every other category so
-            its fields never confuse a Stores/Service submission, but their
-            values stay in the form state either way (blank unless the user
-            had switched into Spares and back). */}
-        {watchedDropdowns?.category === PR_CATEGORY.SPARES ? (
+        {/* Spares and Service only, per both source paper forms' own note
+            ("Each Requisition should be for one Equipment only") — placed
+            above line items since it scopes them, matching that form's
+            layout. Always optional; hidden (not just disabled) for Stores so
+            its fields never confuse a Stores submission, but their values
+            stay in the form state either way (blank unless the user had
+            switched into Spares/Service and back). */}
+        {watchedDropdowns?.category === PR_CATEGORY.SPARES || watchedDropdowns?.category === PR_CATEGORY.SERVICE ? (
           <div className="mt-5">
             <Label>{t.equipmentDetails.title}</Label>
             <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-4 rounded-lg border border-line p-4">

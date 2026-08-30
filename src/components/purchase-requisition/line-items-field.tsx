@@ -40,9 +40,11 @@ type LineItemsFieldProps = {
   appendColumn: UseFieldArrayAppend<CreateRequisitionFormValues, "columns">;
   removeColumn: UseFieldArrayRemove;
   // The selected `category` dropdown value — drives which line-item columns
-  // show (Service: description only; Stores/Spares: + Required Quantity,
-  // Approved Qty, Remarks, Photos). Undefined before a category is picked,
-  // treated the same as Stores/Spares (only Service is special-cased).
+  // show. Service has no Required Quantity column (a service isn't
+  // quantified the way a stores/spares part is) but, like every other
+  // category, always gets Photos plus whatever `getPresetColumnsForCategory`
+  // returns for it. Undefined before a category is picked, treated the same
+  // as Stores/Spares (only Service is special-cased).
   category?: string;
   readOnly?: boolean;
   // Top-level Storage path folder for any photos uploaded in this form
@@ -75,7 +77,6 @@ export function LineItemsField({
   const [addColumnOpen, setAddColumnOpen] = useState(false);
 
   const isService = category === PR_CATEGORY.SERVICE;
-  const isStoresOrSpares = category === PR_CATEGORY.STORES || category === PR_CATEGORY.SPARES;
 
   function handleAddColumn(label: string, presetKey?: string) {
     const key = presetKey ?? crypto.randomUUID();
@@ -190,7 +191,7 @@ export function LineItemsField({
                 </span>
               </th>
             ))}
-            {isStoresOrSpares ? <th className={headerCellClass}>{t.columns.photos}</th> : null}
+            <th className={headerCellClass}>{t.columns.photos}</th>
             {readOnly ? null : <th className={`${headerCellClass} w-10`} aria-hidden="true" />}
           </tr>
         </thead>
@@ -218,31 +219,29 @@ export function LineItemsField({
                   <Input disabled={readOnly} {...register(`lineItems.${index}.extra.${column.key}`)} />
                 </td>
               ))}
-              {isStoresOrSpares ? (
-                <td className={cellClass}>
-                  <Controller
-                    control={control}
-                    name={`lineItems.${index}.attachments`}
-                    render={({ field: attachmentsField }) => (
-                      <LineItemPhotosField
-                        scopeId={scopeId}
-                        lineItemFieldId={field.id}
-                        value={attachmentsField.value}
-                        onChange={(next) => {
-                          if (onPhotoUploaded) {
-                            const prevPaths = new Set(attachmentsField.value.map((a) => a.storagePath));
-                            next.forEach((a) => {
-                              if (!prevPaths.has(a.storagePath)) onPhotoUploaded(a.storagePath);
-                            });
-                          }
-                          attachmentsField.onChange(next);
-                        }}
-                        disabled={readOnly}
-                      />
-                    )}
-                  />
-                </td>
-              ) : null}
+              <td className={cellClass}>
+                <Controller
+                  control={control}
+                  name={`lineItems.${index}.attachments`}
+                  render={({ field: attachmentsField }) => (
+                    <LineItemPhotosField
+                      scopeId={scopeId}
+                      lineItemFieldId={field.id}
+                      value={attachmentsField.value}
+                      onChange={(next) => {
+                        if (onPhotoUploaded) {
+                          const prevPaths = new Set(attachmentsField.value.map((a) => a.storagePath));
+                          next.forEach((a) => {
+                            if (!prevPaths.has(a.storagePath)) onPhotoUploaded(a.storagePath);
+                          });
+                        }
+                        attachmentsField.onChange(next);
+                      }}
+                      disabled={readOnly}
+                    />
+                  )}
+                />
+              </td>
               {readOnly ? null : (
                 <td className={cellClass}>
                   <Button

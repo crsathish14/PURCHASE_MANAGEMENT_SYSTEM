@@ -73,10 +73,12 @@ These files hold every value that would otherwise be a magic string:
   option *values* — used only for frontend conditional branching on which line-item columns to
   show; the DB via `pr_dropdown_fields`/`pr_dropdown_field_options` stays the actual source of
   truth for the dropdown's label/option list), and `PR_LINE_ITEM_PRESET_COLUMN`
-  (`APPROVED_QTY`/`REMARKS`/`ROB`/`UOM` — apply to both Stores and Spares; `PART_NO` — Spares only;
-  `IMPA_CODE` — Stores only, Spares has no IMPA/ISSA code equivalent — the stable keys
-  `LineItemsField` uses for its category-driven preset line-item columns, kept distinct from a
-  genuinely user-added custom column's random `crypto.randomUUID()` key). The category →
+  (`REMARKS` — applies to all three categories; `APPROVED_QTY`/`ROB`/`UOM` — Stores and Spares only,
+  Service has no Qty concept at all (see `LineItemsField`'s own `isService` flag, which hides the main
+  Qty field entirely for this category); `PART_NO` — Spares only; `IMPA_CODE` — Stores only, Spares has
+  no IMPA/ISSA code equivalent; `AVAILABLE_ONBOARD` — Service only — the stable keys `LineItemsField`
+  uses for its category-driven preset line-item columns, kept distinct from a genuinely user-added
+  custom column's random `crypto.randomUUID()` key). The category →
   preset-column-set mapping itself lives
   in one place, `getPresetColumnsForCategory()` in `src/lib/purchase-requisition/preset-columns.ts`
   — both `LineItemsField` (manual create/edit) and the import-template parser (§16) import it, so
@@ -190,52 +192,60 @@ a dev server when practical, not just that it compiles.
    using the §12 pattern.
 6. Verify per §14.
 
-## 16. Spreadsheet import (generate + parse a template — two independent VBA workbooks)
+## 16. Spreadsheet import (generate + parse a template — three independent VBA workbooks)
 
 The Create Requisition "Import Excel" menu (`po-requests-view.tsx`) generates and parses
 spreadsheets — `exceljs` is the one dependency for both directions (its `package.json`
 `browser`/`main` fields resolve to the right build automatically for a client component vs. a
-Route Handler; no separate library needed per side). Both categories now ship a real, persisted,
-VBA-driven workbook (the actual paper-form workflow) rather than an ExcelJS-generated one:
+Route Handler; no separate library needed per side). All three categories now ship a real,
+persisted, VBA-driven workbook (the actual paper-form workflow) rather than an ExcelJS-generated
+one:
 
-**Both categories — a persisted, VBA-driven workbook (the real paper-form workflow)**
-- `GET src/app/api/purchase-requisitions/import-template/route.ts?category=stores|spares` streams
-  a static `.xlsm` straight off disk (`readStoresTemplateBuffer()` / `readSparesTemplateBuffer()` in
+**Every category — a persisted, VBA-driven workbook (the real paper-form workflow)**
+- `GET src/app/api/purchase-requisitions/import-template/route.ts?category=stores|spares|service`
+  streams a static `.xlsm` straight off disk (`readStoresTemplateBuffer()` /
+  `readSparesTemplateBuffer()` / `readServiceTemplateBuffer()` in
   `src/lib/purchase-requisition/templates/index.ts`) — each workbook has a real VBA macro project
   (Add Line Item button, Ctrl+V photo-paste into a "SUPPORTING PHOTOS" table, sheet protection),
-  which ExcelJS (or any generic spreadsheet library) cannot safely author, so neither is regenerated
-  per request. The two are entirely independent VBA projects (separate constants module, separate
+  which ExcelJS (or any generic spreadsheet library) cannot safely author, so none is regenerated
+  per request. The three are entirely independent VBA projects (separate constants module, separate
   worksheet name, no shared state) that happen to share the same proven architecture — Spares was
-  built second, reusing every fix already learned from Stores. Each binary
-  (`templates/requisition-form-{stores,spares}.xlsm`) and its readable VBA source + setup guide
-  (`templates/vba-source/{stores,spares}/`) are checked in; a filled sample (`*.sample.xlsm`) is kept
-  alongside each as a manual test fixture. Regenerating either file means re-running its own setup
-  guide's steps in Excel and replacing the binary.
-- Each format is told apart by sheet name — `"Stores Requisition Form"` vs. `"Spares Requisition
-  Form"` — both containing a "Vessel Name" label (`parseRequisitionTemplateFile`, the dispatcher in
-  `import-template.ts`). The Stores sheet name (and its labels) changed once already between the
-  template's first and second real-world revisions — v1 files are no longer recognized at all, since
-  the paper form itself was revised and this was a full replacement, not a versioned dual-format
-  dispatch.
+  built second reusing every fix learned from Stores, and Service third reusing every fix learned
+  from both. Each binary (`templates/requisition-form-{stores,spares,service}.xlsm`) and its
+  readable VBA source + setup guide (`templates/vba-source/{stores,spares,service}/`) are checked
+  in; a filled sample (`*.sample.xlsm`) is kept alongside each as a manual test fixture — Service's
+  is ~4MB (real embedded photos, not tiny placeholders like the other two), checked in as-is rather
+  than trimmed down. Regenerating any file means re-running its own setup guide's steps in Excel and
+  replacing the binary.
+- Each format is told apart by sheet name — `"Stores Requisition Form"` / `"Spares Requisition
+  Form"` / `"Service Requisition Form"` — all three containing a "Vessel Name" label
+  (`parseRequisitionTemplateFile`, the dispatcher in `import-template.ts`). The Stores sheet name
+  (and its labels) changed once already between the template's first and second real-world
+  revisions — v1 files are no longer recognized at all, since the paper form itself was revised and
+  this was a full replacement, not a versioned dual-format dispatch.
 - **Parsing logic is split by what's actually shared.** Everything generic — merge-aware label→value
   lookup (a label can itself be a multi-column merge, e.g. "IMO No" spans two columns, so its value
   starts one column past the end of the label's own merge, not simply "one cell right"), dynamic
   table-section sizing (`getMergeRowSpan()`, read from actual merges rather than a hardcoded offset —
-  the SUPPORTING PHOTOS heading grew from 1 row to 2 between Stores' own revisions, which is exactly
-  the kind of change this survives automatically), and photo-anchor extraction (images are matched to
-  a line item by joining the SUPPORTING PHOTOS table's embedded-image drawing anchors — never its "N
-  photos" counter text, which is not authoritative — against each line item's Sl No., including
-  continuation rows once a line item has more than 7 photos; there is no cap on how many are imported
-  per line item, by design) — lives once in `import-template-vba-shared.ts`. Each format's own thin
-  parser (`import-template-vba.ts` for Stores, `import-template-vba-spares.ts` for Spares) supplies
-  only what's genuinely different: its own label text, its own line-item column set, and its own
-  output shaping (category, and — Spares only — the Equipment Details fields). Two things neither
-  parser hardcodes, because the Stores template has already changed them once:
+  the SUPPORTING PHOTOS heading grew from 1 row to 2 between Stores' own revisions, and Service's
+  line-item header spans 3 rows instead of the usual 2, both survived automatically with zero parser
+  changes because of this), and photo-anchor extraction (images are matched to a line item by joining
+  the SUPPORTING PHOTOS table's embedded-image drawing anchors — never its "N photos" counter text,
+  which is not authoritative — against each line item's Sl No., including continuation rows once a
+  line item has more than 7 photos, verified directly against Service's own sample where one line
+  item has 8 photos spanning such a continuation row; there is no cap on how many are imported per
+  line item, by design) — lives once in `import-template-vba-shared.ts`. Each format's own thin
+  parser (`import-template-vba.ts` for Stores, `import-template-vba-spares.ts` for Spares,
+  `import-template-vba-service.ts` for Service) supplies only what's genuinely different: its own
+  label text, its own line-item column set, and its own output shaping (category, and — Spares and
+  Service — the Equipment Details fields). Two things no parser hardcodes, because the Stores
+  template has already changed them once:
   - **Table section heights**, per the `getMergeRowSpan()` point above.
   - **The photo slot count** (currently 7, `FALLBACK_SLOT_COLUMNS`/`SLOT_COUNT` in the shared module)
     is discovered by scanning the header for `"Photo N"` labels, with the hardcoded array only as a
-    fallback — it was 5 in Stores' first template revision; Spares launched directly with 7.
-  - Both templates share one more internal inconsistency worth knowing about if this ever needs
+    fallback — it was 5 in Stores' first template revision; Spares and Service both launched directly
+    with 7.
+  - All three templates share one more internal inconsistency worth knowing about if this ever needs
     debugging again: the Sl No. column is labeled `"Sl No."` in the line-items table but `"Sl.No."`
     (no space) in the photo table — matched via a small regex (`isSlNoLabel`), not exact equality.
     Separately, `"SUPPORTING PHOTOS"` (the photo table's own heading) and `"Supporting Photos"` (the
@@ -243,15 +253,23 @@ VBA-driven workbook (the actual paper-form workflow) rather than an ExcelJS-gene
     heading is found via a column-A-only search (`findLabelCellInColumn`, mirroring each format's own
     VBA `FindRowByLabel`, which only ever searches `COL_SLNO`) specifically to avoid matching the
     wrong one, since a full-sheet search would hit the (earlier, row-wise) column label first.
-- Both templates' "Supply Port" header field maps to the app's `requiredPort`, and their footer's
-  "Requisitioned by:" / "Approved by:" fields map to `requisitionedBy`/`captainChiefEngineer` (the DB
-  column name predates this label; the paper form's own wording for the second field has already
-  changed once, from "Captain / Chief Engineer:" to "Approved by:" — the column was kept as-is since
-  it's an internal identifier, only the UI label (`en.json`'s `captainChiefEngineer` key) was updated
-  to track the current paper form's wording). Spares' template additionally has an Equipment Details
-  section (Name of Equipment/Type/Make/Sr. No./Model/Specifications/Any Other details) with no Stores
-  equivalent — mapped straight to the matching `equipment*` form fields, same merge-aware lookup.
-- Vessel is matched via the file's **IMO No** (not vessel name), the same way in both formats:
+- Stores' and Spares' "Supply Port" header field maps to the app's `requiredPort` — Service's
+  equivalent field is labeled `"Service Port"` instead (a different hardcoded label string local to
+  that one parser, same target field). All three templates' footer "Requisitioned by:" / "Approved
+  by:" fields map to `requisitionedBy`/`captainChiefEngineer` (the DB column name predates this
+  label; the paper form's own wording for the second field has already changed once, from "Captain /
+  Chief Engineer:" to "Approved by:" — the column was kept as-is since it's an internal identifier,
+  only the UI label (`en.json`'s `captainChiefEngineer` key) was updated to track the current paper
+  form's wording). Spares' and Service's templates additionally have an Equipment Details section
+  (Name of Equipment/Type/Make/Sr. No./Model/Specifications/Any Other details), which Stores has no
+  equivalent of — mapped straight to the matching `equipment*` form fields (same merge-aware lookup),
+  and rendered in `CreateRequisitionDialog` for both those categories, not just on import.
+- Service's line-items table is simpler than Stores/Spares — no Qty, Part No., UOM, or ROB column at
+  all, since a service isn't quantified the way a stores/spares part is (`LineItemsField`'s own
+  `isService` flag already hides the main Qty field entirely for this category). It has one column
+  neither other format has instead: **Available Onboard (Y/N)** (plain text, no dropdown validation
+  — `PR_LINE_ITEM_PRESET_COLUMN.AVAILABLE_ONBOARD`, Service-only, see §7).
+- Vessel is matched via the file's **IMO No** (not vessel name), the same way in every format:
   resolved against `getVessels()` (`src/lib/data/vessels.ts`), then the matched vessel's name is
   matched against the "vessel" dropdown field's options — `pr_dropdown_field_options` and `vessels`
   remain fully decoupled tables; the parser just chains two lookups. An unmatched IMO leaves Vessel
@@ -266,15 +284,17 @@ VBA-driven workbook (the actual paper-form workflow) rather than an ExcelJS-gene
   same token as `initialDraftToken` so the dialog's own `scopeId` matches.
 
 **Legacy ExcelJS-generated format (retired, parser kept for old downloads)**
-- Before both categories moved to a persisted VBA workbook, the download route built a workbook
-  live from `getPrDropdownFields()` and marked it with a hidden `veryHidden` `_pms_meta` sheet (cell
-  `A1` = `pms-pr-template:<category>:v1`) so the parser could confirm a file really was one of these
-  templates. The route no longer generates this format for either category, but
+- Before Stores and Spares moved to a persisted VBA workbook (Service never had this format — it
+  launched directly as VBA-only), the download route built a workbook live from
+  `getPrDropdownFields()` and marked it with a hidden `veryHidden` `_pms_meta` sheet (cell `A1` =
+  `pms-pr-template:<category>:v1`) so the parser could confirm a file really was one of these
+  templates. The route no longer generates this format for any category, but
   `parseRequisitionTemplateFile` still checks for the marker sheet first and, if present, hands off
-  to `parseLegacyWorkbook` — purely so a file someone already downloaded before this change keeps
-  working. Header fields there are matched by **label text**, not fixed cell refs (scans every cell,
-  pairs each known label with whatever's immediately to its right — this "immediately right" rule
-  assumes an unmerged/single-column label, unlike the VBA formats' merge-aware lookup above).
+  to `parseLegacyWorkbook` — purely so a Stores/Spares file someone already downloaded before that
+  switch keeps working. Header fields there are matched by **label text**, not fixed cell refs (scans
+  every cell, pairs each known label with whatever's immediately to its right — this "immediately
+  right" rule assumes an unmerged/single-column label, unlike the VBA formats' merge-aware lookup
+  above).
 
 **Shared across every format**
 - `import-template-shared.ts` holds what every parser needs: `cellText()`, `matchDropdownOption()`,
