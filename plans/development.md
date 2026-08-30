@@ -311,7 +311,70 @@ one:
   column like Approved Qty that a template deliberately omits (office-only, filled in during review)
   still exists after import, just blank.
 
-## 17. Keeping this file current
+## 17. Vendor RFQ quote submission (Stores — first of three categories)
+
+The vendor-facing side of `purchase_requisition_rfq_links` (§11's own bullet on the file-upload
+pattern is the closest sibling precedent for "one shared plumbing, reused across the app"). The link/
+token/expiry mechanism itself (`issue_rfq_link`, `get_rfq_link_by_token`, `submit_rfq_link`, all in
+`20260824030000_rfq_link_rpcs.sql`/`20260825010000_rfq_link_expiry_datetime.sql`) is untouched by
+this feature — everything below is additive, sitting alongside it.
+
+- **New tables** (`20260830010000_purchase_requisition_rfq_quotations.sql`):
+  `purchase_requisition_rfq_quotations` (one row per vendor submission, 1:1 with its
+  `rfq_link_id`, denormalizing `requisition_id` for direct queries) and
+  `purchase_requisition_rfq_quotation_items` (one row per quoted PR line item, snapshotting
+  `requested_description`/`requested_impa_code`/`approved_qty`/`uom` at submission time alongside a
+  `line_item_id` FK, so a quotation stays traceable to exactly what was quoted against). Both use
+  `numeric(14,2)` for money/qty columns — a deliberate departure from this schema's usual
+  all-`text` line-item values, since these are genuinely summed/computed server-side. RLS matches
+  every sibling `purchase_requisition_*` table (`select to authenticated using (true)`, no anon
+  policy, no insert/update/delete policy — all writes go through the RPC below).
+- **New RPCs** (`20260830020000_rfq_quotation_rpcs.sql`):
+  - `get_rfq_quote_details_by_token(p_token)` — a superset of `get_rfq_link_by_token`'s own return
+    shape (same link-identity fields) plus the PR header fields and every line item (dynamic
+    columns flattened to `{label, value}` pairs, plus each attachment's raw `storage_path` — never
+    a signed URL; Storage's `createSignedUrls` isn't callable from SQL). Vessel name/IMO No.
+    require a two-hop resolution since `purchase_requisitions` has no `vessel_id` FK at all —
+    vessel is a dropdown option value (slug); the option's *label* is matched against
+    `vessels.name` to reach `vessels.imo_no`, the same relationship `add_vessel()` establishes when
+    a vessel is first added.
+  - `submit_rfq_quotation(...)` — copies `submit_rfq_link`'s atomic single-use+expiry gate inline
+    (not by calling it) so the gate, every item insert, and the recalculated total commit or roll
+    back as one transaction. Currency is never a parameter — always inserted as `'USD'`. Approved
+    Qty/IMPA Code/UOM are never accepted from the vendor's payload either: each is looked up here,
+    live, by exact label match against the requisition's own line-item columns (`c.label =
+    'Approved Qty'`, etc.) — the same "match by exact label, not a stable key" approach
+    `line-items-field.tsx` already relies on client-side, since a column's only persisted identity
+    is its own DB uuid + label (see §7's `PR_LINE_ITEM_PRESET_COLUMN` and
+    `getPresetColumnsForCategory()` in `src/lib/purchase-requisition/preset-columns.ts` for where
+    those exact label strings come from). This is what makes "the vendor can't change Approved Qty"
+    actually true server-side, not just a disabled input client-side.
+  - Both are `security definer`, `grant ... to anon, authenticated` — same pattern as
+    `get_rfq_link_by_token`/`submit_rfq_link`, since a vendor has no session for RLS to scope
+    anything to.
+- **Signing photos for an anonymous vendor** (`src/lib/data/rfq-quote.ts`): the RPC above returns
+  raw `storage_path`s; batch-signing them into display URLs needs `src/lib/supabase/admin.ts`'s
+  service-role client, since storage RLS is `authenticated`-only and a vendor has no session for a
+  normal signed-URL call to be scoped to. This is the read-side mirror of the "session-scoped
+  client genuinely can't do the job" cases §11 already documents — narrowly used here, only to sign
+  paths the token-validated, requisition-scoped RPC call already returned.
+- **Category-driven, shared-backend architecture** — the same "shared plumbing, category-specific
+  renderer" shape as §16's import templates: `get_rfq_quote_details_by_token` is fully
+  category-agnostic (it returns whatever columns/line items exist for any PR), and
+  `src/app/[lang]/quote/[token]/page.tsx` branches purely on the returned `category` to decide
+  which form component to render — `stores` → `StoresQuoteForm`
+  (`src/components/vendor-quote/stores-quote-form.tsx`), anything else → the original generic stub
+  `QuoteForm`. Adding Spares/Service forms later needs no backend changes, only new sibling
+  components following `StoresQuoteForm`'s pattern (its own category-specific bits — which columns
+  to surface as locked fields, which labels to match on — are the only genuinely Stores-specific
+  code in this feature).
+- React Hook Form gotcha worth knowing if this file's pattern is reused: don't `useMemo` a
+  computed value keyed on a `watch()` return for a nested array path — `watch("items")` doesn't
+  reliably return a referentially-new array on every change, so the memo can silently stop
+  recomputing after the first render. `stores-quote-form.tsx`'s row-total/grand-total calculation
+  is deliberately a plain (unmemoized) computation for exactly this reason.
+
+## 18. Keeping this file current
 
 This file is auto-loaded into every session via `CLAUDE.md`'s `@plans/development.md` import — it's
 only useful if it matches what the code actually does. Update the relevant section **in the same

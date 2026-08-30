@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 
 import en from "@/locales/en.json";
-import { getRfqLinkByToken } from "@/lib/data/rfq-links";
+import { PR_CATEGORY } from "@/lib/constants/purchase-requisition";
+import { getRfqQuoteDetailsByToken } from "@/lib/data/rfq-quote";
 import { LinkExpired, type LinkInvalidReason } from "@/components/vendor-quote/link-expired";
 import { QuoteForm } from "@/components/vendor-quote/quote-form";
+import { StoresQuoteForm } from "@/components/vendor-quote/stores-quote-form";
 
 const t = en.vendorQuote;
 
@@ -20,20 +22,32 @@ export const metadata: Metadata = {
 // own bespoke, non-standard guard.
 export default async function QuoteFormPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const link = await getRfqLinkByToken(token);
+  const detail = await getRfqQuoteDetailsByToken(token);
 
   let invalidReason: LinkInvalidReason | null = null;
-  if (!link) invalidReason = "not_found";
-  else if (link.submittedAt) invalidReason = "submitted";
-  else if (link.isExpired) invalidReason = "expired";
+  if (!detail) invalidReason = "not_found";
+  else if (detail.submittedAt) invalidReason = "submitted";
+  else if (detail.isExpired) invalidReason = "expired";
+
+  // Only Stores has a real quotation form so far — every other category
+  // (and any invalid-link state) keeps rendering exactly what it does today.
+  // See plans/development.md: Spares/Service get their own form later,
+  // reusing this same shared plumbing.
+  const isStoresForm = !invalidReason && detail?.category === PR_CATEGORY.STORES;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-mist px-6 py-10">
-      <div className="w-full max-w-105 rounded-lg border border-line bg-paper p-8 shadow-(--shadow-e2)">
-        {invalidReason || !link ? (
+      <div
+        className={`w-full rounded-lg border border-line bg-paper p-8 shadow-(--shadow-e2) ${
+          isStoresForm ? "max-w-6xl" : "max-w-105"
+        }`}
+      >
+        {invalidReason || !detail ? (
           <LinkExpired reason={invalidReason ?? "not_found"} />
+        ) : isStoresForm ? (
+          <StoresQuoteForm token={token} detail={detail} />
         ) : (
-          <QuoteForm token={token} prNumber={link.prNumber} />
+          <QuoteForm token={token} prNumber={detail.prNumber} />
         )}
       </div>
     </div>
