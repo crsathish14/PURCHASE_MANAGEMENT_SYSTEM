@@ -2,12 +2,7 @@ import { z } from "zod";
 
 import en from "@/locales/en.json";
 import { PR_CATEGORY, PR_PRIORITY } from "@/lib/constants/purchase-requisition";
-import {
-  ALLOWED_PHOTO_MIME_TYPES,
-  MAX_PHOTO_SIZE_BYTES,
-  MAX_PHOTOS_PER_LINE_ITEM,
-  PR_LINE_ITEM_PHOTO_PATH_PREFIX,
-} from "@/lib/constants/storage";
+import { ALLOWED_PHOTO_MIME_TYPES, MAX_PHOTO_SIZE_BYTES, PR_LINE_ITEM_PHOTO_PATH_PREFIX } from "@/lib/constants/storage";
 import type { PrDropdownField } from "@/lib/data/purchase-requisition";
 
 const t = en.staff.poRequests.errors;
@@ -44,6 +39,11 @@ export type CreateRequisitionFormValues = {
   equipmentModel: string;
   equipmentSpecifications: string;
   equipmentOtherDetails: string;
+  // The paper form's sign-off section — shown after Remarks for every
+  // category, not just Stores/Spares. requisitionedBy is a person's name/
+  // rank; unrelated to requestedBy (a date) despite the similar name.
+  requisitionedBy: string;
+  captainChiefEngineer: string;
   customFields: Array<{ label: string; value: string }>;
   columns: Array<{ key: string; label: string }>;
   lineItems: Array<{
@@ -109,6 +109,8 @@ export function buildCreateRequisitionSchema(
       equipmentModel: z.string(),
       equipmentSpecifications: z.string(),
       equipmentOtherDetails: z.string(),
+      requisitionedBy: z.string(),
+      captainChiefEngineer: z.string(),
       customFields: z.array(z.object({ label: z.string(), value: z.string() })),
       columns: z.array(z.object({ key: z.string(), label: z.string() })),
       lineItems: z.array(
@@ -119,20 +121,17 @@ export function buildCreateRequisitionSchema(
           // Re-validates already-uploaded-object metadata — NOT proof the
           // real bytes match (bytes never transit this server; the bucket's
           // file_size_limit/allowed_mime_types is that proof). Defense in
-          // depth against an obviously malformed payload; count is the one
-          // limit genuinely enforceable here since it rides in this JSON
-          // body rather than in file bytes.
-          attachments: z
-            .array(
-              z.object({
-                storagePath: z.string().min(1).startsWith(`${PR_LINE_ITEM_PHOTO_PATH_PREFIX}/`),
-                fileName: z.string().min(1),
-                contentType: z.enum(ALLOWED_PHOTO_MIME_TYPES),
-                sizeBytes: z.number().int().positive().max(MAX_PHOTO_SIZE_BYTES),
-                url: z.string().nullable(),
-              }),
-            )
-            .max(MAX_PHOTOS_PER_LINE_ITEM, { error: t.tooManyPhotos }),
+          // depth against an obviously malformed payload. No count limit —
+          // the client has no restriction on photos per line item, by design.
+          attachments: z.array(
+            z.object({
+              storagePath: z.string().min(1).startsWith(`${PR_LINE_ITEM_PHOTO_PATH_PREFIX}/`),
+              fileName: z.string().min(1),
+              contentType: z.enum(ALLOWED_PHOTO_MIME_TYPES),
+              sizeBytes: z.number().int().positive().max(MAX_PHOTO_SIZE_BYTES),
+              url: z.string().nullable(),
+            }),
+          ),
         }),
       ),
     })

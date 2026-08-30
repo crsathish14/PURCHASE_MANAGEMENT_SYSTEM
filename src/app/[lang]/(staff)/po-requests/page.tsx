@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import en from "@/locales/en.json";
 import { getPrDropdownFields, getPurchaseRequisitions } from "@/lib/data/purchase-requisition";
+import { getVessels } from "@/lib/data/vessels";
 import { requireActiveUser } from "@/lib/supabase/require-active-user";
 import { PoRequestsView } from "@/components/purchase-requisition/po-requests-view";
 
@@ -18,12 +19,18 @@ export default async function PoRequestsPage() {
   // page's own render. requireActiveUser() (not requireAdmin()) since both
   // admin and Purchase Officer roles can view/create requisitions.
   await requireActiveUser();
-  const [dropdownFields, { rows, total }] = await Promise.all([
+  const [dropdownFields, { rows, total }, vessels] = await Promise.all([
     getPrDropdownFields(),
     getPurchaseRequisitions({ page: 1, pageSize: DEFAULT_PAGE_SIZE }),
+    getVessels(),
   ]);
 
   return (
-    <PoRequestsView initialDropdownFields={dropdownFields} initialRows={rows} initialTotal={total} />
+    <PoRequestsView
+      initialDropdownFields={dropdownFields}
+      initialRows={rows}
+      initialTotal={total}
+      initialVessels={vessels}
+    />
   );
 }

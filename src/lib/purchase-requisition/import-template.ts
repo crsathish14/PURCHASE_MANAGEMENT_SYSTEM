@@ -4,40 +4,36 @@ import en from "@/locales/en.json";
 import { PR_CATEGORY, PR_LINE_ITEM_PRESET_COLUMN, PR_PRIORITY } from "@/lib/constants/purchase-requisition";
 import type { PrCategory } from "@/lib/constants/purchase-requisition";
 import type { PrDropdownField } from "@/lib/data/purchase-requisition";
+import type { Vessel } from "@/lib/data/vessels";
 import { getPresetColumnsForCategory } from "@/lib/purchase-requisition/preset-columns";
 import type { CreateRequisitionFormValues } from "@/lib/validation/purchase-requisition";
+import { cellText, matchDropdownOption, type ParsedImportResult, type ParseImportError } from "./import-template-shared";
+import { parseVbaRequisitionTemplate } from "./import-template-vba";
+import { isVbaRequisitionSheet } from "./import-template-vba-shared";
+import { parseSparesVbaRequisitionTemplate } from "./import-template-vba-spares";
+
+export type { ParsedImportResult, ParseImportError } from "./import-template-shared";
 
 const t = en.staff.poRequests.createDialog;
 const importT = en.staff.poRequests.importMenu;
 
-// Must match src/app/api/purchase-requisitions/import-template/route.ts —
-// the two files are a matched generate/parse pair, read together.
+// Both categories' downloads are VBA-driven workbooks now (see
+// import-template-vba.ts / import-template-vba-spares.ts), so this legacy
+// ExcelJS-generated format (marked by this hidden sheet) is no longer
+// produced by src/app/api/purchase-requisitions/import-template/route.ts for
+// either category — this branch is kept only so a file downloaded before
+// that switch still parses correctly.
 const TEMPLATE_MARKER_SHEET = "_pms_meta";
 const TEMPLATE_MARKER_CELL = "A1";
 const TEMPLATE_MARKER_PREFIX = "pms-pr-template:";
 const REQUISITION_SHEET_NAME = "Requisition";
-
-export type ParsedImportResult = {
-  category: PrCategory;
-  fileName: string;
-  values: Partial<CreateRequisitionFormValues>;
-  warnings: string[];
-};
-
-export type ParseImportError = { error: string };
-
-function cellText(cell: ExcelJS.Cell | undefined): string {
-  if (!cell) return "";
-  const value = cell.value;
-  if (value == null) return "";
-  if (value instanceof Date) {
-    const y = value.getFullYear();
-    const m = String(value.getMonth() + 1).padStart(2, "0");
-    const d = String(value.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  }
-  return cell.text?.trim() ?? String(value).trim();
-}
+// "Stores Requisition Form" — the v2 template's sheet name. v1 files (sheet
+// named "Requisition Form") are no longer recognized; the paper form itself
+// was revised, so this is a full replacement, not a dual-format dispatch.
+const VBA_SHEET_NAME = "Stores Requisition Form";
+// The Spares VBA workbook is a completely independent project (own sheet
+// name, own layout) — see import-template-vba-spares.ts.
+const SPARES_VBA_SHEET_NAME = "Spares Requisition Form";
 
 // Scans every cell in the sheet for a known label and records whatever's in
 // the cell immediately to its right as that label's value — robust to the
@@ -65,12 +61,6 @@ function findLabel(map: Map<string, string>, ...labels: string[]): string {
   return "";
 }
 
-function matchDropdownOption(field: PrDropdownField | undefined, typed: string): string {
-  if (!field || !typed) return "";
-  const match = field.options.find((option) => option.label.toLowerCase() === typed.toLowerCase());
-  return match?.value ?? "";
-}
-
 // Approved Qty is deliberately absent here — the template never asks for it
 // (office-only, filled in during review), so there's nothing for a header
 // named "Approved Qty" to ever match against in an uploaded file. It still
@@ -84,37 +74,18 @@ const LINE_ITEM_COLUMN_KEY_BY_LABEL: Record<string, string> = {
   [t.columns.rob.toLowerCase()]: PR_LINE_ITEM_PRESET_COLUMN.ROB,
 };
 
-export async function parseRequisitionTemplateFile(
-  file: File,
+function parseLegacyWorkbook(
+  sheet: ExcelJS.Worksheet,
+  marker: string,
   dropdownFields: PrDropdownField[],
-): Promise<ParsedImportResult | ParseImportError> {
-  if (!file.name.toLowerCase().endsWith(".xlsx")) {
-    return { error: importT.unsupportedFileType };
-  }
-
-  let workbook: ExcelJS.Workbook;
-  try {
-    const buffer = await file.arrayBuffer();
-    workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer);
-  } catch {
-    return { error: importT.parseError };
-  }
-
-  const metaSheet = workbook.getWorksheet(TEMPLATE_MARKER_SHEET);
-  const marker = cellText(metaSheet?.getCell(TEMPLATE_MARKER_CELL));
-  if (!marker.startsWith(TEMPLATE_MARKER_PREFIX)) {
-    return { error: importT.parseError };
-  }
+  fileName: string,
+): ParsedImportResult | ParseImportError {
   const markerCategory = marker.slice(TEMPLATE_MARKER_PREFIX.length).split(":")[0];
   if (markerCategory !== PR_CATEGORY.STORES && markerCategory !== PR_CATEGORY.SPARES) {
     return { error: importT.parseError };
   }
   const category: PrCategory = markerCategory;
   const isSpares = category === PR_CATEGORY.SPARES;
-
-  const sheet = workbook.getWorksheet(REQUISITION_SHEET_NAME);
-  if (!sheet) return { error: importT.parseError };
 
   const warnings: string[] = [];
   const labelValue = buildLabelValueMap(sheet);
@@ -217,10 +188,52 @@ export async function parseRequisitionTemplateFile(
     equipmentModel: isSpares ? findLabel(labelValue, t.equipmentDetails.model) : "",
     equipmentSpecifications: isSpares ? findLabel(labelValue, t.equipmentDetails.specifications) : "",
     equipmentOtherDetails: isSpares ? findLabel(labelValue, t.equipmentDetails.otherDetails) : "",
+    requisitionedBy: "",
+    captainChiefEngineer: "",
     customFields: [],
     columns,
     lineItems,
   };
 
-  return { category, fileName: file.name, values, warnings };
+  return { category, fileName, values, warnings };
+}
+
+export async function parseRequisitionTemplateFile(
+  file: File,
+  dropdownFields: PrDropdownField[],
+  vessels: Vessel[],
+): Promise<ParsedImportResult | ParseImportError> {
+  const lowerName = file.name.toLowerCase();
+  if (!lowerName.endsWith(".xlsx") && !lowerName.endsWith(".xlsm")) {
+    return { error: importT.unsupportedFileType };
+  }
+
+  let workbook: ExcelJS.Workbook;
+  try {
+    const buffer = await file.arrayBuffer();
+    workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+  } catch {
+    return { error: importT.parseError };
+  }
+
+  const metaSheet = workbook.getWorksheet(TEMPLATE_MARKER_SHEET);
+  const marker = cellText(metaSheet?.getCell(TEMPLATE_MARKER_CELL));
+  if (marker.startsWith(TEMPLATE_MARKER_PREFIX)) {
+    const sheet = workbook.getWorksheet(REQUISITION_SHEET_NAME);
+    if (!sheet) return { error: importT.parseError };
+    return parseLegacyWorkbook(sheet, marker, dropdownFields, file.name);
+  }
+
+  const vbaSheet = workbook.getWorksheet(VBA_SHEET_NAME);
+  if (vbaSheet && isVbaRequisitionSheet(vbaSheet)) {
+    return parseVbaRequisitionTemplate(workbook, vbaSheet, dropdownFields, vessels, file.name);
+  }
+
+  const sparesVbaSheet = workbook.getWorksheet(SPARES_VBA_SHEET_NAME);
+  if (sparesVbaSheet && isVbaRequisitionSheet(sparesVbaSheet)) {
+    return parseSparesVbaRequisitionTemplate(workbook, sparesVbaSheet, dropdownFields, vessels, file.name);
+  }
+
+  return { error: importT.parseError };
 }

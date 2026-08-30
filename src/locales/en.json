@@ -277,9 +277,10 @@
         "uploadTemplate": "Upload filled template…",
         "parsing": "Reading file…",
         "parseError": "Couldn't read this file. Make sure it's an unmodified downloaded template.",
-        "unsupportedFileType": "Please upload the .xlsx template file.",
+        "unsupportedFileType": "Please upload the .xlsx or .xlsm template file.",
         "importSuccess": "Imported {count} line item(s) from \"{fileName}\". Review the form below and Save when ready.",
-        "importWarningsSuffix": " Some fields need your attention — see the highlighted rows below."
+        "importWarningsSuffix": " Some fields need your attention — see the highlighted rows below.",
+        "uploadingPhotos": "Uploading photos… {done}/{total}"
       },
       "createRequisition": "Create Requisition",
       "empty": {
@@ -308,6 +309,8 @@
         "remarks": "Remarks",
         "remarksPlaceholder": "Notes for your own record — not sent to vendors",
         "optional": "optional",
+        "requisitionedBy": "Requisitioned By (Name/Rank)",
+        "captainChiefEngineer": "Approved By",
         "addMoreField": "Add more",
         "equipmentDetails": {
           "title": "Equipment Details",
@@ -480,8 +483,7 @@
       "errors": {
         "fieldRequired": "This field is required.",
         "labelRequired": "Enter a label.",
-        "pastDateNotAllowed": "Date cannot be in the past.",
-        "tooManyPhotos": "Too many photos on this line item."
+        "pastDateNotAllowed": "Date cannot be in the past."
       }
     }
   },

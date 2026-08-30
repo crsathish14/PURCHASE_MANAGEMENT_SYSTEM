@@ -16,7 +16,6 @@ export const STORAGE_BUCKET = { ATTACHMENTS: "attachments" } as const;
 // nothing server-side can inspect real bytes to double-check these numbers —
 // keep both sides in sync by hand if either changes.
 export const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
-export const MAX_PHOTOS_PER_LINE_ITEM = 5;
 
 export const ALLOWED_PHOTO_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"] as const;
 export type AllowedPhotoMimeType = (typeof ALLOWED_PHOTO_MIME_TYPES)[number];

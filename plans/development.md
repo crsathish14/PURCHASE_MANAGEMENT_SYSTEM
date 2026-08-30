@@ -73,10 +73,11 @@ These files hold every value that would otherwise be a magic string:
   option *values* — used only for frontend conditional branching on which line-item columns to
   show; the DB via `pr_dropdown_fields`/`pr_dropdown_field_options` stays the actual source of
   truth for the dropdown's label/option list), and `PR_LINE_ITEM_PRESET_COLUMN`
-  (`APPROVED_QTY`/`REMARKS`/`ROB` — apply to both Stores and Spares; `PART_NO` — Spares only;
-  `IMPA_CODE`/`UOM` — Stores only, Spares has no UOM column — the stable keys `LineItemsField` uses
-  for its category-driven preset line-item columns, kept distinct from a genuinely user-added custom
-  column's random `crypto.randomUUID()` key). The category → preset-column-set mapping itself lives
+  (`APPROVED_QTY`/`REMARKS`/`ROB`/`UOM` — apply to both Stores and Spares; `PART_NO` — Spares only;
+  `IMPA_CODE` — Stores only, Spares has no IMPA/ISSA code equivalent — the stable keys
+  `LineItemsField` uses for its category-driven preset line-item columns, kept distinct from a
+  genuinely user-added custom column's random `crypto.randomUUID()` key). The category →
+  preset-column-set mapping itself lives
   in one place, `getPresetColumnsForCategory()` in `src/lib/purchase-requisition/preset-columns.ts`
   — both `LineItemsField` (manual create/edit) and the import-template parser (§16) import it, so
   they can't drift apart. `APPROVED_QTY` is office-only (filled in during review, never sourced from
@@ -84,12 +85,15 @@ These files hold every value that would otherwise be a magic string:
 - `src/lib/routes.ts` — `ROUTES`, every locale-prefixed path the app links to or redirects to (see
   §3).
 - `src/lib/constants/storage.ts` — `STORAGE_BUCKET` (currently just `ATTACHMENTS`), `MAX_PHOTO_SIZE_BYTES`,
-  `MAX_PHOTOS_PER_LINE_ITEM`, `MAX_PHOTO_DIMENSION_PX`, `PHOTO_JPEG_QUALITY`, `ALLOWED_PHOTO_MIME_TYPES`,
+  `MAX_PHOTO_DIMENSION_PX`, `PHOTO_JPEG_QUALITY`, `ALLOWED_PHOTO_MIME_TYPES`,
   `PHOTO_EXTENSION_BY_MIME_TYPE`, `PR_LINE_ITEM_PHOTO_PATH_PREFIX`, `SIGNED_DISPLAY_URL_TTL_SECONDS` — the
   shared vocabulary every Storage-backed upload feature uses. `MAX_PHOTO_SIZE_BYTES`/`ALLOWED_PHOTO_MIME_TYPES`
   mirror the `attachments` bucket's own `file_size_limit`/`allowed_mime_types` settings for fast
   client-side pre-validation only; the bucket settings themselves (not this file) are the real
   enforcement boundary, since a signed-upload-URL flow means file bytes never pass through our server.
+  There is deliberately no photos-per-line-item count limit anywhere in this stack (client
+  requirement) — neither this file, the Zod schema, `LineItemPhotosField`'s picker, nor the VBA
+  template's own parser cap or truncate the attachments array.
   `PR_LINE_ITEM_PHOTO_PATH_PREFIX` is this feature's own namespace within the shared bucket — a future
   upload feature (e.g. PO documents) adds its own sibling prefix constant here, not a new bucket or a
   new table shape.
@@ -186,45 +190,106 @@ a dev server when practical, not just that it compiles.
    using the §12 pattern.
 6. Verify per §14.
 
-## 16. Spreadsheet import (generate + parse a `.xlsx` template)
+## 16. Spreadsheet import (generate + parse a template — two independent VBA workbooks)
 
-The Create Requisition "Import Excel" menu (`po-requests-view.tsx`) is the first feature to
-generate and parse spreadsheets — `exceljs` is the one dependency for both directions (its
-`package.json` `browser`/`main` fields resolve to the right build automatically for a client
-component vs. a Route Handler; no separate library needed per side).
+The Create Requisition "Import Excel" menu (`po-requests-view.tsx`) generates and parses
+spreadsheets — `exceljs` is the one dependency for both directions (its `package.json`
+`browser`/`main` fields resolve to the right build automatically for a client component vs. a
+Route Handler; no separate library needed per side). Both categories now ship a real, persisted,
+VBA-driven workbook (the actual paper-form workflow) rather than an ExcelJS-generated one:
 
-- **Generate**: `GET src/app/api/purchase-requisitions/import-template/route.ts?category=stores|spares`
-  builds the workbook server-side from live data (`getPrDropdownFields()` for Vessel/Department
-  dropdown-validated cells), so the template can never go stale the way a static checked-in file
-  would. Returned with `Content-Disposition: attachment` — a plain `<a href>` download link, no
-  client-side blob handling needed.
-- **Marker convention**: every generated template carries a hidden `veryHidden` sheet
-  (`_pms_meta`, cell `A1` = `pms-pr-template:<category>:v1`) so the parser can confirm a file really
-  is one of these templates (not an unrelated spreadsheet) and recover which category it was
-  generated for, without relying on the visible sheet layout at all.
-- **Parse**: `src/lib/purchase-requisition/import-template.ts` (client-side, called from
-  `po-requests-view.tsx`'s upload handler) reads the workbook via `exceljs`'s browser build, matches
-  header fields by **label text**, not fixed cell refs (scans every cell, pairs each known label
-  with whatever's immediately to its right) — the same tolerance-to-drift approach as line-item
-  columns, matched by header text so their order in the template isn't load-bearing either.
-- Parsed output feeds `CreateRequisitionDialog`'s new `initialImportValues` prop, which seeds the
-  normal create form — nothing is written to the DB until the user reviews and Submits through the
-  existing POST `/api/purchase-requisitions` path. A future upload-a-file-and-prefill-a-form feature
-  should follow this same shape (generate from live data + hidden marker + label-matched parse into
-  existing form state) rather than inventing a new one.
-- **Not every preset column is importable.** The parser always sets `columns` to the category's full
-  `getPresetColumnsForCategory()` set (§7), not just whatever headers the file had — so a column like
-  Approved Qty that the template deliberately omits (office-only, filled in during review) still
-  exists after import, just blank. A future column that's manual-only the same way should follow that
-  pattern: keep it out of the generator's `lineItemHeaders` list, and don't add it to
-  `LINE_ITEM_COLUMN_KEY_BY_LABEL` — no other change is needed for it to still show up post-import.
-- **ExcelJS gotcha**: a `dataValidation` of `type: "list"` cannot reference a range on another sheet
-  directly (e.g. `formulae: ["Lists!$A$2:$A$4"]`) — Excel's own UI can't author that either, and a
-  file with one throws "repaired/removed unreadable content" on open. Cross-sheet list sources must
-  go through a workbook-level defined name instead (`workbook.definedNames.add(rangeRef, name)`, then
-  `formulae: [name]`) — see `addListValidation()` in the generate route. Also skip validation entirely
-  for an empty option list (an empty list makes `$A$2:$A$1`, an inverted/invalid range — the same
-  failure mode) rather than adding it and hoping the range is never actually empty.
+**Both categories — a persisted, VBA-driven workbook (the real paper-form workflow)**
+- `GET src/app/api/purchase-requisitions/import-template/route.ts?category=stores|spares` streams
+  a static `.xlsm` straight off disk (`readStoresTemplateBuffer()` / `readSparesTemplateBuffer()` in
+  `src/lib/purchase-requisition/templates/index.ts`) — each workbook has a real VBA macro project
+  (Add Line Item button, Ctrl+V photo-paste into a "SUPPORTING PHOTOS" table, sheet protection),
+  which ExcelJS (or any generic spreadsheet library) cannot safely author, so neither is regenerated
+  per request. The two are entirely independent VBA projects (separate constants module, separate
+  worksheet name, no shared state) that happen to share the same proven architecture — Spares was
+  built second, reusing every fix already learned from Stores. Each binary
+  (`templates/requisition-form-{stores,spares}.xlsm`) and its readable VBA source + setup guide
+  (`templates/vba-source/{stores,spares}/`) are checked in; a filled sample (`*.sample.xlsm`) is kept
+  alongside each as a manual test fixture. Regenerating either file means re-running its own setup
+  guide's steps in Excel and replacing the binary.
+- Each format is told apart by sheet name — `"Stores Requisition Form"` vs. `"Spares Requisition
+  Form"` — both containing a "Vessel Name" label (`parseRequisitionTemplateFile`, the dispatcher in
+  `import-template.ts`). The Stores sheet name (and its labels) changed once already between the
+  template's first and second real-world revisions — v1 files are no longer recognized at all, since
+  the paper form itself was revised and this was a full replacement, not a versioned dual-format
+  dispatch.
+- **Parsing logic is split by what's actually shared.** Everything generic — merge-aware label→value
+  lookup (a label can itself be a multi-column merge, e.g. "IMO No" spans two columns, so its value
+  starts one column past the end of the label's own merge, not simply "one cell right"), dynamic
+  table-section sizing (`getMergeRowSpan()`, read from actual merges rather than a hardcoded offset —
+  the SUPPORTING PHOTOS heading grew from 1 row to 2 between Stores' own revisions, which is exactly
+  the kind of change this survives automatically), and photo-anchor extraction (images are matched to
+  a line item by joining the SUPPORTING PHOTOS table's embedded-image drawing anchors — never its "N
+  photos" counter text, which is not authoritative — against each line item's Sl No., including
+  continuation rows once a line item has more than 7 photos; there is no cap on how many are imported
+  per line item, by design) — lives once in `import-template-vba-shared.ts`. Each format's own thin
+  parser (`import-template-vba.ts` for Stores, `import-template-vba-spares.ts` for Spares) supplies
+  only what's genuinely different: its own label text, its own line-item column set, and its own
+  output shaping (category, and — Spares only — the Equipment Details fields). Two things neither
+  parser hardcodes, because the Stores template has already changed them once:
+  - **Table section heights**, per the `getMergeRowSpan()` point above.
+  - **The photo slot count** (currently 7, `FALLBACK_SLOT_COLUMNS`/`SLOT_COUNT` in the shared module)
+    is discovered by scanning the header for `"Photo N"` labels, with the hardcoded array only as a
+    fallback — it was 5 in Stores' first template revision; Spares launched directly with 7.
+  - Both templates share one more internal inconsistency worth knowing about if this ever needs
+    debugging again: the Sl No. column is labeled `"Sl No."` in the line-items table but `"Sl.No."`
+    (no space) in the photo table — matched via a small regex (`isSlNoLabel`), not exact equality.
+    Separately, `"SUPPORTING PHOTOS"` (the photo table's own heading) and `"Supporting Photos"` (the
+    line-items table's own per-row input-cell column label) normalize to the *same* string — the
+    heading is found via a column-A-only search (`findLabelCellInColumn`, mirroring each format's own
+    VBA `FindRowByLabel`, which only ever searches `COL_SLNO`) specifically to avoid matching the
+    wrong one, since a full-sheet search would hit the (earlier, row-wise) column label first.
+- Both templates' "Supply Port" header field maps to the app's `requiredPort`, and their footer's
+  "Requisitioned by:" / "Approved by:" fields map to `requisitionedBy`/`captainChiefEngineer` (the DB
+  column name predates this label; the paper form's own wording for the second field has already
+  changed once, from "Captain / Chief Engineer:" to "Approved by:" — the column was kept as-is since
+  it's an internal identifier, only the UI label (`en.json`'s `captainChiefEngineer` key) was updated
+  to track the current paper form's wording). Spares' template additionally has an Equipment Details
+  section (Name of Equipment/Type/Make/Sr. No./Model/Specifications/Any Other details) with no Stores
+  equivalent — mapped straight to the matching `equipment*` form fields, same merge-aware lookup.
+- Vessel is matched via the file's **IMO No** (not vessel name), the same way in both formats:
+  resolved against `getVessels()` (`src/lib/data/vessels.ts`), then the matched vessel's name is
+  matched against the "vessel" dropdown field's options — `pr_dropdown_field_options` and `vessels`
+  remain fully decoupled tables; the parser just chains two lookups. An unmatched IMO leaves Vessel
+  blank with a warning, same graceful degradation as an unrecognized dropdown value.
+- Extracted photos aren't real attachments yet when a parser returns them
+  (`ParsedImportResult.pendingLineItemPhotos`, a `Map<lineItemIndex, {blob, fileName}[]>`) — they
+  still need to go through the same sign→`uploadToSignedUrl` pipeline a manual pick uses
+  (`uploadLineItemPhoto()` in `upload-line-item-photo.ts`, shared with
+  `LineItemPhotosField`/`resizeAndReencode()` in `photo-processing.ts`). `po-requests-view.tsx`'s
+  `handleImportFilePicked` runs that upload loop (under a fresh draft token, uploading every
+  extracted photo with no per-line-item count limit) before opening the dialog, then passes that
+  same token as `initialDraftToken` so the dialog's own `scopeId` matches.
+
+**Legacy ExcelJS-generated format (retired, parser kept for old downloads)**
+- Before both categories moved to a persisted VBA workbook, the download route built a workbook
+  live from `getPrDropdownFields()` and marked it with a hidden `veryHidden` `_pms_meta` sheet (cell
+  `A1` = `pms-pr-template:<category>:v1`) so the parser could confirm a file really was one of these
+  templates. The route no longer generates this format for either category, but
+  `parseRequisitionTemplateFile` still checks for the marker sheet first and, if present, hands off
+  to `parseLegacyWorkbook` — purely so a file someone already downloaded before this change keeps
+  working. Header fields there are matched by **label text**, not fixed cell refs (scans every cell,
+  pairs each known label with whatever's immediately to its right — this "immediately right" rule
+  assumes an unmerged/single-column label, unlike the VBA formats' merge-aware lookup above).
+
+**Shared across every format**
+- `import-template-shared.ts` holds what every parser needs: `cellText()`, `matchDropdownOption()`,
+  and the `ParsedImportResult`/`ParseImportError` types.
+- Parsed output feeds `CreateRequisitionDialog`'s `initialImportValues` prop, which seeds the normal
+  create form — nothing is written to the DB until the user reviews and Submits through the existing
+  POST `/api/purchase-requisitions` path. Because this dialog instance is mounted once and persists
+  across open/close cycles, `initialImportValues` changing does **not** by itself reach an
+  already-constructed `useForm()` — an explicit `reset(defaultValues)` in a `useEffect` keyed on
+  `initialImportValues` is required (react-hook-form only consumes `defaultValues` at first
+  construction). A future upload-a-file-and-prefill-a-form feature should follow this same shape.
+- **Not every preset column is importable.** Every parser always sets `columns` to the category's
+  full `getPresetColumnsForCategory()` set (§7), not just whatever headers the file had — so a
+  column like Approved Qty that a template deliberately omits (office-only, filled in during review)
+  still exists after import, just blank.
 
 ## 17. Keeping this file current
 

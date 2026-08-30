@@ -37,7 +37,13 @@ export function getPresetColumnsForCategory(category?: string): PresetColumn[] {
     ];
   }
   if (category === PR_CATEGORY.SPARES) {
-    return [{ key: PR_LINE_ITEM_PRESET_COLUMN.PART_NO, label: t.columns.partNo }, rob, approvedQty, remarks];
+    return [
+      { key: PR_LINE_ITEM_PRESET_COLUMN.PART_NO, label: t.columns.partNo },
+      { key: PR_LINE_ITEM_PRESET_COLUMN.UOM, label: t.columns.uom },
+      rob,
+      approvedQty,
+      remarks,
+    ];
   }
   // Undefined/other (before a category is picked) — treated the same as
   // Stores/Spares' shared baseline, matching this form's existing

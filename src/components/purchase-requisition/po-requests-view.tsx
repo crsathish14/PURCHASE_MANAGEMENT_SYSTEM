@@ -8,7 +8,10 @@ import en from "@/locales/en.json";
 import { PR_CATEGORY, PR_STATUS } from "@/lib/constants/purchase-requisition";
 import type { DatePreset } from "@/lib/constants/purchase-requisition";
 import type { PrDetail, PrDropdownField, PrListRow } from "@/lib/data/purchase-requisition";
+import type { Vessel } from "@/lib/data/vessels";
 import { parseRequisitionTemplateFile } from "@/lib/purchase-requisition/import-template";
+import { resizeAndReencode } from "@/lib/purchase-requisition/photo-processing";
+import { uploadLineItemPhoto } from "@/lib/purchase-requisition/upload-line-item-photo";
 import type { CreateRequisitionFormValues } from "@/lib/validation/purchase-requisition";
 import { toast } from "@/store/toast-store";
 import { CancelPrDialog } from "./cancel-pr-dialog";
@@ -26,6 +29,7 @@ export type PoRequestsViewProps = {
   initialDropdownFields: PrDropdownField[];
   initialRows: PrListRow[];
   initialTotal: number;
+  initialVessels: Vessel[];
 };
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -47,7 +51,12 @@ type ListParams = {
   endDate: string | null;
 };
 
-export function PoRequestsView({ initialDropdownFields, initialRows, initialTotal }: PoRequestsViewProps) {
+export function PoRequestsView({
+  initialDropdownFields,
+  initialRows,
+  initialTotal,
+  initialVessels,
+}: PoRequestsViewProps) {
   // Lifted (not owned by a single trigger) because the header CTA, the
   // empty-state CTA, and clicking any row all open this same dialog instance —
   // it's keyed by editingRequisition?.id below so switching between "create"
@@ -60,8 +69,18 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
   // template import seeds raw, still-unsaved form values (Partial<
   // CreateRequisitionFormValues>), not a server-shaped PrDetail.
   const [importValues, setImportValues] = useState<Partial<CreateRequisitionFormValues> | null>(null);
+  // The draft token any import-extracted photos were uploaded under, before
+  // the dialog even opened — passed through as initialDraftToken so the
+  // dialog's own scopeId matches the Storage folder those photos already
+  // live in, rather than generating a fresh (mismatched) one.
+  const [importDraftToken, setImportDraftToken] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(null);
   const importFileInputRef = useRef<HTMLInputElement>(null);
+  // Local blob: preview URLs created for imported photos (see
+  // handleImportFilePicked) — revoked once the dialog closes, whether by
+  // Submit or Cancel, same as LineItemPhotosField's own manual-upload previews.
+  const importBlobUrlsRef = useRef<string[]>([]);
 
   const [cancelTarget, setCancelTarget] = useState<PrListRow | null>(null);
   const [cancelling, setCancelling] = useState(false);
@@ -184,6 +203,9 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
     setCreateOpen(false);
     setEditingRequisition(null);
     setImportValues(null);
+    setImportDraftToken(null);
+    importBlobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    importBlobUrlsRef.current = [];
   }
 
   async function handleImportFilePicked(event: React.ChangeEvent<HTMLInputElement>) {
@@ -193,11 +215,55 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
 
     setImporting(true);
     try {
-      const result = await parseRequisitionTemplateFile(file, initialDropdownFields);
+      const result = await parseRequisitionTemplateFile(file, initialDropdownFields, initialVessels);
       if ("error" in result) {
         toast.error(result.error);
         return;
       }
+
+      // The VBA Stores template's parser returns each line item's embedded
+      // photos as raw bytes, still needing to go through the same sign +
+      // uploadToSignedUrl pipeline a manual pick uses (see
+      // upload-line-item-photo.ts) — a plain prefilled URL wouldn't be a real
+      // Storage object. Absent entirely for the legacy ExcelJS-generated
+      // template, which never embeds images.
+      let draftToken: string | null = null;
+      if (result.pendingLineItemPhotos?.size) {
+        draftToken = crypto.randomUUID();
+        const total = [...result.pendingLineItemPhotos.values()].reduce((sum, photos) => sum + photos.length, 0);
+        let done = 0;
+        setImportProgress({ done, total });
+
+        for (const [lineItemIndex, photos] of result.pendingLineItemPhotos) {
+          const lineItemToken = crypto.randomUUID();
+          for (const photo of photos) {
+            try {
+              const resized = await resizeAndReencode(photo.blob);
+              const uploadBlob = resized?.blob ?? photo.blob;
+              const contentType = resized?.contentType ?? "image/jpeg";
+              const attachment = await uploadLineItemPhoto({
+                scopeId: draftToken,
+                lineItemFieldId: lineItemToken,
+                blob: uploadBlob,
+                fileName: photo.fileName,
+                contentType,
+              });
+              const previewUrl = URL.createObjectURL(uploadBlob);
+              importBlobUrlsRef.current.push(previewUrl);
+              result.values.lineItems?.[lineItemIndex]?.attachments.push({ ...attachment, url: previewUrl });
+            } catch {
+              result.warnings.push(
+                `Couldn't upload one of the photos for line item ${lineItemIndex + 1} — add it manually.`,
+              );
+            }
+            done += 1;
+            setImportProgress({ done, total });
+          }
+        }
+        setImportProgress(null);
+      }
+
+      setImportDraftToken(draftToken);
       setImportValues(result.values);
       setEditingRequisition(null);
       setCreateOpen(true);
@@ -210,6 +276,7 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
       toast.error(t.importMenu.parseError);
     } finally {
       setImporting(false);
+      setImportProgress(null);
     }
   }
 
@@ -388,10 +455,17 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
           <input
             ref={importFileInputRef}
             type="file"
-            accept=".xlsx"
+            accept=".xlsx,.xlsm"
             hidden
             onChange={handleImportFilePicked}
           />
+          {importProgress ? (
+            <span className="self-center text-xs text-slate-lt">
+              {t.importMenu.uploadingPhotos
+                .replace("{done}", String(importProgress.done))
+                .replace("{total}", String(importProgress.total))}
+            </span>
+          ) : null}
           <Button variant="primary" onClick={() => setCreateOpen(true)}>
             <Plus size={15} strokeWidth={2} aria-hidden="true" />
             {t.createRequisition}
@@ -456,6 +530,7 @@ export function PoRequestsView({ initialDropdownFields, initialRows, initialTota
         onSaved={handleDialogSaved}
         requisition={editingRequisition}
         initialImportValues={importValues}
+        initialDraftToken={importDraftToken}
       />
 
       <CancelPrDialog

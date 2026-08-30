@@ -29,9 +29,9 @@ export const PR_CATEGORY = { SERVICE: "service", STORES: "stores", SPARES: "spar
 // Stable, well-known keys for the category-driven preset line-item columns —
 // deliberately NOT crypto.randomUUID() like a genuinely user-added "+ Add
 // column" entry, so line-items-field.tsx can precisely add/remove exactly
-// these without touching a real custom column. APPROVED_QTY/REMARKS apply to
-// both Stores and Spares; PART_NO is Spares-only and IMPA_CODE/UOM are
-// Stores-only (Spares' own sample form has no UOM column) — see the
+// these without touching a real custom column. APPROVED_QTY/REMARKS/UOM
+// apply to both Stores and Spares; PART_NO is Spares-only and IMPA_CODE is
+// Stores-only (Spares has no IMPA/ISSA code equivalent) — see the
 // category -> preset-set lookup in line-items-field.tsx.
 export const PR_LINE_ITEM_PRESET_COLUMN = {
   APPROVED_QTY: "approved_qty",

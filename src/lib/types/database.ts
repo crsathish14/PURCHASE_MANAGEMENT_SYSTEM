@@ -131,6 +131,8 @@ export type Database = {
           equipment_model: string | null;
           equipment_specifications: string | null;
           equipment_other_details: string | null;
+          requisitioned_by: string | null;
+          captain_chief_engineer: string | null;
           created_by: string;
           created_at: string;
           updated_at: string;
@@ -153,6 +155,8 @@ export type Database = {
           equipment_model?: string | null;
           equipment_specifications?: string | null;
           equipment_other_details?: string | null;
+          requisitioned_by?: string | null;
+          captain_chief_engineer?: string | null;
           created_by: string;
         };
         Update: {
@@ -171,6 +175,8 @@ export type Database = {
           equipment_model?: string | null;
           equipment_specifications?: string | null;
           equipment_other_details?: string | null;
+          requisitioned_by?: string | null;
+          captain_chief_engineer?: string | null;
         };
         Relationships: [
           {
@@ -469,6 +475,8 @@ export type Database = {
           p_equipment_model: string | null;
           p_equipment_specifications: string | null;
           p_equipment_other_details: string | null;
+          p_requisitioned_by: string | null;
+          p_captain_chief_engineer: string | null;
           p_dropdowns: Json;
           p_custom_fields: Json;
           p_columns: Json;
@@ -493,6 +501,8 @@ export type Database = {
           p_equipment_model: string | null;
           p_equipment_specifications: string | null;
           p_equipment_other_details: string | null;
+          p_requisitioned_by: string | null;
+          p_captain_chief_engineer: string | null;
           p_dropdowns: Json;
           p_custom_fields: Json;
           p_columns: Json;

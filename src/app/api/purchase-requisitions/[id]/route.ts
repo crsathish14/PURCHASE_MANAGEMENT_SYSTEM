@@ -92,6 +92,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       p_equipment_model: data.equipmentModel || null,
       p_equipment_specifications: data.equipmentSpecifications || null,
       p_equipment_other_details: data.equipmentOtherDetails || null,
+      p_requisitioned_by: data.requisitionedBy || null,
+      p_captain_chief_engineer: data.captainChiefEngineer || null,
       p_dropdowns: data.dropdowns,
       p_custom_fields: data.customFields,
       p_columns: data.columns,

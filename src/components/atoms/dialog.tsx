@@ -5,12 +5,16 @@ import { createPortal } from "react-dom";
 
 // Same createPortal-into-document.body technique as Menu (src/components/atoms/menu.tsx),
 // but centered with a backdrop instead of anchored to a trigger.
-export type DialogSize = "md" | "lg";
+export type DialogSize = "md" | "lg" | "xl";
 
 const SIZE_CLASSES: Record<DialogSize, string> = {
   md: "max-w-md",
   // Matches Design-docs/design-spec.html's "Modal L 720px" token (Create PR).
   lg: "max-w-[720px]",
+  // Wider than the design spec's documented L/720px token — Create/Edit
+  // Requisition's line items table (dynamic per-category columns + a Photos
+  // column) outgrew 720px once the sign-off fields were added alongside it.
+  xl: "max-w-[1200px]",
 };
 
 export type DialogProps = {

@@ -145,6 +145,8 @@ export type PrDetail = {
   equipmentModel: string | null;
   equipmentSpecifications: string | null;
   equipmentOtherDetails: string | null;
+  requisitionedBy: string | null;
+  captainChiefEngineer: string | null;
   dropdowns: Record<string, string>;
   customFields: Array<{ label: string; value: string }>;
   columns: Array<{ key: string; label: string }>;
@@ -182,6 +184,7 @@ export async function getPurchaseRequisitionById(id: string): Promise<PrDetail |
         id, pr_number, status, priority, requested_by, required_port, remarks, requisition_number,
         requisition_date, title, equipment_name, equipment_type, equipment_make,
         equipment_serial_no, equipment_model, equipment_specifications, equipment_other_details,
+        requisitioned_by, captain_chief_engineer,
         purchase_requisition_dropdown_values ( option_value, pr_dropdown_fields ( key ) ),
         purchase_requisition_custom_fields ( label, value, sort_order ),
         purchase_requisition_line_item_columns ( id, label, sort_order ),
@@ -284,6 +287,8 @@ export async function getPurchaseRequisitionById(id: string): Promise<PrDetail |
     equipmentModel: data.equipment_model,
     equipmentSpecifications: data.equipment_specifications,
     equipmentOtherDetails: data.equipment_other_details,
+    requisitionedBy: data.requisitioned_by,
+    captainChiefEngineer: data.captain_chief_engineer,
     dropdowns,
     customFields,
     columns,

@@ -5,16 +5,10 @@ import { RotateCw, X } from "lucide-react";
 
 import { ImagePreviewModal, type PreviewImage } from "@/components/atoms";
 import en from "@/locales/en.json";
-import {
-  ALLOWED_PHOTO_MIME_TYPES,
-  MAX_PHOTO_DIMENSION_PX,
-  MAX_PHOTO_SIZE_BYTES,
-  MAX_PHOTOS_PER_LINE_ITEM,
-  PHOTO_JPEG_QUALITY,
-  STORAGE_BUCKET,
-} from "@/lib/constants/storage";
+import { ALLOWED_PHOTO_MIME_TYPES, MAX_PHOTO_SIZE_BYTES } from "@/lib/constants/storage";
 import type { AllowedPhotoMimeType } from "@/lib/constants/storage";
-import { createClient } from "@/lib/supabase/client";
+import { resizeAndReencode } from "@/lib/purchase-requisition/photo-processing";
+import { uploadLineItemPhoto } from "@/lib/purchase-requisition/upload-line-item-photo";
 
 const t = en.staff.poRequests.createDialog;
 
@@ -57,47 +51,6 @@ function resolveMimeType(file: File): AllowedPhotoMimeType | null {
   if (lowerName.endsWith(".png")) return "image/png";
   if (lowerName.endsWith(".webp")) return "image/webp";
   return null;
-}
-
-// Downscales (if needed) and re-encodes a picked photo via Canvas before it's
-// uploaded — cuts storage/bandwidth usage for typical multi-megabyte phone
-// photos, and strips EXIF metadata (GPS/device info) as a side effect of the
-// redraw. Always redraws (even when already smaller than the target) so EXIF
-// stripping is applied consistently, not just when downscaling actually
-// happens. Returns null on any failure — most notably, HEIC decode via
-// createImageBitmap/canvas is only supported in Safari (no native codec in
-// Chrome/Firefox/Edge) — the caller falls back to uploading the original,
-// unmodified file in that case; this is a progressive enhancement, never a
-// blocker, and the bucket's own server-enforced file_size_limit/
-// allowed_mime_types apply regardless of which path is taken.
-async function resizeAndReencode(
-  file: File,
-): Promise<{ blob: Blob; contentType: AllowedPhotoMimeType } | null> {
-  try {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, MAX_PHOTO_DIMENSION_PX / Math.max(bitmap.width, bitmap.height));
-    const targetWidth = Math.round(bitmap.width * scale);
-    const targetHeight = Math.round(bitmap.height * scale);
-
-    const canvas = document.createElement("canvas");
-    canvas.width = targetWidth;
-    canvas.height = targetHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      bitmap.close();
-      return null;
-    }
-    ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
-    bitmap.close();
-
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg", PHOTO_JPEG_QUALITY),
-    );
-    if (!blob) return null;
-    return { blob, contentType: "image/jpeg" };
-  } catch {
-    return null;
-  }
 }
 
 export function LineItemPhotosField({
@@ -150,46 +103,20 @@ export function LineItemPhotosField({
         throw new Error(t.photoTooLarge);
       }
 
-      const signResponse = await fetch("/api/uploads/sign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          scope: "pr-line-item-photo",
-          scopeId,
-          lineItemFieldId,
-          fileName: file.name,
-          contentType: uploadContentType,
-          sizeBytes: uploadBlob.size,
-        }),
+      const attachment = await uploadLineItemPhoto({
+        scopeId,
+        lineItemFieldId,
+        blob: uploadBlob,
+        fileName: file.name,
+        contentType: uploadContentType,
       });
-      const signPayload = await signResponse.json();
-      if (!signResponse.ok) throw new Error(signPayload?.error?.message ?? t.photoUploadError);
-      const { storagePath, token } = signPayload.data as { storagePath: string; token: string };
-
-      const supabase = createClient();
-      // contentType MUST be passed explicitly — uploadToSignedUrl otherwise
-      // defaults to "text/plain;charset=UTF-8", which the bucket's
-      // allowed_mime_types would reject regardless of the file's real type.
-      const { error: uploadError } = await supabase.storage
-        .from(STORAGE_BUCKET.ATTACHMENTS)
-        .uploadToSignedUrl(storagePath, token, uploadBlob, { contentType: uploadContentType });
-      if (uploadError) throw uploadError;
 
       // No server round trip has happened yet, so there's no signed display
       // URL for this attachment — use a local blob preview of the actual
       // uploaded bytes (post-resize) until the next full reload replaces it
       // with a real signed URL from the server.
-      setLocalPreviewUrlByPath((prev) => ({ ...prev, [storagePath]: URL.createObjectURL(uploadBlob) }));
-      onChange([
-        ...value,
-        {
-          storagePath,
-          fileName: file.name,
-          contentType: uploadContentType,
-          sizeBytes: uploadBlob.size,
-          url: null,
-        },
-      ]);
+      setLocalPreviewUrlByPath((prev) => ({ ...prev, [attachment.storagePath]: URL.createObjectURL(uploadBlob) }));
+      onChange([...value, attachment]);
       setPending((prev) => {
         const tile = prev.find((p) => p.clientId === clientId);
         if (tile) URL.revokeObjectURL(tile.previewUrl);
@@ -262,12 +189,10 @@ export function LineItemPhotosField({
   function handlePick(event: React.ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(event.target.files ?? []);
     event.target.value = "";
-    if (!picked.length) return;
-    const remainingSlots = Math.max(MAX_PHOTOS_PER_LINE_ITEM - value.length - pending.length, 0);
-    picked.slice(0, remainingSlots).forEach(startUpload);
+    // No cap on photos per line item, by design (client requirement) — every
+    // picked file starts uploading.
+    picked.forEach(startUpload);
   }
-
-  const atLimit = value.length + pending.length >= MAX_PHOTOS_PER_LINE_ITEM;
 
   const previewImages: PreviewImage[] = value.map((attachment) => ({
     url: attachment.url ?? localPreviewUrlByPath[attachment.storagePath] ?? null,
@@ -346,7 +271,7 @@ export function LineItemPhotosField({
         </div>
       ))}
 
-      {disabled || atLimit ? null : (
+      {disabled ? null : (
         <button
           type="button"
           onClick={() => inputRef.current?.click()}

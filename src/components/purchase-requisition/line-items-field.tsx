@@ -117,7 +117,7 @@ export function LineItemsField({
     const nextSet = getPresetColumnsForCategory(category);
 
     // Remove whatever the previous category's preset set had that the new
-    // one doesn't (e.g. Stores' IMPA Code/UOM when switching into Spares).
+    // one doesn't (e.g. Stores' IMPA Code when switching into Spares).
     for (const preset of prevSet) {
       if (nextSet.some((p) => p.key === preset.key)) continue;
       const existing = find(preset.key, preset.label);
@@ -171,7 +171,7 @@ export function LineItemsField({
       <table className="mb-2 w-full border-collapse">
         <thead>
           <tr className="border-b border-line">
-            <th className={headerCellClass}>{t.columns.description}</th>
+            <th className={`${headerCellClass} w-85`}>{t.columns.description}</th>
             {isService ? null : <th className={`${headerCellClass} w-28`}>{t.columns.qty}</th>}
             {columns.map((column) => (
               <th key={column.key} className={headerCellClass}>

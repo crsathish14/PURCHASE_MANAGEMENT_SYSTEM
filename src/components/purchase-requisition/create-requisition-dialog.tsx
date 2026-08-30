@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, X } from "lucide-react";
@@ -30,6 +30,31 @@ const askLabelT = en.staff.poRequests.askLabelDialog;
 // nesting, which is what keeps handleSubmit wired up across that split.
 const FORM_ID = "create-requisition-form";
 
+function buildBlankDefaultValues(dropdownFields: PrDropdownField[]): CreateRequisitionFormValues {
+  return {
+    priority: "",
+    dropdowns: Object.fromEntries(dropdownFields.map((field) => [field.key, ""])),
+    requestedBy: "",
+    requiredPort: "",
+    requisitionNumber: "",
+    requisitionDate: "",
+    title: "",
+    remarks: "",
+    equipmentName: "",
+    equipmentType: "",
+    equipmentMake: "",
+    equipmentSerialNo: "",
+    equipmentModel: "",
+    equipmentSpecifications: "",
+    equipmentOtherDetails: "",
+    requisitionedBy: "",
+    captainChiefEngineer: "",
+    customFields: [],
+    columns: [],
+    lineItems: [{ description: "", qty: "", extra: {}, attachments: [] }],
+  };
+}
+
 export type CreateRequisitionDialogProps = {
   open: boolean;
   onClose: () => void;
@@ -46,6 +71,12 @@ export type CreateRequisitionDialogProps = {
   // while this is raw, still-unsaved form values — the user still reviews and
   // Submits normally, nothing is written until they do.
   initialImportValues?: Partial<CreateRequisitionFormValues> | null;
+  // Create-mode only, paired with initialImportValues: the draft token any
+  // imported line-item photos were already uploaded under (po-requests-view's
+  // handleImportFilePicked generates and uploads under this before opening
+  // the dialog) — becomes this session's draftToken/scopeId so newly-picked
+  // photos land in the same Storage folder as the imported ones.
+  initialDraftToken?: string | null;
 };
 
 export function CreateRequisitionDialog({
@@ -55,6 +86,7 @@ export function CreateRequisitionDialog({
   onSaved,
   requisition = null,
   initialImportValues = null,
+  initialDraftToken = null,
 }: CreateRequisitionDialogProps) {
   const mode: "create" | "edit" | "readOnly" = !requisition
     ? "create"
@@ -67,26 +99,7 @@ export function CreateRequisitionDialog({
 
   const defaultValues = useMemo<CreateRequisitionFormValues>(() => {
     if (!requisition) {
-      const blank: CreateRequisitionFormValues = {
-        priority: "",
-        dropdowns: Object.fromEntries(dropdownFields.map((field) => [field.key, ""])),
-        requestedBy: "",
-        requiredPort: "",
-        requisitionNumber: "",
-        requisitionDate: "",
-        title: "",
-        remarks: "",
-        equipmentName: "",
-        equipmentType: "",
-        equipmentMake: "",
-        equipmentSerialNo: "",
-        equipmentModel: "",
-        equipmentSpecifications: "",
-        equipmentOtherDetails: "",
-        customFields: [],
-        columns: [],
-        lineItems: [{ description: "", qty: "", extra: {}, attachments: [] }],
-      };
+      const blank = buildBlankDefaultValues(dropdownFields);
       // A shallow merge is correct here: a scalar field (priority, title, ...)
       // either comes from the import or falls back to blank, and an array/
       // record field the parser did include (dropdowns, columns, lineItems)
@@ -115,6 +128,8 @@ export function CreateRequisitionDialog({
       equipmentModel: requisition.equipmentModel ?? "",
       equipmentSpecifications: requisition.equipmentSpecifications ?? "",
       equipmentOtherDetails: requisition.equipmentOtherDetails ?? "",
+      requisitionedBy: requisition.requisitionedBy ?? "",
+      captainChiefEngineer: requisition.captainChiefEngineer ?? "",
       customFields: requisition.customFields,
       columns: requisition.columns,
       // Backfill every line item's extra with every known column key so
@@ -186,6 +201,30 @@ export function CreateRequisitionDialog({
   // why a DB row can't exist until Submit).
   const sessionUploadedPathsRef = useRef<Set<string>>(new Set());
 
+  // react-hook-form's `defaultValues` is only consumed once, at this hook's
+  // first construction — a later change to the prop value passed into
+  // useForm(...) is otherwise silently ignored (confirmed against
+  // react-hook-form's own source). Since po-requests-view.tsx mounts this
+  // dialog once and keeps it mounted across repeated open/close cycles (see
+  // draftToken's comment above), a freshly-imported file's parsed values
+  // would never actually reach the already-mounted form without this
+  // explicit reset. Any photos the import already uploaded (under
+  // initialDraftToken, before this dialog opened) are tracked here too, so
+  // close()'s orphan cleanup covers them on a plain Cancel exactly like a
+  // manually-uploaded photo.
+  useEffect(() => {
+    if (!initialImportValues) return;
+    initialImportValues.lineItems
+      ?.flatMap((item) => item.attachments?.map((attachment) => attachment.storagePath) ?? [])
+      .forEach((path) => sessionUploadedPathsRef.current.add(path));
+    if (initialDraftToken) setDraftToken(initialDraftToken);
+    reset(defaultValues);
+    // Intentionally re-runs only when a new import lands, not on every
+    // defaultValues recompute (e.g. dropdownFields changing) — that would
+    // otherwise also reset the form and discard in-progress edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialImportValues]);
+
   // The requisition's already-saved attachment paths as loaded (edit mode
   // only — empty in create mode). update_purchase_requisition drops every
   // existing attachment row and reinserts only what's in the submit payload
@@ -227,7 +266,12 @@ export function CreateRequisitionDialog({
     }
     sessionUploadedPathsRef.current = new Set();
     onClose();
-    reset(defaultValues);
+    // In create mode, reset to a genuinely blank form rather than
+    // `defaultValues` — this instance persists across repeated open/close
+    // cycles (see draftToken's comment above), so resetting to `defaultValues`
+    // here would silently re-show an import's just-cancelled values the next
+    // time the user opens a plain "Create Requisition".
+    reset(requisition ? defaultValues : buildBlankDefaultValues(dropdownFields));
     setDraftToken(crypto.randomUUID());
   }
 
@@ -270,7 +314,7 @@ export function CreateRequisitionDialog({
       open={open}
       onClose={() => close()}
       title={title}
-      size="lg"
+      size="xl"
       footer={
         readOnly ? (
           <div className="flex justify-end">
@@ -550,6 +594,29 @@ export function CreateRequisitionDialog({
             disabled={readOnly}
             {...register("remarks")}
           />
+        </div>
+
+        {/* The paper form's sign-off section — every category, not just
+            Stores/Spares, and always optional (see CreateRequisitionFormValues'
+            own comment on requisitionedBy/captainChiefEngineer). */}
+        <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4">
+          <div>
+            <Label htmlFor="pr-requisitioned-by">
+              {t.requisitionedBy} <span className="font-normal text-slate-lt">{t.optional}</span>
+            </Label>
+            <Input id="pr-requisitioned-by" type="text" disabled={readOnly} {...register("requisitionedBy")} />
+          </div>
+          <div>
+            <Label htmlFor="pr-captain-chief-engineer">
+              {t.captainChiefEngineer} <span className="font-normal text-slate-lt">{t.optional}</span>
+            </Label>
+            <Input
+              id="pr-captain-chief-engineer"
+              type="text"
+              disabled={readOnly}
+              {...register("captainChiefEngineer")}
+            />
+          </div>
         </div>
       </form>
 
