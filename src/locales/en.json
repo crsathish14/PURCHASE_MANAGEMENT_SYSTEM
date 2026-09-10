@@ -1,6 +1,14 @@
 {
   "common": {
-    "appName": "Purchase Management System"
+    "appName": "Purchase Management System",
+    "imagePreview": {
+      "close": "Close preview",
+      "previous": "Previous photo",
+      "next": "Next photo",
+      "remove": "Remove photo",
+      "unavailable": "Image unavailable",
+      "counter": "{index} of {total}"
+    }
   },
   "metadata": {
     "title": "Purchase Management System",
@@ -224,9 +232,346 @@
       "resetError": "Couldn't reset this person's password. Try again.",
       "resetErrors": {
         "passwordMin": "Password must be at least 8 characters"
+      }
+    },
+    "settingsSubnav": {
+      "team": "Team",
+      "vessels": "Vessel"
+    },
+    "vessels": {
+      "title": "Vessels",
+      "subtitle": "The vessels available to select when creating a purchase requisition.",
+      "breadcrumbSettings": "Settings",
+      "breadcrumbCurrent": "Vessel",
+      "addVessel": "Add vessel",
+      "columns": {
+        "name": "Name",
+        "imoNo": "IMO No"
       },
-      "subnav": {
-        "team": "Team"
+      "empty": "No vessels yet.",
+      "loadError": "Couldn't load vessels.",
+      "addFormTitle": "Add vessel",
+      "addFormDescription": "It becomes available in the Create Requisition vessel dropdown immediately.",
+      "name": "Vessel name",
+      "namePlaceholder": "e.g. MV Aster",
+      "imoNo": "IMO No",
+      "imoNoPlaceholder": "e.g. 9876543",
+      "addSubmit": "Add vessel",
+      "addSubmitting": "Adding…",
+      "addCancel": "Cancel",
+      "addSuccess": "Vessel added.",
+      "addError": "Couldn't add this vessel. Try again.",
+      "addErrors": {
+        "nameRequired": "Vessel name is required",
+        "imoNoRequired": "IMO No is required",
+        "nameInUse": "A vessel with this name already exists.",
+        "imoNoInUse": "A vessel with this IMO No already exists."
+      }
+    },
+    "poRequests": {
+      "title": "Purchase Requisition",
+      "subtitle": "Every request raised across the fleet, from draft to RFQ.",
+      "importExcel": "Import Excel",
+      "importMenu": {
+        "downloadStoreTemplate": "Download Store template",
+        "downloadSparesTemplate": "Download Spares template",
+        "downloadServiceTemplate": "Download Service template",
+        "uploadTemplate": "Upload filled template…",
+        "parsing": "Reading file…",
+        "parseError": "Couldn't read this file. Make sure it's an unmodified downloaded template.",
+        "unsupportedFileType": "Please upload the .xlsx or .xlsm template file.",
+        "importSuccess": "Imported {count} line item(s) from \"{fileName}\". Review the form below and Save when ready.",
+        "importWarningsSuffix": " Some fields need your attention — see the highlighted rows below.",
+        "uploadingPhotos": "Uploading photos… {done}/{total}"
+      },
+      "createRequisition": "Create Requisition",
+      "empty": {
+        "title": "No purchase requisitions yet",
+        "description": "Create your first requisition to start the procurement pipeline for a vessel.",
+        "action": "Create Requisition"
+      },
+      "createDialog": {
+        "title": "Create Requisition",
+        "selectPlaceholder": "Select…",
+        "priority": "Priority",
+        "priorityOptions": {
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low"
+        },
+        "requestedBy": "Required By",
+        "requiredPort": "Required Port",
+        "requiredPortPlaceholder": "e.g. Singapore",
+        "requisitionNumber": "Requisition Number",
+        "requisitionNumberPlaceholder": "e.g. REQ-2045",
+        "requisitionDate": "Requisition Date",
+        "requisitionTitle": "Title",
+        "requisitionTitlePlaceholder": "e.g. Deck consumables restock",
+        "categoryLocked": "Locked after creation",
+        "remarks": "Remarks",
+        "remarksPlaceholder": "Notes for your own record — not sent to vendors",
+        "optional": "optional",
+        "requisitionedBy": "Requisitioned By (Name/Rank)",
+        "captainChiefEngineer": "Approved By",
+        "addMoreField": "Add more",
+        "equipmentDetails": {
+          "title": "Equipment Details",
+          "nameOfEquipment": "Name of Equipment",
+          "type": "Type",
+          "make": "Make",
+          "serialNo": "Sr. No.",
+          "model": "Model",
+          "specifications": "Specifications",
+          "otherDetails": "Any Other Details"
+        },
+        "lineItemsTitle": "Line items",
+        "columns": {
+          "description": "Description",
+          "qty": "Required Qty",
+          "approvedQty": "Approved Qty",
+          "lineItemRemarks": "Remarks",
+          "photos": "Photos",
+          "partNo": "Part No./Ref. No.",
+          "impaCode": "IMPA/ISSA Code",
+          "uom": "UOM",
+          "rob": "ROB",
+          "availableOnboard": "Available Onboard (Y/N)"
+        },
+        "addItem": "Add item",
+        "addColumn": "Add column",
+        "addPhoto": "Add photo",
+        "viewPhoto": "View photo",
+        "viewPhotoStack": "View {count} photos",
+        "removePhoto": "Remove photo",
+        "retryPhoto": "Retry upload",
+        "photoUploadError": "Couldn't upload this photo. Try again.",
+        "photoTooLarge": "Photo is larger than 5 MB.",
+        "photoUnsupportedType": "Unsupported file type. Use JPG, PNG, WEBP, or HEIC.",
+        "removeLineItem": "Remove line item",
+        "removeColumn": "Remove column",
+        "removeField": "Remove field",
+        "cancel": "Cancel",
+        "submit": "Submit",
+        "submitting": "Submitting…",
+        "createSuccess": "Requisition created.",
+        "createError": "Couldn't create this requisition. Try again.",
+        "editTitle": "Edit Requisition",
+        "viewTitle": "View Requisition",
+        "saveChanges": "Save changes",
+        "savingChanges": "Saving…",
+        "updateSuccess": "Requisition updated.",
+        "updateError": "Couldn't update this requisition. Try again.",
+        "close": "Close"
+      },
+      "askLabelDialog": {
+        "fieldTitle": "Add a field",
+        "columnTitle": "Add a column",
+        "label": "Field label",
+        "labelPlaceholder": "e.g. Remarks",
+        "cancel": "Cancel",
+        "add": "Add"
+      },
+      "issueRfqDialog": {
+        "title": "Issue RFQ",
+        "description": "Generate a unique quotation link for one vendor. Nothing is emailed automatically — you'll copy and send this yourself.",
+        "vendorName": "Vendor name",
+        "vendorNamePlaceholder": "e.g. Anchor Marine Supplies",
+        "vendorEmail": "Vendor email",
+        "vendorEmailPlaceholder": "vendor@example.com",
+        "expiresAt": "Link expires on",
+        "expiresAtDateLabel": "Expiry date",
+        "expiresAtTimeLabel": "Expiry time",
+        "message": "Message",
+        "messageDefault": "Hello,\n\nPlease find below a request for quotation. Kindly review and submit your quotation using the secure link below before it expires.\n\nThank you.",
+        "cancel": "Cancel",
+        "submit": "Create Link",
+        "submitting": "Creating…",
+        "issueError": "Couldn't create this RFQ link. Try again.",
+        "issueConflictError": "RFQ links can no longer be issued for this requisition.",
+        "resultTitle": "RFQ link ready",
+        "resultDescription": "Copy the link and message below and send them to the vendor yourself.",
+        "linkLabel": "Shareable link",
+        "messageLabel": "Email message",
+        "copy": "Copy",
+        "copied": "Copied",
+        "done": "Done",
+        "errors": {
+          "vendorNameRequired": "Vendor name is required",
+          "vendorEmailRequired": "Vendor email is required",
+          "vendorEmailInvalid": "Enter a valid email address",
+          "expiresAtRequired": "Choose an expiry date and time",
+          "expiresAtPast": "Expiry cannot be in the past",
+          "messageRequired": "Enter a message for the vendor"
+        }
+      },
+      "table": {
+        "columns": {
+          "ref": "Ref",
+          "vessel": "Vessel",
+          "department": "Dept.",
+          "category": "Category",
+          "description": "Item Count",
+          "priority": "Priority",
+          "requester": "Created By",
+          "date": "Date",
+          "status": "Status"
+        },
+        "itemCountSingular": "{count} item",
+        "itemCountPlural": "{count} items",
+        "statusLabels": {
+          "pending_rfq": "Pending RFQ",
+          "rfq_issued": "RFQ Issued",
+          "quotes_received": "Quotes Recv'd",
+          "awarded": "Awarded",
+          "cancelled": "Cancelled"
+        },
+        "loadError": "Couldn't load purchase requisitions.",
+        "detailLoadError": "Couldn't load this requisition.",
+        "noResultsTitle": "No requests match your filters",
+        "noResultsDescription": "Try adjusting or clearing your search and filters.",
+        "rowMenuLabel": "Row actions",
+        "rowMenu": {
+          "cancel": "Cancel",
+          "duplicate": "Duplicate",
+          "issueRfq": "Issue RFQ",
+          "export": "Export",
+          "delete": "Delete"
+        },
+        "cancelDialog": {
+          "title": "Cancel requisition?",
+          "message": "Cancel {prNumber}? This can't be undone.",
+          "cancel": "Keep it",
+          "confirm": "Cancel requisition"
+        },
+        "cancelSuccess": "Requisition cancelled.",
+        "cancelError": "Couldn't cancel this requisition. Try again.",
+        "duplicateSuccess": "Requisition duplicated.",
+        "duplicateError": "Couldn't duplicate this requisition. Try again.",
+        "duplicateConflictError": "Only requisitions pending RFQ can be duplicated.",
+        "deleteDialog": {
+          "title": "Delete requisition?",
+          "message": "Permanently delete {prNumber}? This can't be undone and no record of it will remain.",
+          "cancel": "Keep it",
+          "confirm": "Delete requisition"
+        },
+        "deleteSuccess": "Requisition deleted.",
+        "deleteError": "Couldn't delete this requisition. Try again."
+      },
+      "toolbar": {
+        "searchPlaceholder": "Search ref, requisition no., item, requester",
+        "status": "Status",
+        "vessel": "Vessel",
+        "category": "Category",
+        "date": "Date",
+        "all": "All",
+        "any": "Any",
+        "nSelected": "{count} selected",
+        "submit": "Submit",
+        "clear": "Clear",
+        "removeFilter": "Remove {label} filter",
+        "dateOptions": {
+          "last1Month": "Last 1 month",
+          "last3Months": "Last 3 months",
+          "last6Months": "Last 6 months",
+          "custom": "Custom date",
+          "startDate": "Start date",
+          "endDate": "End date"
+        }
+      },
+      "pager": {
+        "showing": "Showing {from}–{to} of {total}",
+        "rowsPerPage": "Rows per page",
+        "previous": "Previous page",
+        "next": "Next page"
+      },
+      "errors": {
+        "fieldRequired": "This field is required.",
+        "labelRequired": "Enter a label.",
+        "pastDateNotAllowed": "Date cannot be in the past."
+      }
+    }
+  },
+  "vendorQuote": {
+    "title": "Submit Quotation",
+    "refLabel": "Purchase Requisition Ref",
+    "description": "You've been sent this link to submit your quotation for the request above. Full quotation details will be collected here in a future update — for now, click Submit to confirm.",
+    "submit": "Submit",
+    "submitting": "Submitting…",
+    "submittedTitle": "Thank you",
+    "submittedDescription": "Your submission has been recorded. The purchase officer will follow up with you directly.",
+    "submitError": "Couldn't submit. Try again.",
+    "linkInvalid": "This link is no longer valid.",
+    "invalidTitle": "This link is no longer valid",
+    "notFoundDescription": "We couldn't find this quotation link. Double check the link you were sent, or contact the purchase officer who sent it.",
+    "alreadySubmittedDescription": "A quotation has already been submitted using this link.",
+    "expiredDescription": "This link has expired. Contact the purchase officer for a new one.",
+    "storesForm": {
+      "rfqDetails": {
+        "title": "RFQ Details",
+        "vesselName": "Vessel Name",
+        "imoNo": "IMO No.",
+        "dateOfIssue": "Date of Issue",
+        "requisitionNo": "Requisition No. (PR No.)",
+        "portOfDelivery": "Port / Place of Delivery",
+        "requiredDate": "Required Date",
+        "requestedCurrency": "Requested Currency",
+        "quotationNo": "Quotation No.",
+        "quotationNoPlaceholder": "e.g. Q-2045",
+        "refNo": "Ref. No.",
+        "refNoPlaceholder": "e.g. REF-2045"
+      },
+      "vendorDetails": {
+        "title": "Vendor Details",
+        "vendorName": "Vendor / Company Name",
+        "vendorNamePlaceholder": "e.g. Anchor Marine Supplies",
+        "contactPerson": "Contact Person",
+        "contactNo": "Contact No.",
+        "email": "Email ID",
+        "otherDetails": "Other Details",
+        "optional": "optional"
+      },
+      "itemDetails": {
+        "title": "Item Details",
+        "columns": {
+          "slNo": "S.No.",
+          "requestedDescription": "Requested Item Description",
+          "impaCode": "IMPA/ISSA Code",
+          "approvedQty": "Approved Qty",
+          "uom": "UOM",
+          "photos": "Photos",
+          "offeredDescription": "Offered Item Description",
+          "offeredImpaCode": "Offered IMPA/ISSA Code",
+          "unitPrice": "Unit Price",
+          "totalPrice": "Total Price",
+          "deliveryLeadTime": "Delivery Lead Time",
+          "remarks": "Remarks"
+        },
+        "noPhotos": "No photos",
+        "viewPhoto": "View photo",
+        "viewPhotoStack": "View {count} photos",
+        "grandTotal": "Grand Total"
+      },
+      "quotationSummary": {
+        "title": "Quotation Summary & Terms",
+        "totalQuotedAmount": "Total Quoted Amount",
+        "quotationValidity": "Quotation Validity",
+        "quotationValidityPlaceholder": "e.g. 30 days from quotation date",
+        "paymentTerms": "Payment Terms",
+        "paymentTermsPlaceholder": "e.g. 30 days net",
+        "deliveryTerms": "Delivery Terms (Incoterm)",
+        "deliveryTermsPlaceholder": "e.g. FOB Singapore",
+        "remarksNotes": "Remarks / Notes"
+      },
+      "submit": "Submit Quotation",
+      "submitting": "Submitting…",
+      "errors": {
+        "vendorNameRequired": "Vendor / Company name is required",
+        "vendorEmailInvalid": "Enter a valid email address",
+        "unitPriceInvalid": "Enter a valid amount",
+        "quotationValidityRequired": "Quotation validity is required",
+        "paymentTermsRequired": "Payment terms are required",
+        "deliveryTermsRequired": "Delivery terms are required",
+        "remarksNotesRequired": "Remarks / notes are required"
       }
     }
   }

@@ -18,4 +18,15 @@ export const ROUTES = {
   VENDORS: `/${defaultLocale}/vendors`,
   VESSELS: `/${defaultLocale}/vessels`,
   REPORTS: `/${defaultLocale}/reports`,
+  QUOTE_FORM: `/${defaultLocale}/quote`,
 } as const;
+
+// This app's first dynamic-segment path — every other ROUTES entry above is
+// a flat static string, but a per-token vendor link can't be one of those.
+// Still built from ROUTES.QUOTE_FORM (never a second hardcoded "/en/quote"
+// literal), so this helper, src/proxy.ts's public-path prefix check, and
+// src/app/[lang]/quote/[token]/page.tsx's own segment all stay derived from
+// the same single source instead of three independently-typed strings.
+export function quoteFormPath(token: string): string {
+  return `${ROUTES.QUOTE_FORM}/${token}`;
+}

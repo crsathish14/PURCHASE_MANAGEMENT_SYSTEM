@@ -17,14 +17,15 @@ const TONE_CLASSES: Record<BadgeTone, string> = {
 export type BadgeProps = {
   tone: BadgeTone;
   children: ReactNode;
+  dot?: boolean;
 };
 
-export function Badge({ tone, children }: BadgeProps) {
+export function Badge({ tone, children, dot = true }: BadgeProps) {
   return (
     <span
       className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-[5px] px-2.5 py-0.5 text-[11px] font-bold ${TONE_CLASSES[tone]}`}
     >
-      <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
+      {dot ? <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" /> : null}
       {children}
     </span>
   );

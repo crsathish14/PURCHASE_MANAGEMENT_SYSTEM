@@ -1,11 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 
 import en from "@/locales/en.json";
-import { ROUTES } from "@/lib/routes";
 import type { TeamMember } from "@/lib/data/team";
+import { SettingsSubnav } from "@/components/settings/subnav";
 
 import { MemberDialog } from "./member-dialog";
 import { TeamTable } from "./team-table";
@@ -41,14 +40,7 @@ export function TeamAccessView({
       </div>
 
       <div className="grid grid-cols-1 gap-7 md:grid-cols-[184px_1fr]">
-        <nav className="flex flex-row gap-1 overflow-x-auto md:flex-col">
-          <Link
-            href={ROUTES.TEAM_ACCESS}
-            className="rounded-md border border-line bg-paper px-3 py-2 text-[13px] font-bold whitespace-nowrap text-ink shadow-(--shadow-e1)"
-          >
-            {t.subnav.team}
-          </Link>
-        </nav>
+        <SettingsSubnav active="team" />
 
         <div className="overflow-hidden rounded-xl border border-line bg-paper shadow-(--shadow-e1)">
           <TeamTable members={members} setMembers={setMembers} currentUserId={currentUserId} />

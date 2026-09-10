@@ -6,12 +6,13 @@ import type { InputHTMLAttributes, ReactNode } from "react";
 export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   error?: string;
   endAdornment?: ReactNode;
+  startAdornment?: ReactNode;
 };
 
-export function Input({ error, endAdornment, className = "", ...props }: InputProps) {
+export function Input({ error, endAdornment, startAdornment, className = "", ...props }: InputProps) {
   return (
     <div>
-      <div className={endAdornment ? "relative" : undefined}>
+      <div className={endAdornment || startAdornment ? "relative" : undefined}>
         <input
           aria-invalid={!!error}
           className={[
@@ -19,10 +20,14 @@ export function Input({ error, endAdornment, className = "", ...props }: InputPr
             "focus:border-harbor focus:outline-none",
             error ? "border-rust" : "border-line",
             endAdornment ? "pr-14" : "",
+            startAdornment ? "pl-8" : "",
             className,
           ].join(" ")}
           {...props}
         />
+        {startAdornment ? (
+          <div className="absolute top-1/2 left-2.5 -translate-y-1/2 text-slate-lt">{startAdornment}</div>
+        ) : null}
         {endAdornment ? (
           <div className="absolute top-1/2 right-2 -translate-y-1/2">{endAdornment}</div>
         ) : null}

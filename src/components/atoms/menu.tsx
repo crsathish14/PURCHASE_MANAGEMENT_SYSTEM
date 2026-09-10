@@ -3,10 +3,12 @@
 import {
   cloneElement,
   isValidElement,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
   type ReactElement,
   type ReactNode,
 } from "react";
@@ -31,14 +33,44 @@ const PANEL_WIDTH_PX = 192;
 // (disabled buttons apply `pointer-events: none`, which would otherwise let
 // the click fall through to a wrapping element's own handler).
 export type MenuProps = {
-  trigger: ReactElement<{ onClick?: () => void }>;
+  trigger: ReactElement<{ onClick?: (event: ReactMouseEvent<HTMLElement>) => void }>;
   children: ReactNode;
   align?: "left" | "right";
   className?: string;
+  // false for a multi-select checklist panel (filter dropdowns), where a
+  // single click should toggle one checkbox without dismissing the rest of
+  // the selection. Defaults true so every existing one-shot-action consumer
+  // (topbar avatar menu, PR row kebab menu) keeps today's close-on-click.
+  closeOnContentClick?: boolean;
+  // Controlled open state — for a consumer that needs to close the panel on
+  // its own schedule (e.g. the date filter: immediately after picking a
+  // preset, but only after both custom-range fields are filled), which
+  // `closeOnContentClick`'s single all-or-nothing flag can't express. Omit
+  // both to keep the existing fully-uncontrolled behavior.
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
-export function Menu({ trigger, children, align = "right", className = "" }: MenuProps) {
-  const [open, setOpen] = useState(false);
+export function Menu({
+  trigger,
+  children,
+  align = "right",
+  className = "",
+  closeOnContentClick = true,
+  open: controlledOpen,
+  onOpenChange,
+}: MenuProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = useCallback(
+    (next: boolean | ((prev: boolean) => boolean)) => {
+      const value = typeof next === "function" ? next(open) : next;
+      if (!isControlled) setInternalOpen(value);
+      onOpenChange?.(value);
+    },
+    [isControlled, open, onOpenChange],
+  );
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   const anchorRef = useRef<HTMLSpanElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -66,12 +98,19 @@ export function Menu({ trigger, children, align = "right", className = "" }: Men
     }
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [open]);
+  }, [open, setOpen]);
 
   const triggerElement = isValidElement(trigger)
     ? cloneElement(trigger, {
-        onClick: () => {
-          trigger.props.onClick?.();
+        // Forward the native event to the consumer's own onClick (not just
+        // invoke it) — a consumer nesting <Menu> inside another clickable
+        // element (a row kebab menu inside a clickable <tr>) needs the real
+        // event to call stopPropagation() on. Calling it with no argument
+        // silently breaks that: the consumer's handler throws trying to read
+        // a property off `undefined`, which stops setOpen() from running
+        // below without actually stopping the event's bubble.
+        onClick: (event: ReactMouseEvent<HTMLElement>) => {
+          trigger.props.onClick?.(event);
           setOpen((value) => !value);
         },
       })
@@ -89,7 +128,17 @@ export function Menu({ trigger, children, align = "right", className = "" }: Men
               ref={panelRef}
               style={{ position: "absolute", top: position.top, left: position.left }}
               className="z-20 w-48 rounded-md border border-line bg-paper py-1.5 shadow-(--shadow-e2)"
-              onClick={() => setOpen(false)}
+              onClick={(event) => {
+                // Stop here, not just close the menu: this panel is portaled
+                // into document.body, but React bubbles synthetic events
+                // through the *React* tree, not the DOM tree — since a
+                // consumer can (and does, for row action menus) nest <Menu>
+                // inside another element with its own onClick (e.g. a
+                // clickable <tr>), an un-stopped click would also fire that
+                // ancestor's handler right after the menu item's own.
+                event.stopPropagation();
+                if (closeOnContentClick) setOpen(false);
+              }}
             >
               {children}
             </div>,
@@ -104,15 +153,23 @@ export type MenuItemProps = {
   children: ReactNode;
   onClick?: () => void;
   tone?: "default" | "danger";
+  disabled?: boolean;
   className?: string;
 };
 
-export function MenuItem({ children, onClick, tone = "default", className = "" }: MenuItemProps) {
+export function MenuItem({
+  children,
+  onClick,
+  tone = "default",
+  disabled = false,
+  className = "",
+}: MenuItemProps) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`block w-full px-3.5 py-2 text-left text-[13px] hover:bg-mist ${
+      disabled={disabled}
+      className={`block w-full px-3.5 py-2 text-left text-[13px] hover:bg-mist disabled:pointer-events-none disabled:opacity-40 ${
         tone === "danger" ? "text-rust" : "text-ink"
       } ${className}`}
     >
