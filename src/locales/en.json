@@ -388,6 +388,7 @@
         "submitting": "Creating…",
         "issueError": "Couldn't create this RFQ link. Try again.",
         "issueConflictError": "RFQ links can no longer be issued for this requisition.",
+        "issueDuplicateVendorError": "An RFQ has already been issued to this vendor for this requisition. Use Reissue from the Requested Quote page to resend it.",
         "resultTitle": "RFQ link ready",
         "resultDescription": "Copy the link and message below and send them to the vendor yourself.",
         "linkLabel": "Shareable link",
@@ -498,14 +499,51 @@
         "description": "Issue an RFQ from a purchase requisition and it will appear here once at least one vendor has been invited.",
         "action": "Go to Purchase Requisitions"
       },
+      "linksDialog": {
+        "title": "RFQ vendors — {prNumber}",
+        "columns": {
+          "select": "Select",
+          "vendor": "Vendor",
+          "issued": "Issued",
+          "received": "Received",
+          "status": "Status",
+          "actions": ""
+        },
+        "compareQuote": "Compare Quote",
+        "statusLabels": {
+          "pending": "Pending",
+          "quote_received": "Quote Received",
+          "expired": "Expired"
+        },
+        "copyLink": "Copy",
+        "copied": "Copied",
+        "reissue": "Reissue",
+        "loadError": "Couldn't load RFQ links.",
+        "empty": "No vendors invited yet.",
+        "close": "Close",
+        "reissueDialog": {
+          "title": "Reissue RFQ",
+          "description": "Expires the current link for this vendor and generates a new one. Nothing is emailed automatically — copy and send it yourself.",
+          "submit": "Reissue",
+          "submitting": "Reissuing…",
+          "reissueError": "Couldn't reissue this RFQ link. Try again.",
+          "reissueConflictError": "This RFQ link can no longer be reissued.",
+          "resultTitle": "New RFQ link ready"
+        },
+        "reissueWarningDialog": {
+          "title": "Reissue this vendor?",
+          "message": "{vendorName} already submitted a quote. Reissuing deletes that quote and sends them a new link to submit a fresh one. This can't be undone.",
+          "cancel": "Keep existing quote",
+          "confirm": "Reissue anyway"
+        }
+      },
       "table": {
         "columns": {
           "ref": "PR Ref",
           "vessel": "Vessel",
           "quotes": "Quotes",
           "status": "Status",
-          "firstIssuedDate": "First Quote Issued Date",
-          "compareQuote": "Compare Quote"
+          "firstIssuedDate": "First Quote Issued Date"
         },
         "quotesOfTotalSuffix": " of {total}",
         "statusLabels": {

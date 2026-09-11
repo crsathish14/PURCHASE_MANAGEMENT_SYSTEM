@@ -3,14 +3,15 @@
 import { useRef, useState } from "react";
 
 import { Button } from "@/components/atoms";
-import { CreateRequisitionDialog } from "@/components/purchase-requisition/create-requisition-dialog";
 import en from "@/locales/en.json";
 import { REQUESTED_QUOTE_STATUS } from "@/lib/constants/requested-quote";
 import type { DatePreset } from "@/lib/constants/purchase-requisition";
-import type { PrDetail, PrDropdownField } from "@/lib/data/purchase-requisition";
+import type { PrDropdownField } from "@/lib/data/purchase-requisition";
 import type { RequestedQuoteListRow } from "@/lib/data/requested-quotes";
+import type { RfqLinkRow } from "@/lib/data/rfq-links";
 import { toast } from "@/store/toast-store";
 import { RfqEmptyState } from "./rfq-empty-state";
+import { RfqLinksDialog } from "./rfq-links-dialog";
 import { RfqPager } from "./rfq-pager";
 import { RfqTable } from "./rfq-table";
 import { RfqToolbar } from "./rfq-toolbar";
@@ -46,12 +47,16 @@ type ListParams = {
 // shape and fetch/staged-filter/pagination behavior (see that file for the
 // full rationale on each piece), minus everything this page doesn't have —
 // no create/import/cancel/delete/duplicate/issue-RFQ dialogs, no header CTA.
-// Row click reuses the exact same fetch-by-id -> open CreateRequisitionDialog
-// pattern; that dialog always opens read-only here since every reachable row
-// has a status other than pending_rfq (see create-requisition-dialog.tsx's
-// own mode logic).
+// Row click opens RfqLinksDialog (the RFQ vendor management dialog) instead
+// of the PR detail dialog Purchase Request uses — this page's whole purpose
+// is tracking RFQ/quote progress, which the PR detail view doesn't show.
+// Same fetch-by-id-then-open pattern as CreateRequisitionDialog: the parent
+// fetches the vendor/link list BEFORE the dialog opens (row shows the same
+// detailLoadingId cursor meanwhile), so RfqLinksDialog itself stays purely
+// presentational with no data-fetching of its own.
 export function RequestedQuoteView({ initialDropdownFields, initialRows, initialTotal }: RequestedQuoteViewProps) {
-  const [editingRequisition, setEditingRequisition] = useState<PrDetail | null>(null);
+  const [selectedRow, setSelectedRow] = useState<RequestedQuoteListRow | null>(null);
+  const [selectedLinks, setSelectedLinks] = useState<RfqLinkRow[]>([]);
   const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
 
   const [rows, setRows] = useState(initialRows);
@@ -136,23 +141,36 @@ export function RequestedQuoteView({ initialDropdownFields, initialRows, initial
     }
   }
 
-  async function handleRowSelect(row: RequestedQuoteListRow) {
-    setDetailLoadingId(row.id);
+  async function fetchLinksForRow(id: string): Promise<RfqLinkRow[] | null> {
     try {
-      const response = await fetch(`/api/purchase-requisitions/${row.id}`);
+      const response = await fetch(`/api/purchase-requisitions/${id}/rfq-links`);
       const payload = await response.json();
-
       if (!response.ok) {
         toast.error(payload?.error?.message ?? t.table.detailLoadError);
-        return;
+        return null;
       }
-
-      setEditingRequisition(payload.data);
+      return payload.data;
     } catch {
       toast.error(t.table.detailLoadError);
-    } finally {
-      setDetailLoadingId(null);
+      return null;
     }
+  }
+
+  async function handleRowSelect(row: RequestedQuoteListRow) {
+    setDetailLoadingId(row.id);
+    const links = await fetchLinksForRow(row.id);
+    setDetailLoadingId(null);
+    if (links === null) return;
+    setSelectedLinks(links);
+    setSelectedRow(row);
+  }
+
+  // Refreshes the already-open dialog's own list after a reissue — no row
+  // loading cursor, no dialog open/close toggling, just an in-place update.
+  async function handleLinksReissued() {
+    if (!selectedRow) return;
+    const links = await fetchLinksForRow(selectedRow.id);
+    if (links !== null) setSelectedLinks(links);
   }
 
   function handleSearchSettled(search: string) {
@@ -256,17 +274,14 @@ export function RequestedQuoteView({ initialDropdownFields, initialRows, initial
         </div>
       )}
 
-      <CreateRequisitionDialog
-        key={editingRequisition?.id ?? "closed"}
-        open={editingRequisition !== null}
-        onClose={() => setEditingRequisition(null)}
-        dropdownFields={initialDropdownFields}
-        // Every row reachable here has a status other than pending_rfq, so
-        // CreateRequisitionDialog always opens in its readOnly mode and this
-        // can never actually fire — wired anyway as a harmless, defensive
-        // no-cost safety net, not dead code.
-        onSaved={() => fetchList({ page, pageSize, ...appliedParams })}
-        requisition={editingRequisition}
+      <RfqLinksDialog
+        key={selectedRow?.id ?? "closed"}
+        open={selectedRow !== null}
+        onClose={() => setSelectedRow(null)}
+        requisitionId={selectedRow?.id ?? ""}
+        prNumber={selectedRow?.prNumber ?? ""}
+        links={selectedLinks}
+        onReissued={handleLinksReissued}
       />
     </div>
   );

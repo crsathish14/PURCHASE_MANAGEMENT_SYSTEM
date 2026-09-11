@@ -682,6 +682,16 @@ export type Database = {
         };
         Returns: { id: string; access_token: string }[];
       };
+      reissue_rfq_link: {
+        Args: {
+          p_link_id: string;
+          p_vendor_name: string;
+          p_vendor_email: string;
+          p_expires_at: string;
+          p_message: string;
+        };
+        Returns: { id: string; access_token: string }[];
+      };
       get_rfq_link_by_token: {
         Args: { p_token: string };
         Returns: {

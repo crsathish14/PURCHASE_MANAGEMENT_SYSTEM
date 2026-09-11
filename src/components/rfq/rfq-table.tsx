@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge, Button, QuoteProgress, type BadgeTone } from "@/components/atoms";
+import { Badge, QuoteProgress, type BadgeTone } from "@/components/atoms";
 import en from "@/locales/en.json";
 import { REQUESTED_QUOTE_STATUS, type RequestedQuoteStatus } from "@/lib/constants/requested-quote";
 import type { RequestedQuoteListRow } from "@/lib/data/requested-quotes";
@@ -32,7 +32,6 @@ export function RfqTable({ rows, onRowSelect, detailLoadingId }: RfqTableProps) 
             <th className="px-4 py-3">{t.table.columns.quotes}</th>
             <th className="px-4 py-3">{t.table.columns.status}</th>
             <th className="px-4 py-3">{t.table.columns.firstIssuedDate}</th>
-            <th className="px-4 py-3">{t.table.columns.compareQuote}</th>
           </tr>
         </thead>
         <tbody>
@@ -67,13 +66,6 @@ export function RfqTable({ rows, onRowSelect, detailLoadingId }: RfqTableProps) 
                 <Badge tone={STATUS_TONE[row.derivedStatus]}>{t.table.statusLabels[row.derivedStatus]}</Badge>
               </td>
               <td className="px-4 py-3 font-mono text-slate">{dateFormatter.format(new Date(row.firstIssuedAt))}</td>
-              <td className="px-4 py-3">
-                {row.quoteCount === 0 ? null : (
-                  <Button variant="secondary" size="sm" disabled>
-                    {t.table.columns.compareQuote}
-                  </Button>
-                )}
-              </td>
             </tr>
           ))}
         </tbody>

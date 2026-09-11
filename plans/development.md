@@ -425,12 +425,12 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
   (`requested-quote-view.tsx`, `rfq-table.tsx`, `rfq-toolbar.tsx`, `rfq-pager.tsx`,
   `rfq-empty-state.tsx`, `date-range-filter.tsx`) — a trimmed clone of the Purchase Request list
   page's own structure (same staged/applied filter split, same `requestIdRef` stale-response guard,
-  same retry-at-page-1-on-overrun). Row click reuses `CreateRequisitionDialog` unmodified: every row
-  reachable here has a PR status other than `pending_rfq`, so the dialog's existing `mode` logic
-  (`create-requisition-dialog.tsx`) always opens it read-only, needing no new prop or mode.
-  `FilterMultiselect` is imported directly from `purchase-requisition/` rather than cloned — unlike
-  `date-range-filter.tsx`, it has no copy baked in (fully prop-driven), so duplicating it would only
-  add drift risk for no benefit.
+  same retry-at-page-1-on-overrun). `FilterMultiselect` is imported directly from
+  `purchase-requisition/` rather than cloned — unlike `date-range-filter.tsx`, it has no copy baked
+  in (fully prop-driven), so duplicating it would only add drift risk for no benefit. Row click
+  originally reused `CreateRequisitionDialog` (the read-only PR detail view); this was replaced by
+  the RFQ vendor management dialog described below, since a PR's own fields aren't what this page's
+  users need to see when they click through — see that bullet.
 - **New atom**, `QuoteProgress` (`src/components/atoms/quote-progress.tsx`) — the
   "`{received} of {total}`" fraction + progress bar (track `bg-line`, fill `bg-teal` while partial →
   `bg-moss` at 100%), replicating the design doc's `.frac` component (`Design-docs/app/rfq-list.html`).
@@ -440,6 +440,116 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
   Quote" — relabeled to "Requested Quote" (`staff.nav.rfq`, `staff.requestedQuote.title` in
   `en.json`) per product decision; the static design mock's own on-page strings were left as-is (a
   reference file, not live copy).
+- **RFQ vendor management dialog** (`src/components/rfq/rfq-links-dialog.tsx`) — what a row click
+  actually opens now: every vendor ever invited to that PR's RFQ, with issue/received dates, their
+  shareable link (copy-to-clipboard), a per-vendor-link status, and a **Reissue** action. This is a
+  genuinely different 3-state concept from the page's own `REQUESTED_QUOTE_STATUS` (a per-PR
+  aggregate) — kept in its own constant, `RFQ_LINK_STATUS`
+  (`src/lib/constants/rfq-link.ts`: `PENDING` / `QUOTE_RECEIVED` / `EXPIRED`), derived from
+  `submitted_at`/`expires_at` in `src/lib/data/rfq-links.ts`'s `getRfqLinksForRequisition` (two flat
+  queries joined in JS — `purchase_requisition_rfq_quotations` already denormalizes `requisition_id`
+  for exactly this, so no nested-embed/PostgREST-shape guesswork is needed, same reasoning
+  `getPurchaseRequisitionById` already documents for its own attachments query). Follows the exact
+  fetch-by-id-then-open pattern `CreateRequisitionDialog` itself used to use (parent fetches via a new
+  `GET` on `api/purchase-requisitions/[id]/rfq-links` before the dialog opens, row shows the same
+  `detailLoadingId` cursor meanwhile) — the dialog component itself is purely presentational, no
+  fetching of its own. This split isn't just style: an internal `useEffect(() => { fetchLinks() }, [])`
+  was tried first and hit this repo's `react-hooks/set-state-in-effect` lint rule as a hard error, not
+  a warning — fetch-on-mount-via-effect has no precedent anywhere else in this codebase, and the
+  fetch-before-open pattern already established for `CreateRequisitionDialog` sidesteps the rule
+  entirely by triggering the fetch from an event handler instead.
+- **Reissue** (`reissue_rfq_link`, `20260911040000_reissue_rfq_link_rpc.sql`, corrected by
+  `20260911050000_fix_reissue_rfq_link_ambiguous_id.sql`) — one atomic RPC, not two separate
+  actions: expires the vendor's current link (`expires_at = now()`, only ever moving it earlier) and
+  inserts a fresh one for the same vendor, in one transaction, mirroring `issue_rfq_link`'s own guard
+  style. Refuses to reissue a link that already has a submitted quote (`55000`) — that's not a stale
+  invite, it already did its job. No distinction between "expired naturally" and "expired because an
+  officer reissued it" — both are just `expires_at < now()`, no new column. **Gotcha hit and fixed
+  during manual verification**: `returns table (id uuid, access_token text)` implicitly declares `id`
+  as a PL/pgSQL variable visible through the whole function body, so an unqualified
+  `where id = p_link_id` in the expire-step UPDATE was ambiguous (`42702`) against
+  `purchase_requisition_rfq_links.id` — exactly the pitfall `issue_rfq_link`'s own status-flip UPDATE
+  already fully-qualifies its columns to avoid. Any new RPC whose `RETURNS TABLE` column names
+  overlap with a table it writes to needs the same qualification.
+- **`pr_rfq_progress` counts distinct vendors, not raw link rows** (fixed by
+  `20260911030000_pr_rfq_progress_distinct_vendors.sql`, `create or replace view`, column
+  names/types unchanged so nothing downstream needed to change) — necessary once reissue can create a
+  second link row for the same vendor, or "X of Y" would inflate by one on every reissue. Grouping is
+  by `vendor_email` (not `vendor_name`, which can vary run to run for the same real vendor — confirmed
+  against live data where this had already silently happened before this fix: one PR's `vendor_count`
+  dropped from 9 raw link rows to 2 real distinct vendors once corrected). `first_issued_at` stays
+  correct across a reissue for a subtler reason: expiring a link only changes `expires_at`, never
+  `created_at`, so `min(created_at)` across a vendor's old-and-new links is still the true first-ever
+  invite date. A reissue changes none of `pr_rfq_progress`'s output for its PR — same `vendor_email`
+  still counted once, `quote_count`/`derived_status` unaffected, `first_issued_at` unmoved — so
+  `requested-quote-view.tsx` deliberately never refetches the main list after one; only the vendor
+  dialog's own list refetches, via an explicit `onReissued` callback (not another effect).
+- **`issue_rfq_link` rejects a duplicate vendor email on the same requisition**
+  (`20260911060000_restrict_duplicate_rfq_vendor_email.sql`, a new `55001` errcode distinct from the
+  existing `55000` "wrong requisition status" conflict, mapped to its own message in
+  `rfq-links/route.ts`) — found live: an officer using the plain Issue RFQ form (not Reissue) to
+  invite what they intended as a second vendor, but reusing the same email, silently created a second
+  link that `pr_rfq_progress`'s distinct-vendor counting then correctly collapsed into "still 1
+  vendor" — confusing, since nothing on screen explained why the fraction hadn't moved. This blocks
+  that state from occurring at all rather than only explaining it after the fact: once an email has
+  any link on a requisition, a further plain Issue RFQ to that same email is rejected — Reissue is the
+  one remaining path for "invite this vendor again," and it isn't affected by this new check since
+  `reissue_rfq_link` is a fully separate function body, not a wrapper around `issue_rfq_link`. Compared
+  case-sensitively, deliberately consistent with `pr_rfq_progress`'s own `vendor_email` grouping
+  (neither normalizes case) rather than fixing it in only one of the two places that key off this
+  column.
+- **Reissue hard-deletes the old link** (`20260912010000_reissue_deletes_old_link.sql`) — was
+  `update ... set expires_at = now()`, now `delete`. "Expired" is reserved for a link that genuinely
+  ran out its own clock with no officer intervention; a reissued-away link isn't that, and showing it
+  as "Expired" alongside links that actually timed out was misleading. Safe to hard-delete because the
+  function's own guard already confirms `submitted_at is null` before reaching this point — no
+  `purchase_requisition_rfq_quotations` row ever references the deleted id. **Known, accepted
+  side effect**: `pr_rfq_progress.first_issued_at` is `min(created_at)` over whatever rows currently
+  exist, so if the reissued link happened to be the PR's chronologically-first invite, that column can
+  advance forward once the old row is gone, rather than continuing to reflect the true original issue
+  moment — accepted in favor of never mislabeling a reissued link as "Expired." The vendor list
+  dialog's Copy action is also now hidden (not just inert) once a link's status is `QUOTE_RECEIVED` or
+  `EXPIRED` — copying a link nobody can use anymore isn't a real action, and hiding it keeps the row's
+  remaining state (a Badge and, only if still resendable, a disabled/enabled Reissue button) the whole
+  story instead of a stray button that does something pointless.
+- **Compare Quote moved from the main table into the vendor list dialog, as a selection, not a
+  per-row action.** The list page's own `compareQuote` column (a permanently-disabled placeholder
+  button, `rfq-table.tsx`) is removed outright — comparing quotes is a cross-vendor action, so it
+  never belonged on a single PR row to begin with. `rfq-links-dialog.tsx` now has a leading checkbox
+  column, enabled only when a row's status is `QUOTE_RECEIVED` (there's nothing to compare for a
+  `PENDING` or `EXPIRED` link) and capped at 3 selections at once (`MAX_COMPARE_SELECTION`) — once 3
+  are checked, every other eligible checkbox disables until one is unchecked. A **Compare Quote**
+  button sits in the dialog footer beside Close, disabled until at least one row is selected. Its
+  `onClick` is intentionally a no-op for now (`handleCompare`, a stub) — the actual comparison screen
+  is a future feature; this just gets the selection UX and its enablement rules in place ahead of it.
+  Selection state (`selectedIds`) lives in the dialog and needs no manual reset logic: the dialog is
+  already remounted per PR via `requested-quote-view.tsx`'s `key={selectedRow?.id ?? "closed"}` (see
+  above), so a fresh open always starts with nothing selected.
+- **Reissue CTA visibility now mirrors Copy's, inverted** — shown only for `EXPIRED` and
+  `QUOTE_RECEIVED` links, never `PENDING`. A still-pending link already has a working Copy button for
+  resending the exact same invite, so a second, different action to generate a brand-new link for it
+  had no real use case; Reissue is reserved for the two states where Copy is hidden because the
+  existing link genuinely can't be reused (`rfq-links-dialog.tsx`'s `row.status !== RFQ_LINK_STATUS.PENDING`
+  guard on the button, replacing the old always-rendered-but-disabled-for-`QUOTE_RECEIVED` version).
+- **Reissuing a `QUOTE_RECEIVED` link is now allowed, gated by a confirmation warning instead of a
+  hard backend block.** Product decision, reversing the original design: an officer can need a revised
+  quote from a vendor who already responded (pricing changed, items added, etc.), and Reissue is the
+  supported path for that. `reissue_rfq_link` (`20260912020000_allow_reissue_after_quote_received.sql`)
+  drops the `v_old_submitted_at is not null` guard entirely — the RPC no longer distinguishes a
+  never-submitted link from a submitted one, it just deletes-and-reissues either way, same as it
+  already did for `PENDING`/`EXPIRED`. Because that delete cascades
+  (`purchase_requisition_rfq_quotations.rfq_link_id ... on delete cascade`, `20260830010000`), reissuing
+  a `QUOTE_RECEIVED` link permanently destroys the vendor's already-submitted quotation and every one of
+  its quotation_items — accepted as the intended effect (the officer is asking for a fresh quote to
+  replace the old one, not to keep both; keeping both would also leave `pr_rfq_progress`'s distinct-vendor
+  `quote_count` wrongly still counting this vendor as "quoted" against their new, unsubmitted link). This
+  is exactly the kind of one-way data loss that needs an explicit "are you sure" step before it happens,
+  not a hard block — so the gate moved from the database to the client: `rfq-links-dialog.tsx` now opens
+  `ReissueWarningDialog` (new, `reissue-warning-dialog.tsx`, following the same small
+  confirm/cancel-`Dialog` shape as `purchase-requisition/cancel-pr-dialog.tsx`) when Reissue is clicked
+  on a `QUOTE_RECEIVED` row; only confirming it opens the normal `ReissueRfqDialog` form. Clicking
+  Reissue on an `EXPIRED` row skips the warning and opens `ReissueRfqDialog` directly, same as before —
+  there's no existing quote to lose there.
 
 ## 19. Keeping this file current
 
