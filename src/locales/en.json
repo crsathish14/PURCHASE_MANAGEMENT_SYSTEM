@@ -127,7 +127,7 @@
       "dashboard": "Dashboard",
       "pipeline": "Pipeline",
       "poRequests": "Purchase Requisition",
-      "rfq": "Request for Quote",
+      "rfq": "Requested Quote",
       "purchaseOrders": "Purchase Orders",
       "invoiceLog": "Invoice Log",
       "deliveryNotes": "Delivery Notes",
@@ -488,6 +488,62 @@
         "fieldRequired": "This field is required.",
         "labelRequired": "Enter a label.",
         "pastDateNotAllowed": "Date cannot be in the past."
+      }
+    },
+    "requestedQuote": {
+      "title": "Requested Quote",
+      "subtitle": "Every RFQ issued, from send to compare, with vendor quote progress at a glance.",
+      "empty": {
+        "title": "No requested quotes yet",
+        "description": "Issue an RFQ from a purchase requisition and it will appear here once at least one vendor has been invited.",
+        "action": "Go to Purchase Requisitions"
+      },
+      "table": {
+        "columns": {
+          "ref": "PR Ref",
+          "vessel": "Vessel",
+          "quotes": "Quotes",
+          "status": "Status",
+          "firstIssuedDate": "First Quote Issued Date",
+          "compareQuote": "Compare Quote"
+        },
+        "quotesOfTotalSuffix": " of {total}",
+        "statusLabels": {
+          "rfq_issued_status": "RFQ Issued",
+          "partial_received": "Partial Received",
+          "all_received": "All Quotes Received"
+        },
+        "loadError": "Couldn't load requested quotes.",
+        "detailLoadError": "Couldn't load this requisition.",
+        "noResultsTitle": "No requested quotes match your filters",
+        "noResultsDescription": "Try adjusting or clearing your search and filters."
+      },
+      "toolbar": {
+        "searchPlaceholder": "Search PR ref or requisition no.",
+        "status": "Status",
+        "vessel": "Vessel",
+        "category": "Category",
+        "date": "Date",
+        "all": "All",
+        "any": "Any",
+        "nSelected": "{count} selected",
+        "submit": "Submit",
+        "clear": "Clear",
+        "removeFilter": "Remove {label} filter",
+        "dateOptions": {
+          "last1Month": "Last 1 month",
+          "last3Months": "Last 3 months",
+          "last6Months": "Last 6 months",
+          "custom": "Custom date",
+          "startDate": "Start date",
+          "endDate": "End date"
+        }
+      },
+      "pager": {
+        "showing": "Showing {from}–{to} of {total}",
+        "rowsPerPage": "Rows per page",
+        "previous": "Previous page",
+        "next": "Next page"
       }
     }
   },

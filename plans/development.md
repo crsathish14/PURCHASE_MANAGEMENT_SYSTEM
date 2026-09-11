@@ -387,7 +387,61 @@ this feature — everything below is additive, sitting alongside it.
   recomputing after the first render. `stores-quote-form.tsx`'s row-total/grand-total calculation
   is deliberately a plain (unmemoized) computation for exactly this reason.
 
-## 18. Keeping this file current
+## 18. Requested Quote page (RFQ progress tracking)
+
+A staff-facing list of PRs that have had an RFQ issued to at least one vendor, showing per-PR quote
+progress (`{received} of {total}`) and a derived 3-state status. Lives at the pre-existing
+`ROUTES.RFQ_LIST` (`/en/rfq-list`) slot, which already had a nav entry and route constant reserved
+for it — only the route itself was unbuilt until now. Sits alongside §17's vendor RFQ/quote-submission
+plumbing rather than duplicating it — this page is a read-only aggregation over
+`purchase_requisition_rfq_links`/`purchase_requisition_rfq_quotations`, with no new write path.
+
+- **New view**, `pr_rfq_progress` (`20260911010000_pr_rfq_progress_view.sql`) — one row per
+  requisition with ≥1 issued RFQ link (grouped `from purchase_requisition_rfq_links`, not left-joined
+  off `purchase_requisitions`, so a PR with zero links structurally produces no row here), with
+  `vendor_count`, `quote_count`, `first_issued_at` (`min(created_at)` across that PR's links), and a
+  precomputed `derived_status`. Carries no RLS/GRANT of its own, same as `pr_requisition_list` —
+  access flows from the querying role's existing `select to authenticated using (true)` policies on
+  the two underlying tables.
+- **New RPC**, `search_requested_quotes` (`20260911020000_search_requested_quotes_rpc.sql`) — the
+  list page's equivalent of `search_purchase_requisitions`: same search/filter/pagination/
+  `count(*) over()` shape, joined to `pr_rfq_progress` (which is what enforces "≥1 RFQ issued," not a
+  `where` clause) and always excluding `status = 'cancelled'` (a PR that was cancelled after RFQs went
+  out never appears here — a deliberate scope decision, since this page tracks the active pipeline,
+  not a full history). Its date filter runs against `first_issued_at`, not the PR's own `created_at`,
+  since that's this page's own displayed date column.
+- **Derived status** — `REQUESTED_QUOTE_STATUS` (`src/lib/constants/requested-quote.ts`):
+  `RFQ_ISSUED` (0 received) / `PARTIAL_RECEIVED` (0 < received < total) / `ALL_RECEIVED`
+  (received = total). Computed once, in SQL, inside `pr_rfq_progress` — never re-derived client-side
+  or read from `purchase_requisitions.status` (that column alone can't distinguish 1-of-3 from 3-of-3,
+  since both read as `quotes_received` — see §17's note on `submit_rfq_quotation`'s single-first-
+  submission semantics). Values are deliberately distinct strings from `PR_STATUS`'s own — a different
+  concept that happens to share a name, never compare one against the other.
+- **Data access / API**: `src/lib/data/requested-quotes.ts` (`getRequestedQuotes`) →
+  `GET /api/requested-quotes`, following §12's conventions exactly (hand-parsed coerce-never-fail
+  query params, `{data, meta}`/`{error}` envelope, `requireApiActiveUser()`). No PG-error-code mapping
+  needed — pure read, no mutation path.
+- **Frontend**: `src/app/[lang]/(staff)/rfq-list/page.tsx` + `src/components/rfq/`
+  (`requested-quote-view.tsx`, `rfq-table.tsx`, `rfq-toolbar.tsx`, `rfq-pager.tsx`,
+  `rfq-empty-state.tsx`, `date-range-filter.tsx`) — a trimmed clone of the Purchase Request list
+  page's own structure (same staged/applied filter split, same `requestIdRef` stale-response guard,
+  same retry-at-page-1-on-overrun). Row click reuses `CreateRequisitionDialog` unmodified: every row
+  reachable here has a PR status other than `pending_rfq`, so the dialog's existing `mode` logic
+  (`create-requisition-dialog.tsx`) always opens it read-only, needing no new prop or mode.
+  `FilterMultiselect` is imported directly from `purchase-requisition/` rather than cloned — unlike
+  `date-range-filter.tsx`, it has no copy baked in (fully prop-driven), so duplicating it would only
+  add drift risk for no benefit.
+- **New atom**, `QuoteProgress` (`src/components/atoms/quote-progress.tsx`) — the
+  "`{received} of {total}`" fraction + progress bar (track `bg-line`, fill `bg-teal` while partial →
+  `bg-moss` at 100%), replicating the design doc's `.frac` component (`Design-docs/app/rfq-list.html`).
+  Kept fully generic/prop-driven (no PR-specific typing) since any future "N of M" progress display
+  can reuse it.
+- **Naming note**: the design doc and this page's pre-existing nav/route slot both used "Request for
+  Quote" — relabeled to "Requested Quote" (`staff.nav.rfq`, `staff.requestedQuote.title` in
+  `en.json`) per product decision; the static design mock's own on-page strings were left as-is (a
+  reference file, not live copy).
+
+## 19. Keeping this file current
 
 This file is auto-loaded into every session via `CLAUDE.md`'s `@plans/development.md` import — it's
 only useful if it matches what the code actually does. Update the relevant section **in the same

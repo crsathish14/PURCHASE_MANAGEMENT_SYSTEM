@@ -562,6 +562,16 @@ export type Database = {
         };
         Relationships: [];
       };
+      pr_rfq_progress: {
+        Row: {
+          requisition_id: string;
+          vendor_count: number;
+          first_issued_at: string;
+          quote_count: number;
+          derived_status: string;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       add_vessel: {
@@ -723,6 +733,30 @@ export type Database = {
           p_items: Json;
         };
         Returns: { success: boolean }[];
+      };
+      search_requested_quotes: {
+        Args: {
+          p_search: string | null;
+          p_derived_statuses: string[] | null;
+          p_vessels: string[] | null;
+          p_categories: string[] | null;
+          p_date_preset: string | null;
+          p_start_date: string | null;
+          p_end_date: string | null;
+          p_page: number;
+          p_page_size: number;
+        };
+        Returns: {
+          id: string;
+          pr_number: string;
+          requisition_number: string | null;
+          vessel_label: string | null;
+          vendor_count: number;
+          quote_count: number;
+          derived_status: string;
+          first_issued_at: string;
+          total_count: number;
+        }[];
       };
     };
     Enums: {

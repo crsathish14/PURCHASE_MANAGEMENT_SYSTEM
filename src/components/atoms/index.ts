@@ -33,6 +33,9 @@ export { PasswordStrengthMeter, passwordStrength } from "./password-strength-met
 export { PhotoThumbnailStack } from "./photo-thumbnail-stack";
 export type { PhotoThumbnailStackProps } from "./photo-thumbnail-stack";
 
+export { QuoteProgress } from "./quote-progress";
+export type { QuoteProgressProps } from "./quote-progress";
+
 export { Select } from "./select";
 export type { SelectProps } from "./select";
 
