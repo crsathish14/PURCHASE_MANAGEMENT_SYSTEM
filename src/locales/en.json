@@ -508,6 +508,9 @@
           "vendor": "Vendor",
           "issued": "Issued",
           "received": "Received",
+          "grandTotal": "Grand Total",
+          "deliveryTerms": "Delivery Terms (Incoterm)",
+          "maxDeliveryLeadTime": "Max Delivery Lead Time (Days)",
           "status": "Status",
           "actions": ""
         },

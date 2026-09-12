@@ -8,6 +8,7 @@ import en from "@/locales/en.json";
 import { MAX_COMPARE_SELECTION, RFQ_LINK_STATUS, type RfqLinkStatus } from "@/lib/constants/rfq-link";
 import type { RfqLinkRow } from "@/lib/data/rfq-links";
 import type { QuoteComparisonData } from "@/lib/data/rfq-quote-comparison";
+import { formatCurrencyUsd } from "@/lib/format-currency";
 import { toast } from "@/store/toast-store";
 import { CompareQuotesModal } from "./compare-quotes-modal";
 import { ReissueRfqDialog } from "./reissue-rfq-dialog";
@@ -105,7 +106,7 @@ export function RfqLinksDialog({ open, onClose, requisitionId, prNumber, links, 
       <Dialog
         open={open}
         onClose={onClose}
-        size="lg"
+        size="xl"
         title={t.title.replace("{prNumber}", prNumber)}
         footer={
           <div className="flex justify-end gap-2">
@@ -135,6 +136,9 @@ export function RfqLinksDialog({ open, onClose, requisitionId, prNumber, links, 
                 <th className={headerCellClass}>{t.columns.vendor}</th>
                 <th className={headerCellClass}>{t.columns.issued}</th>
                 <th className={headerCellClass}>{t.columns.received}</th>
+                <th className={headerCellClass}>{t.columns.grandTotal}</th>
+                <th className={headerCellClass}>{t.columns.deliveryTerms}</th>
+                <th className={headerCellClass}>{t.columns.maxDeliveryLeadTime}</th>
                 <th className={headerCellClass}>{t.columns.status}</th>
                 <th className={headerCellClass} aria-hidden="true">
                   {t.columns.actions}
@@ -163,6 +167,9 @@ export function RfqLinksDialog({ open, onClose, requisitionId, prNumber, links, 
                   <td className={`${cellClass} font-mono text-slate`}>
                     {row.receivedAt ? dateFormatter.format(new Date(row.receivedAt)) : "—"}
                   </td>
+                  <td className={`${cellClass} font-mono text-ink`}>{formatCurrencyUsd(row.grandTotal)}</td>
+                  <td className={cellClass}>{row.deliveryTerms ?? "—"}</td>
+                  <td className={`${cellClass} font-mono text-slate`}>{row.maxDeliveryLeadTimeDays ?? "—"}</td>
                   <td className={cellClass}>
                     <Badge tone={STATUS_TONE[row.status]}>{t.statusLabels[row.status]}</Badge>
                   </td>

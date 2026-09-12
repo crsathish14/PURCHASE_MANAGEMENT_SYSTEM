@@ -16,7 +16,7 @@ import { X } from "lucide-react";
 
 import { Button, Input, Label } from "@/components/atoms";
 import en from "@/locales/en.json";
-import { PR_CATEGORY } from "@/lib/constants/purchase-requisition";
+import { PR_CATEGORY, PR_LINE_ITEM_PRESET_COLUMN } from "@/lib/constants/purchase-requisition";
 import { getPresetColumnsForCategory } from "@/lib/purchase-requisition/preset-columns";
 import type { CreateRequisitionFormValues } from "@/lib/validation/purchase-requisition";
 import { AskLabelDialog } from "./ask-label-dialog";
@@ -174,23 +174,32 @@ export function LineItemsField({
           <tr className="border-b border-line">
             <th className={`${headerCellClass} w-85`}>{t.columns.description}</th>
             {isService ? null : <th className={`${headerCellClass} w-28`}>{t.columns.qty}</th>}
-            {columns.map((column) => (
-              <th key={column.key} className={headerCellClass}>
-                <span className="inline-flex items-center gap-1">
-                  {column.label}
-                  {readOnly ? null : (
-                    <button
-                      type="button"
-                      aria-label={t.removeColumn}
-                      onClick={() => handleRemoveColumn(column.key)}
-                      className="normal-case text-slate-lt hover:text-rust"
-                    >
-                      <X size={11} strokeWidth={1.7} aria-hidden="true" />
-                    </button>
-                  )}
-                </span>
-              </th>
-            ))}
+            {columns.map((column) => {
+              // Approved Qty must always exist for Stores/Spares (it can be
+              // left blank and saved, but never removed) — matched by key OR
+              // label since a saved-and-reloaded preset column comes back
+              // with its real DB uuid as `key`, not the literal preset
+              // string (see the category-switch effect above).
+              const isApprovedQty =
+                column.key === PR_LINE_ITEM_PRESET_COLUMN.APPROVED_QTY || column.label === t.columns.approvedQty;
+              return (
+                <th key={column.key} className={headerCellClass}>
+                  <span className="inline-flex items-center gap-1">
+                    {column.label}
+                    {readOnly || isApprovedQty ? null : (
+                      <button
+                        type="button"
+                        aria-label={t.removeColumn}
+                        onClick={() => handleRemoveColumn(column.key)}
+                        className="normal-case text-slate-lt hover:text-rust"
+                      >
+                        <X size={11} strokeWidth={1.7} aria-hidden="true" />
+                      </button>
+                    )}
+                  </span>
+                </th>
+              );
+            })}
             <th className={headerCellClass}>{t.columns.photos}</th>
             {readOnly ? null : <th className={`${headerCellClass} w-10`} aria-hidden="true" />}
           </tr>

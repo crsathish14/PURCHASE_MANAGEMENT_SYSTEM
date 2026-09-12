@@ -83,7 +83,14 @@ These files hold every value that would otherwise be a magic string:
   in one place, `getPresetColumnsForCategory()` in `src/lib/purchase-requisition/preset-columns.ts`
   — both `LineItemsField` (manual create/edit) and the import-template parser (§16) import it, so
   they can't drift apart. `APPROVED_QTY` is office-only (filled in during review, never sourced from
-  the import template) but is still part of this set, since the column must exist either way.
+  the import template) but is still part of this set, since the column must exist either way. It's
+  also the one preset column `LineItemsField`'s header row never shows an "X" remove button for
+  (`line-items-field.tsx`'s `isApprovedQty` check, matched by key **or** label — a saved-and-reloaded
+  preset column comes back with its real DB uuid as `key`, not the literal preset string, so the label
+  match is what still catches it post-reload) — it can be left blank and saved, it just can never be
+  deleted from a Stores/Spares requisition's column set via the UI. `handleRemoveColumn` itself is
+  untouched, since the category-switch effect still needs to call it when switching *away* from
+  Stores/Spares into Service, which has no Approved Qty column at all.
 - `src/lib/routes.ts` — `ROUTES`, every locale-prefixed path the app links to or redirects to (see
   §3).
 - `src/lib/constants/storage.ts` — `STORAGE_BUCKET` (currently just `ATTACHMENTS`), `MAX_PHOTO_SIZE_BYTES`,
@@ -679,6 +686,21 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
   PR ref — in both `pr-table.tsx` (`t.columns.requisitionNumber`) and `rfq-table.tsx`
   (`t.table.columns.requisitionNumber`). Same `row.requisitionNumber` data both tables already had; this
   was a display-only layout change (each cell simply moved into its own `<th>`/`<td>`, `"—"` when null).
+- **RFQ vendors modal (`rfq-links-dialog.tsx`) gained three per-vendor summary columns** — Grand Total,
+  Delivery Terms (Incoterm), and the maximum Delivery Lead Time across that vendor's own line items —
+  `null`/"—" for `PENDING`/`EXPIRED` rows, since there's no quotation to read them from yet.
+  `getRfqLinksForRequisition` (`src/lib/data/rfq-links.ts`) gained a third flat query
+  (`purchase_requisition_rfq_quotation_items`, `quotation_id`/`delivery_lead_time` only, run only when
+  at least one quotation exists) alongside its existing links/quotations pair, joined the same
+  flat-query-plus-Map way as everywhere else in this file. The max is computed in JS, not a SQL
+  aggregate/RPC — a requisition realistically has a handful of line items — via
+  `Number(delivery_lead_time)` + `Number.isFinite` filtering per item before `Math.max`, deliberately
+  defensive rather than assuming every stored value is already digits-only: that validation
+  (`vendorQuoteItemSchema.deliveryLeadTime`, §17) only applies going forward, so older rows can still
+  hold pre-validation free-text values that must be silently skipped, not thrown on or NaN-poison the
+  max for that vendor's other, valid line items. The dialog itself widened from `size="lg"` to
+  `size="xl"` to fit the 3 new columns alongside its existing 6, matching
+  `create-requisition-dialog.tsx`'s own precedent for "wide table needs a wide dialog."
 
 ## 19. Keeping this file current
 

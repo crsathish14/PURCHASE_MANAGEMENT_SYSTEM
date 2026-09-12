@@ -44,6 +44,10 @@ export type RfqLinkRow = {
   receivedAt: string | null;
   link: string;
   status: RfqLinkStatus;
+  // null for Pending/Expired links — there's no quotation to read these from yet.
+  grandTotal: number | null;
+  deliveryTerms: string | null;
+  maxDeliveryLeadTimeDays: number | null;
 };
 
 // Staff-facing, for the RFQ vendor management dialog on the Requested Quote
@@ -65,18 +69,43 @@ export async function getRfqLinksForRequisition(requisitionId: string): Promise<
       .order("created_at", { ascending: true }),
     supabase
       .from("purchase_requisition_rfq_quotations")
-      .select("rfq_link_id, created_at")
+      .select("id, rfq_link_id, created_at, total_quoted_amount, delivery_terms")
       .eq("requisition_id", requisitionId),
   ]);
 
   if (linksError) throw linksError;
   if (quotationsError) throw quotationsError;
 
-  const receivedAtByLinkId = new Map((quotations ?? []).map((row) => [row.rfq_link_id, row.created_at]));
+  const quotationIds = (quotations ?? []).map((row) => row.id);
+
+  // A requisition realistically has a handful of line items, so the max is
+  // computed here in JS rather than via a SQL aggregate/RPC — matches this
+  // function's own existing "flat query, derive in JS" style above.
+  let itemRows: Array<{ quotation_id: string; delivery_lead_time: string | null }> = [];
+  if (quotationIds.length > 0) {
+    const { data, error: itemsError } = await supabase
+      .from("purchase_requisition_rfq_quotation_items")
+      .select("quotation_id, delivery_lead_time")
+      .in("quotation_id", quotationIds);
+    if (itemsError) throw itemsError;
+    itemRows = data ?? [];
+  }
+
+  const leadTimesByQuotationId = new Map<string, number[]>();
+  for (const row of itemRows) {
+    const parsed = Number(row.delivery_lead_time);
+    if (!Number.isFinite(parsed)) continue;
+    const existing = leadTimesByQuotationId.get(row.quotation_id);
+    if (existing) existing.push(parsed);
+    else leadTimesByQuotationId.set(row.quotation_id, [parsed]);
+  }
+
+  const quotationByLinkId = new Map((quotations ?? []).map((row) => [row.rfq_link_id, row]));
   const now = new Date().toISOString();
 
   return (links ?? []).map((row) => {
-    const receivedAt = receivedAtByLinkId.get(row.id) ?? null;
+    const quotation = quotationByLinkId.get(row.id) ?? null;
+    const leadTimes = quotation ? (leadTimesByQuotationId.get(quotation.id) ?? []) : [];
     const status: RfqLinkStatus = row.submitted_at
       ? RFQ_LINK_STATUS.QUOTE_RECEIVED
       : row.expires_at < now
@@ -90,9 +119,12 @@ export async function getRfqLinksForRequisition(requisitionId: string): Promise<
       issuedAt: row.created_at,
       expiresAt: row.expires_at,
       submittedAt: row.submitted_at,
-      receivedAt,
+      receivedAt: quotation?.created_at ?? null,
       link: `${env.NEXT_PUBLIC_SITE_URL}${quoteFormPath(row.access_token)}`,
       status,
+      grandTotal: quotation?.total_quoted_amount ?? null,
+      deliveryTerms: quotation?.delivery_terms ?? null,
+      maxDeliveryLeadTimeDays: leadTimes.length > 0 ? Math.max(...leadTimes) : null,
     };
   });
 }
