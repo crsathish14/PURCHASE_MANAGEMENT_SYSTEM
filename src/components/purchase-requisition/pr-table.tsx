@@ -55,6 +55,7 @@ export function PrTable({
         <thead>
           <tr className="border-b border-line text-[11px] font-bold tracking-wide text-slate-lt uppercase">
             <th className="px-4 py-3">{t.columns.ref}</th>
+            <th className="px-4 py-3">{t.columns.requisitionNumber}</th>
             <th className="px-4 py-3">{t.columns.vessel}</th>
             <th className="px-4 py-3">{t.columns.department}</th>
             <th className="px-4 py-3">{t.columns.category}</th>
@@ -86,14 +87,8 @@ export function PrTable({
                   detailLoadingId === row.id ? "cursor-wait opacity-60" : "cursor-pointer"
                 }`}
               >
-                <td className="px-4 py-3 font-mono text-ink">
-                  {row.prNumber}
-                  {row.requisitionNumber ? (
-                    <span className="ml-1.5 font-sans text-[11px] font-normal text-slate-lt">
-                      {row.requisitionNumber}
-                    </span>
-                  ) : null}
-                </td>
+                <td className="px-4 py-3 font-mono text-ink">{row.prNumber}</td>
+                <td className="px-4 py-3 font-mono text-ink">{row.requisitionNumber ?? "—"}</td>
                 <td className="px-4 py-3 text-ink">{row.vesselLabel ?? "—"}</td>
                 <td className="px-4 py-3 text-ink">{row.departmentLabel ?? "—"}</td>
                 <td className="px-4 py-3 text-ink">{row.categoryLabel ?? "—"}</td>

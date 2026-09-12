@@ -17,11 +17,14 @@ const t = en.staff.poRequests.issueRfqDialog;
 // this vendor email already has a link for this requisition (55001, a
 // second distinct conflict code so this gets its own, more specific
 // message than the generic one above — Reissue is the deliberate path for
-// "invite this same vendor again"), expiry date in the past (23514, one of
-// this repo's established client-fixable-400 codes).
+// "invite this same vendor again"), a Stores/Spares line item is missing its
+// Approved Qty (55002 — Service is exempt, it has no Qty concept at all),
+// expiry date in the past (23514, one of this repo's established
+// client-fixable-400 codes).
 const NOT_FOUND_PG_CODE = "P0002";
 const CONFLICT_PG_CODE = "55000";
 const DUPLICATE_VENDOR_PG_CODE = "55001";
+const APPROVED_QTY_MISSING_PG_CODE = "55002";
 const CLIENT_ERROR_PG_CODE = "23514";
 
 // Every vendor ever invited to this requisition's RFQ, for the Requested
@@ -83,6 +86,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     if (error?.code === DUPLICATE_VENDOR_PG_CODE) {
       return NextResponse.json({ error: { message: t.issueDuplicateVendorError } }, { status: 409 });
+    }
+    if (error?.code === APPROVED_QTY_MISSING_PG_CODE) {
+      return NextResponse.json({ error: { message: t.issueApprovedQtyMissingError } }, { status: 409 });
     }
     if (error?.code === CLIENT_ERROR_PG_CODE) {
       return NextResponse.json({ error: { message: t.errors.expiresAtPast } }, { status: 400 });

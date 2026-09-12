@@ -389,6 +389,7 @@
         "issueError": "Couldn't create this RFQ link. Try again.",
         "issueConflictError": "RFQ links can no longer be issued for this requisition.",
         "issueDuplicateVendorError": "An RFQ has already been issued to this vendor for this requisition. Use Reissue from the Requested Quote page to resend it.",
+        "issueApprovedQtyMissingError": "Approved Qty must be filled for every line item before an RFQ can be issued.",
         "resultTitle": "RFQ link ready",
         "resultDescription": "Copy the link and message below and send them to the vendor yourself.",
         "linkLabel": "Shareable link",
@@ -408,6 +409,7 @@
       "table": {
         "columns": {
           "ref": "Ref",
+          "requisitionNumber": "Requisition No.",
           "vessel": "Vessel",
           "department": "Dept.",
           "category": "Category",
@@ -519,6 +521,7 @@
         "copied": "Copied",
         "reissue": "Reissue",
         "loadError": "Couldn't load RFQ links.",
+        "compareLoadError": "Couldn't load the selected quotes. Try again.",
         "empty": "No vendors invited yet.",
         "close": "Close",
         "reissueDialog": {
@@ -537,9 +540,20 @@
           "confirm": "Reissue anyway"
         }
       },
+      "compare": {
+        "pageTitle": "Compare Quotes",
+        "close": "Close comparison",
+        "subtitle": "{prNumber} · {requisitionNumber} · {vesselLabel}",
+        "emptyTitle": "Nothing to compare",
+        "emptyDescription": "These quotes are no longer available. Close this and select from the current list.",
+        "partialNotice": "Showing {shown} of {requested} selected quotes — the rest are no longer available.",
+        "lowestTotalBadge": "Lowest total",
+        "submittedOn": "Submitted {date}"
+      },
       "table": {
         "columns": {
           "ref": "PR Ref",
+          "requisitionNumber": "Requisition No.",
           "vessel": "Vessel",
           "quotes": "Quotes",
           "status": "Status",
@@ -630,15 +644,16 @@
           "slNo": "S.No.",
           "requestedDescription": "Requested Item Description",
           "impaCode": "IMPA/ISSA Code",
-          "approvedQty": "Approved Qty",
+          "approvedQty": "Qty",
           "uom": "UOM",
           "photos": "Photos",
           "offeredDescription": "Offered Item Description",
           "offeredImpaCode": "Offered IMPA/ISSA Code",
           "unitPrice": "Unit Price",
           "totalPrice": "Total Price",
-          "deliveryLeadTime": "Delivery Lead Time",
-          "remarks": "Remarks"
+          "deliveryLeadTime": "Delivery Lead Time (In Days)",
+          "remarks": "Remarks",
+          "vendorPhotos": "Attach Photos"
         },
         "noPhotos": "No photos",
         "viewPhoto": "View photo",
@@ -662,6 +677,7 @@
         "vendorNameRequired": "Vendor / Company name is required",
         "vendorEmailInvalid": "Enter a valid email address",
         "unitPriceInvalid": "Enter a valid amount",
+        "deliveryLeadTimeInvalid": "Enter a whole number of days",
         "quotationValidityRequired": "Quotation validity is required",
         "paymentTermsRequired": "Payment terms are required",
         "deliveryTermsRequired": "Delivery terms are required",

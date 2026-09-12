@@ -541,6 +541,37 @@ export type Database = {
           },
         ];
       };
+      purchase_requisition_rfq_quotation_item_photos: {
+        Row: {
+          id: string;
+          quotation_item_id: string;
+          storage_path: string;
+          file_name: string;
+          content_type: string;
+          size_bytes: number;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          quotation_item_id: string;
+          storage_path: string;
+          file_name: string;
+          content_type: string;
+          size_bytes: number;
+          sort_order?: number;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "purchase_requisition_rfq_quotation_item_photos_quotation_item_id_fkey";
+            columns: ["quotation_item_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_requisition_rfq_quotation_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       pr_requisition_list: {

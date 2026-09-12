@@ -19,6 +19,7 @@ import type { RfqQuoteDetail, RfqQuoteLineItem } from "@/lib/data/rfq-quote";
 import { formatCurrencyUsd } from "@/lib/format-currency";
 import { submitStoresVendorQuoteSchema, type SubmitStoresVendorQuoteInput } from "@/lib/validation/vendor-quote";
 import { toast } from "@/store/toast-store";
+import { VendorItemPhotosField, type VendorPhotoValue } from "./vendor-item-photos-field";
 
 const tCommon = en.vendorQuote;
 const t = en.vendorQuote.storesForm;
@@ -99,6 +100,9 @@ export type StoresQuoteFormProps = {
 
 export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
   const [submitted, setSubmitted] = useState(false);
+  // Not RHF-registered (see vendor-item-photos-field.tsx) — photos are
+  // merged into each item's payload at submit time instead.
+  const [photosByIndex, setPhotosByIndex] = useState<Record<number, VendorPhotoValue[]>>({});
 
   const defaultValues = useMemo<SubmitStoresVendorQuoteInput>(
     () => ({
@@ -123,6 +127,9 @@ export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
         unitPrice: "",
         deliveryLeadTime: "",
         remarks: "",
+        // Never actually read back from RHF state (see onSubmit) — kept here
+        // only so this object satisfies SubmitStoresVendorQuoteInput's shape.
+        photos: [],
       })),
     }),
     [detail],
@@ -167,16 +174,31 @@ export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
   const grandTotal = rowTotals.reduce((sum: number, value) => sum + (value ?? 0), 0);
 
   async function onSubmit(data: SubmitStoresVendorQuoteInput) {
+    // Photos live in their own local state (not RHF-registered), so they're
+    // merged into each item's payload here rather than being part of `data`.
+    const payload = {
+      ...data,
+      items: data.items.map((item, index) => ({
+        ...item,
+        photos: (photosByIndex[index] ?? []).map(({ storagePath, fileName, contentType, sizeBytes }) => ({
+          storagePath,
+          fileName,
+          contentType,
+          sizeBytes,
+        })),
+      })),
+    };
+
     try {
       const response = await fetch(`/api/quote/${token}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
-      const payload = await response.json();
+      const responseBody = await response.json();
 
       if (!response.ok) {
-        toast.error(payload?.error?.message ?? tCommon.submitError);
+        toast.error(responseBody?.error?.message ?? tCommon.submitError);
         return;
       }
 
@@ -318,6 +340,7 @@ export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
                 <th className={`${headerCellClass} w-24`}>{t.itemDetails.columns.totalPrice}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.deliveryLeadTime}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.remarks}</th>
+                <th className={headerCellClass}>{t.itemDetails.columns.vendorPhotos}</th>
               </tr>
             </thead>
             <tbody>
@@ -357,10 +380,23 @@ export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
                     <Input disabled value={rowTotals[index] === null ? "—" : formatCurrencyUsd(rowTotals[index])} />
                   </td>
                   <td className={cellClass}>
-                    <Input type="text" {...register(`items.${index}.deliveryLeadTime`)} />
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      error={errors.items?.[index]?.deliveryLeadTime?.message}
+                      {...register(`items.${index}.deliveryLeadTime`)}
+                    />
                   </td>
                   <td className={cellClass}>
                     <Input type="text" {...register(`items.${index}.remarks`)} />
+                  </td>
+                  <td className={cellClass}>
+                    <VendorItemPhotosField
+                      token={token}
+                      lineItemId={item.lineItemId}
+                      value={photosByIndex[index] ?? []}
+                      onChange={(next) => setPhotosByIndex((prev) => ({ ...prev, [index]: next }))}
+                    />
                   </td>
                 </tr>
               ))}

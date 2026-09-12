@@ -11,15 +11,34 @@ const t = en.vendorQuote.storesForm.errors;
 // empty string is exactly how "not priced" is represented on the wire; the
 // backend RPC re-derives/recalculates every total from this and the PR's own
 // Approved Qty regardless of what's sent here.
+// A vendor-uploaded photo already uploaded to Storage via
+// /api/quote/[token]/photos/sign + uploadToSignedUrl — this object is just
+// the metadata the final submit persists, never raw file bytes.
+export const vendorQuoteItemPhotoSchema = z.object({
+  storagePath: z.string().min(1),
+  fileName: z.string().min(1),
+  contentType: z.string().min(1),
+  sizeBytes: z.number().int().positive(),
+});
+
 export const vendorQuoteItemSchema = z.object({
   lineItemId: z.string().min(1),
   offeredDescription: z.string(),
   offeredImpaCode: z.string(),
-  unitPrice: z.string().refine((value) => value === "" || /^\d+(\.\d{1,2})?$/.test(value), {
+  // Any number of decimal places — no rounding/truncation to 2dp, per the
+  // confirmed spec (some vendors quote in fractional-cent unit prices).
+  unitPrice: z.string().refine((value) => value === "" || /^\d+(\.\d+)?$/.test(value), {
     error: t.unitPriceInvalid,
   }),
-  deliveryLeadTime: z.string(),
+  // Whole days only — matches the new "(In Days)" column header.
+  deliveryLeadTime: z.string().refine((value) => value === "" || /^\d+$/.test(value), {
+    error: t.deliveryLeadTimeInvalid,
+  }),
   remarks: z.string(),
+  // Not RHF-registered (see stores-quote-form.tsx / vendor-item-photos-field.tsx) — tracked in
+  // local component state and merged into the payload at submit time, so it's always present
+  // (possibly empty) by the time this schema validates the full request body.
+  photos: z.array(vendorQuoteItemPhotoSchema),
 });
 
 // Shared by the Stores vendor form (client-side resolver) and the submit

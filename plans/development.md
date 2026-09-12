@@ -148,6 +148,23 @@ for loading, Client Component + `unstable_retry` for error).
   siblings) rather than one polymorphic `entity_type`/`entity_id` table. What's actually
   centralized/reused is the bucket + path convention + signing route + `src/lib/constants/storage.ts`,
   not the DB table shape.
+- **Anonymous-vendor uploads are a second, genuinely different shape of the above** — the vendor RFQ
+  quote form (§17) lets an anonymous, token-only vendor (no Supabase session at all) attach their own
+  photos per line item. `api/uploads/sign` can't be reused as-is: it hard-gates on
+  `requireApiActiveUser()`, and `storage.objects` RLS has no `anon` policy on this or any bucket (by
+  design — RLS can't cross-reference a `purchase_requisition_rfq_links.access_token` against the
+  request). Instead, `src/app/api/quote/[token]/photos/sign/route.ts` re-validates the token itself
+  (via `getRfqQuoteDetailsByToken` — not expired, not yet submitted, and the target line item genuinely
+  belongs to that token's requisition) before minting a signed upload URL with the **admin/service-role
+  client** (`createAdminClient()`), never a session-scoped one. This is the write-side mirror of
+  `rfq-quote.ts`'s own existing read-side pattern (batch-signing *display* URLs via the admin client for
+  an anonymous vendor) — same trust model, just for an upload instead of a read. The path convention
+  (`RFQ_QUOTE_ITEM_PHOTO_PATH_PREFIX = "rfq-quote-item-photos"`, sibling to `PR_LINE_ITEM_PHOTO_PATH_PREFIX`
+  in `src/lib/constants/storage.ts`) uses the RFQ link's own access token as the scope segment instead of
+  a separate draft token — it already uniquely and securely identifies the in-progress submission.
+  `submit_rfq_quotation` (§17) re-verifies each photo's `storagePath` actually starts with
+  `rfq-quote-item-photos/<token>/<line_item_id>/` before persisting its metadata row (`23514` otherwise)
+  — the same "don't trust the payload" posture it already applies to `lineItemId` ownership.
 - `src/lib/types/database.ts` is a hand-written stub — replace with
   `npx supabase gen types typescript --linked` once the generated output is worth the churn; keep
   `UserRole`/`ProfileStatus` re-exported from `src/lib/constants/profile.ts` either way.
@@ -386,6 +403,45 @@ this feature — everything below is additive, sitting alongside it.
   reliably return a referentially-new array on every change, so the memo can silently stop
   recomputing after the first render. `stores-quote-form.tsx`'s row-total/grand-total calculation
   is deliberately a plain (unmemoized) computation for exactly this reason.
+- **Delivery Lead Time is digits-only** (`vendorQuoteItemSchema.deliveryLeadTime` in
+  `src/lib/validation/vendor-quote.ts`, `/^\d+$/`, same optional-if-empty shape every other item field
+  already has) and its column header reads "Delivery Lead Time (In Days)" — product decision, since the
+  field is always a whole number of days. **Approved Qty's vendor-facing header was separately renamed
+  to "Qty"** — display-only, `en.vendorQuote.storesForm.itemDetails.columns.approvedQty`, NOT
+  `presetColumnsCopy.approvedQty` (`en.staff.poRequests.createDialog.columns.approvedQty`), which stays
+  `"Approved Qty"` unchanged since `stores-quote-form.tsx`'s own `APPROVED_QTY_LABEL` uses that exact
+  string to look up the line item's value by label match against the DB-stored column — renaming it
+  would have silently broken that lookup. Both `stores-quote-comparison-card.tsx` (§18) and the vendor
+  form read the same renamed header key, so both updated from one locale edit.
+- **Unit Price accepts any number of decimal places** (`vendorQuoteItemSchema.unitPrice`,
+  `/^\d+(\.\d+)?$/` — was `/^\d+(\.\d{1,2})?$/`, a 2dp cap) — product decision, some vendors quote
+  fractional-cent unit prices. Note this is purely an input-acceptance change: `total_price`/
+  `unit_price` are still stored as `numeric(14,2)` (`purchase_requisition_rfq_quotation_items`), so a
+  more-than-2dp value is still rounded at the DB boundary — only the *validation* was ever rejecting
+  it outright before this change.
+- **Vendor-attached photos per line item** — a new column, `t.itemDetails.columns.vendorPhotos`
+  ("Attach Photos"), after Remarks in `stores-quote-form.tsx`'s item table, genuinely distinct from the
+  existing read-only Photos column (the office's own reference photos for that item, untouched). Backed
+  by a new table, `purchase_requisition_rfq_quotation_item_photos` (FK to
+  `purchase_requisition_rfq_quotation_items`, `on delete cascade`, RLS matching every sibling
+  `purchase_requisition_rfq_quotation*` table exactly — `select to authenticated`, no anon policy, no
+  insert/update/delete policy since the only write path is `submit_rfq_quotation` itself). See §11's
+  "Anonymous-vendor uploads" bullet for the new signing mechanism this needed (an anonymous vendor has
+  no session, so `api/uploads/sign` couldn't be reused). Frontend: `VendorItemPhotosField`
+  (`src/components/vendor-quote/vendor-item-photos-field.tsx`) is a trimmed clone of
+  `LineItemPhotosField`'s exact pending/uploading/error tile UX and reuses its micro-copy verbatim
+  (`en.staff.poRequests.createDialog`) — simplified because every photo here was uploaded in *this*
+  browser session (a vendor never reloads mid-quote), so `previewUrl` is just the local blob URL for the
+  field's whole lifetime, no separate "already has a real signed display URL" bookkeeping needed. Not
+  RHF-registered (same reasoning `LineItemPhotosField` isn't either) — tracked in `StoresQuoteForm`'s own
+  `photosByIndex` state and merged into each item's payload only at submit time, so
+  `vendorQuoteItemSchema`'s `photos` field is always populated (possibly `[]`) by the time the server
+  re-validates the full request body. No cap on count per line item, matching this codebase's existing
+  explicit "no photos-per-line-item limit, by design" convention (§7) for the office-side equivalent.
+  Also surfaced to staff as a new "Vendor Photos" column in `stores-quote-comparison-card.tsx` (§18) —
+  `getRfqQuoteComparison()` fetches and signs these the same way it already does the office's own
+  reference photos (one shared `createSignedUrls` batch call across both sets, session-scoped client),
+  reusing that file's existing local `ItemPhotos` component as-is.
 
 ## 18. Requested Quote page (RFQ progress tracking)
 
@@ -550,6 +606,79 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
   on a `QUOTE_RECEIVED` row; only confirming it opens the normal `ReissueRfqDialog` form. Clicking
   Reissue on an `EXPIRED` row skips the warning and opens `ReissueRfqDialog` directly, same as before —
   there's no existing quote to lose there.
+- **Compare Quotes modal** (`rfq-links-dialog.tsx`'s Compare Quote button, previously a no-op stub) —
+  a full-viewport modal (`src/components/rfq/compare-quotes-modal.tsx`), not a page navigation. A first
+  version used a dedicated route (`/rfq-list/compare/[requisitionId]`); the user rejected that after
+  trying it ("taking me to some other path") and asked for an in-place modal instead, so that route was
+  removed entirely — `getRfqQuoteComparison()` (below) is now called from a new API route instead of a
+  Server Component page. `rfq-links-dialog.tsx`'s `handleCompare()` fetches
+  `GET .../rfq-links/compare?linkIds=a,b,c` (new route,
+  `src/app/api/purchase-requisitions/[id]/rfq-links/compare/route.ts`) before opening the modal — same
+  fetch-then-open pattern this file's own parent already uses for opening *this* dialog, so
+  `CompareQuotesModal` itself stays purely presentational.
+  - **Layout**: also revised after live feedback. When first asked to choose between a shared
+    metrics-comparison table (vendors as columns, one row per metric — matching the *other*, unused
+    design mockup at `Design-docs/app/compare-quotes.html`) and three full read-only copies of the
+    Stores vendor quote form, the user chose the latter. Built as a full-page horizontal-scrolling row
+    first — but that didn't fit a normal screen width (each form's own item table alone needs ~1100px)
+    and required navigating away, both of which the user then asked to fix. Landed on: a near-fullscreen
+    modal (`fixed inset-0` with a small gutter, not the centered/max-width `Dialog` atom every other
+    dialog uses — even `xl`'s 1200px cap is too narrow for this) laid out as a CSS grid with exactly N
+    equal-width columns (`grid-cols-1`/`-2`/`-3` picked by vendor count) so all selected vendors are
+    visible at once with **no horizontal scrolling of the set** — each column (`StoresQuoteComparisonCard`
+    itself, `h-full overflow-y-auto`) scrolls independently instead, and the item table inside a column
+    keeps its own already-existing `overflow-x-auto` for its own width overflow.
+    `src/components/rfq/stores-quote-comparison-card.tsx` is a read-only clone of
+    [`stores-quote-form.tsx`](src/components/vendor-quote/stores-quote-form.tsx)'s exact section
+    structure (RFQ Details / Vendor Details / Item Details table / Quotation Summary), reusing its copy
+    verbatim (`en.vendorQuote.storesForm`) since the fields mean the same thing here — every field
+    renders `disabled` (not `readOnly`, so nothing in an entirely non-interactive card looks
+    focusable/editable). A "Lowest total" `Badge`, computed client-side, is the one cross-vendor cue this
+    per-vendor-card layout still offers.
+  - **Zero new migrations.** `purchase_requisition_rfq_quotations`/`_quotation_items` already grant
+    `select to authenticated using (true)` — nothing staff-facing read them before this, but the RLS was
+    already in place. `src/lib/data/rfq-quote-comparison.ts`'s `getRfqQuoteComparison()` reads: PR header
+    + `vessel_label` from `pr_requisition_list` (the same view `searchPurchaseRequisitions` already
+    relies on), `vessel_imo_no` via a plain `vessels` lookup by name (same relationship
+    `get_rfq_quote_details_by_token`/`add_vessel()` already establish, just as a TS query instead of
+    embedded SQL), quotations scoped by `.eq("requisition_id", …).in("rfq_link_id", linkIds)` (no join to
+    the links table needed — the quotations table already denormalizes `requisition_id`), quotation items
+    grouped per vendor via a `Map` (same flat-query-plus-Map pattern `getRfqLinksForRequisition`
+    established), and line item photos signed with the normal **session-scoped** client (not
+    `admin.ts` — staff has a real session, unlike the anonymous-vendor path in `rfq-quote.ts`). The API
+    route also clamps `linkIds` server-side to `MAX_COMPARE_SELECTION` (`src/lib/constants/rfq-link.ts`,
+    shared with the dialog's own checkbox cap) — defense in depth, since a query string isn't trusted to
+    already respect the client's own selection limit.
+  - Each vendor's card is fully self-contained (own line-item snapshot from
+    `purchase_requisition_rfq_quotation_items`, own order) — no cross-vendor row alignment is needed,
+    since this is N independent cards, not a merged table. This also means the read-only card needs none
+    of `stores-quote-form.tsx`'s live dynamic-column label-matching (`findColumnValue`): the snapshot
+    columns (`requested_description`/`requested_impa_code`/`approved_qty`/`uom`) are read straight off
+    each `purchase_requisition_rfq_quotation_items` row.
+  - **Graceful degradation for a since-reissued link**: reissuing an already-submitted link
+    (previous bullet) hard-deletes the old link and cascades away its quotation, so a `linkId` a staff
+    member selected earlier may no longer resolve to a quotation by the time Compare Quote is clicked (or
+    the modal reopened later in the same session). `getRfqQuoteComparison()` simply returns fewer
+    `vendors` than requested `linkIds` rather than erroring; `CompareQuotesModal` shows an amber
+    partial-selection notice if some are missing, or a full empty state if none resolved — never a crash.
+  - Scope is view-only for this pass, per an explicit decision when asked: no "award/choose vendor →
+    create Purchase Order" action yet (that's a separate, larger, not-yet-planned feature) — matches the
+    already-established "nothing happens yet" state of the Compare CTA before this change.
+- **`issue_rfq_link` requires every line item's Approved Qty to be filled before an RFQ can be issued**
+  (`20260913030000_require_approved_qty_before_issue_rfq.sql`, a new `55002` errcode, mapped to its own
+  message in `rfq-links/route.ts`) — an RFQ sent out with a blank Approved Qty can't actually be priced
+  against (`submit_rfq_quotation`'s own `total_price` computation already silently returns `null`
+  whenever `approved_qty` is missing), so this catches the gap when it's still actionable instead of only
+  surfacing it once an incomplete quote comes back. **Skipped entirely for Service PRs** — checked via
+  the requisition's own `category` dropdown value (`= 'service'`) — since Service has no Qty concept at
+  all (§7's `PR_LINE_ITEM_PRESET_COLUMN`), so there's no Approved Qty column to require in the first
+  place; Stores and Spares are both checked. The check is "every line item has a non-empty Approved Qty
+  value," which also naturally covers the (shouldn't-happen-but-defensive) case of the column being
+  entirely absent from a line item.
+- **Requisition No. is its own table column**, no longer stacked as a smaller secondary line under the
+  PR ref — in both `pr-table.tsx` (`t.columns.requisitionNumber`) and `rfq-table.tsx`
+  (`t.table.columns.requisitionNumber`). Same `row.requisitionNumber` data both tables already had; this
+  was a display-only layout change (each cell simply moved into its own `<th>`/`<td>`, `"—"` when null).
 
 ## 19. Keeping this file current
 

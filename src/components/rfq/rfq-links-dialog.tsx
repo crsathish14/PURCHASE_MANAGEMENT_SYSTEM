@@ -5,8 +5,11 @@ import { Check, Copy } from "lucide-react";
 
 import { Badge, Button, Checkbox, Dialog, type BadgeTone } from "@/components/atoms";
 import en from "@/locales/en.json";
-import { RFQ_LINK_STATUS, type RfqLinkStatus } from "@/lib/constants/rfq-link";
+import { MAX_COMPARE_SELECTION, RFQ_LINK_STATUS, type RfqLinkStatus } from "@/lib/constants/rfq-link";
 import type { RfqLinkRow } from "@/lib/data/rfq-links";
+import type { QuoteComparisonData } from "@/lib/data/rfq-quote-comparison";
+import { toast } from "@/store/toast-store";
+import { CompareQuotesModal } from "./compare-quotes-modal";
 import { ReissueRfqDialog } from "./reissue-rfq-dialog";
 import { ReissueWarningDialog } from "./reissue-warning-dialog";
 
@@ -19,7 +22,6 @@ const STATUS_TONE: Record<RfqLinkStatus, BadgeTone> = {
 };
 
 const dateFormatter = new Intl.DateTimeFormat("en", { day: "numeric", month: "short" });
-const MAX_COMPARE_SELECTION = 3;
 const headerCellClass = "px-2 py-1.5 text-left font-mono text-[9.5px] font-bold tracking-wide text-slate-lt uppercase";
 const cellClass = "px-2 py-1.5 align-top";
 
@@ -43,6 +45,10 @@ export function RfqLinksDialog({ open, onClose, requisitionId, prNumber, links, 
   const [reissueTarget, setReissueTarget] = useState<RfqLinkRow | null>(null);
   const [reissueWarningTarget, setReissueWarningTarget] = useState<RfqLinkRow | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareLoading, setCompareLoading] = useState(false);
+  const [compareData, setCompareData] = useState<QuoteComparisonData | null>(null);
+  const [compareRequestedCount, setCompareRequestedCount] = useState(0);
 
   function handleReissueClick(row: RfqLinkRow) {
     if (row.status === RFQ_LINK_STATUS.QUOTE_RECEIVED) {
@@ -60,8 +66,27 @@ export function RfqLinksDialog({ open, onClose, requisitionId, prNumber, links, 
     });
   }
 
-  function handleCompare() {
-    // Compare view isn't built yet — selection just enables the CTA for now.
+  async function handleCompare() {
+    setCompareLoading(true);
+    try {
+      const response = await fetch(
+        `/api/purchase-requisitions/${requisitionId}/rfq-links/compare?linkIds=${selectedIds.join(",")}`,
+      );
+      const payload = await response.json();
+
+      if (!response.ok) {
+        toast.error(payload?.error?.message ?? t.compareLoadError);
+        return;
+      }
+
+      setCompareData(payload.data);
+      setCompareRequestedCount(selectedIds.length);
+      setCompareOpen(true);
+    } catch {
+      toast.error(t.compareLoadError);
+    } finally {
+      setCompareLoading(false);
+    }
   }
 
   async function copyLink(row: RfqLinkRow) {
@@ -87,7 +112,12 @@ export function RfqLinksDialog({ open, onClose, requisitionId, prNumber, links, 
             <Button type="button" variant="secondary" onClick={onClose}>
               {t.close}
             </Button>
-            <Button type="button" disabled={selectedIds.length === 0} onClick={handleCompare}>
+            <Button
+              type="button"
+              disabled={selectedIds.length === 0}
+              loading={compareLoading}
+              onClick={handleCompare}
+            >
               {t.compareQuote}
             </Button>
           </div>
@@ -184,6 +214,13 @@ export function RfqLinksDialog({ open, onClose, requisitionId, prNumber, links, 
           setReissueTarget(null);
           onReissued();
         }}
+      />
+
+      <CompareQuotesModal
+        open={compareOpen}
+        onClose={() => setCompareOpen(false)}
+        data={compareData}
+        requestedCount={compareRequestedCount}
       />
     </>
   );
