@@ -335,6 +335,90 @@ one:
   column like Approved Qty that a template deliberately omits (office-only, filled in during review)
   still exists after import, just blank.
 
+**Export (the reverse direction — a PR's own data, filled into a copy of its category's template)**
+- `pr-table.tsx`'s row menu has an **Export** action (`GET /api/purchase-requisitions/[id]/export`).
+  Always enabled, no status-based gating — unlike Cancel/Duplicate/Issue RFQ, there's no PR state where
+  exporting what's already there doesn't make sense. It had briefly existed as a permanently-`disabled`
+  placeholder with no implementation behind it at all; this replaced that placeholder with the real
+  thing.
+- **Downloaded via `fetch` + blob, not a plain `<a href>`/`window.location.href` navigation** — the
+  route can take a couple of seconds (loads the category's `.xlsm` template, fills it, re-serializes
+  it), and a bare navigation gives the browser nothing to hook a loading indicator off of. `po-requests-view.tsx`'s
+  `handleExport` (same `xxxId`-state shape as `duplicatingId`/`handleDuplicate`) tracks `exportingId`,
+  `await fetch(...)`, reads the filename back out of the response's own `Content-Disposition` header
+  (falling back to `${row.prNumber}-export.xlsx` if that ever fails to match — kept in sync with the
+  route's own filename convention rather than duplicating it blindly), then does the actual save via a
+  synthetic `<a download>` click on an object URL (revoked right after). `pr-table.tsx` shows this as a
+  `Spinner` in place of the row's kebab-menu dots (disabled meanwhile, so a second click can't fire a
+  duplicate export for the same row) — mirrors `detailLoadingId`'s existing per-row loading affordance
+  rather than introducing a new visual pattern.
+- **Deliberately produces a plain `.xlsx`, never `.xlsm`.** Confirmed directly against ExcelJS
+  4.4.0's own source (not just its docs): `workbook.xlsx.load()`'s part-parsing `switch` has no case
+  for `xl/vbaProject.bin`, and `writeBuffer()` rebuilds the zip from scratch with no code path that
+  ever emits one (its `ContentTypesXform` even hardcodes the plain-`.xlsx` content type). Loading one
+  of these templates and saving it back out under the `.xlsm` name would silently strip the embedded
+  VBA project (the Add Line Item button, the Ctrl+V photo-paste binding) and risk Excel flagging the
+  output as corrupted. What *does* survive the load→write round trip (verified against the real
+  files): fonts/colors/borders, the embedded logo image, the merged-cell layout, and sheet protection
+  — everything but the macros, which a completed record doesn't need anyway (product decision, along
+  with skipping photos for this feature entirely and adding an Approved Qty column — see below).
+- **Architecture mirrors Import's own "shared engine + thin per-category files" shape, in reverse.**
+  New `export-template-vba-shared.ts` provides the write-side counterparts to
+  `import-template-vba-shared.ts`'s read helpers (`writeLabeledValue`/`writeLabeledDateValue` mirror
+  `readLabeledValue`/`readDateValue` — write into the cell one column past a label's own merge span,
+  instead of reading it) plus `expandLineItemRows` (see below) and `findLineItemPhotosColumn` (locates
+  the line-items table's own "Supporting Photos" column, searched only within that table's header
+  row). Three thin per-category writers — `export-template-vba.ts` (Stores), `-spares.ts`, `-service.ts`
+  — mirror `import-template-vba*.ts` exactly, reusing (not duplicating) each import parser's own
+  previously-module-private `LABEL` const and `findLineItemColumns` function (now `export`ed for
+  exactly this reuse) rather than re-deriving a second copy that could silently drift out of sync if a
+  template is revised again (Stores' own template already has been, twice).
+- **Line-item rows are inserted, never assumed to be a fixed count.** Every template ships exactly 1
+  pre-formatted line-item row. `expandLineItemRows` calls `sheet.duplicateRow(firstDataRow, count - 1,
+  true)` once per export — verified (via a standalone script against the real `.xlsm` files, loading
+  the generated output back with a fresh ExcelJS instance and asserting cell-by-cell) that this
+  correctly shifts everything below the line-items table (the SUPPORTING PHOTOS banner/header, the
+  Requisitioned-by/Approved-by sign-off footer) down by the right amount, with their own merges intact
+  — the one genuinely novel operation here, with no prior precedent anywhere in this codebase and a
+  documented ExcelJS rough edge (README: "Splice vs Merge") that made this worth proving empirically
+  rather than trusting blindly.
+- **Approved Qty has no cell in any category's template** (office-only, same reason it's already
+  invisible to Import) but is included anyway, per product decision, by repurposing the now-otherwise-
+  unused **Supporting Photos column** in the line-items table for Stores/Spares (its header cell is
+  relabeled "Approved Qty" once per sheet) — since photos are skipped for this feature, that column
+  would otherwise just sit empty. Service has no Approved Qty concept at all, so its own Supporting
+  Photos column is left completely untouched.
+- **Custom (non-preset) line-item columns and header-level custom fields are not exportable** into the
+  template's fixed layout — the mirror image of Import's own "not every preset column is importable"
+  asymmetry, for the same reason: there's no cell for them.
+- **Vessel name/IMO No. resolution needed new glue code** — `getPurchaseRequisitionById`'s own
+  `dropdowns.vessel` is only ever the raw option slug, never a name. Resolved the same two-hop way
+  `get_rfq_quote_details_by_token`/`add_vessel()` already establish, as plain TS calls in the route
+  itself: `getPrDropdownFields()` → the `vessel` field's option matching that slug → its label (the
+  vessel name) → `getVessels()` → matched by exact name → its `imoNo`. Export writes both the name and
+  the IMO No. into the sheet (Import only ever round-trips the IMO No.).
+- **Bug fixed live: exported Spares files triggered Excel's "we found a problem with content" repair
+  prompt** (every other category's export opened cleanly). Root cause had nothing to do with the
+  line-item writer — it's an ExcelJS limitation on the raw template file itself, confirmed by loading
+  and saving the Spares `.xlsm` back out through ExcelJS with **zero modifications** and seeing the
+  exact same corruption. `requisition-form-spares.xlsm`'s `workbook.xml` declares a second sheet,
+  `Chart1` — a chart sheet (a distinct OOXML part type from a regular worksheet), evidently a stray
+  leftover from whenever the template was last edited in Excel, never referenced by any parser or
+  writer in this codebase. ExcelJS's `load()` has no support for chart sheets at all and drops the part
+  from its model silently, no error — but the workbook's own `bookViews` (`activeTab`/`firstSheet`,
+  copied straight through from the loaded XML unchanged) still pointed at that sheet's original tab
+  index (`1`, since Chart1 was tab `0` and the requisition sheet was tab `1`). Once only one worksheet
+  survives the round trip, `activeTab="1"` points past the end of the sheet list — an internally
+  inconsistent file, which is exactly what Excel's own integrity check flags. Fixed in
+  `api/purchase-requisitions/[id]/export/route.ts`, right after `workbook.xlsx.load()`, for every
+  category (not just Spares, since the same class of bug would resurface for any future template with
+  its own stray non-worksheet part): `workbook.views = workbook.views.map((view) => ({ ...view,
+  firstSheet: 0, activeTab: 0 }))` — safe unconditionally, since the export always has exactly one
+  meaningful sheet to land on regardless of category. The stray `Chart1` sheet itself was left in the
+  source `.xlsm` file untouched (it doesn't affect the *raw template* download at all, since that route
+  streams the file straight off disk with no ExcelJS involved — only Export, which loads and re-saves
+  through ExcelJS, ever hits this).
+
 ## 17. Vendor RFQ quote submission (Stores — first of three categories)
 
 The vendor-facing side of `purchase_requisition_rfq_links` (§11's own bullet on the file-upload

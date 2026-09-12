@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge, Menu, MenuItem, type BadgeTone } from "@/components/atoms";
+import { Badge, Menu, MenuItem, Spinner, type BadgeTone } from "@/components/atoms";
 import en from "@/locales/en.json";
 import { PR_PRIORITY, PR_STATUS, type PrPriority, type PrStatus } from "@/lib/constants/purchase-requisition";
 import type { PrListRow } from "@/lib/data/purchase-requisition";
@@ -37,6 +37,8 @@ export type PrTableProps = {
   onDuplicate: (row: PrListRow) => void;
   duplicatingId: string | null;
   onIssueRfqRequested: (row: PrListRow) => void;
+  onExport: (row: PrListRow) => void;
+  exportingId: string | null;
 };
 
 export function PrTable({
@@ -48,6 +50,8 @@ export function PrTable({
   onDuplicate,
   duplicatingId,
   onIssueRfqRequested,
+  onExport,
+  exportingId,
 }: PrTableProps) {
   return (
     <div className="overflow-x-auto rounded-xl border border-line bg-paper shadow-(--shadow-e1)">
@@ -76,6 +80,7 @@ export function PrTable({
             // inviting more vendors even after the first quote comes in,
             // right up until the PR is actually awarded (or cancelled).
             const issueRfqDisabled = row.status === PR_STATUS.AWARDED || row.status === PR_STATUS.CANCELLED;
+            const isExporting = exportingId === row.id;
             return (
               <tr
                 key={row.id}
@@ -110,14 +115,19 @@ export function PrTable({
                       <button
                         type="button"
                         onClick={(event) => event.stopPropagation()}
+                        disabled={isExporting}
                         aria-label={t.rowMenuLabel}
-                        className="inline-flex h-6.5 w-6.5 items-center justify-center rounded-md text-slate-lt hover:bg-mist hover:text-ink"
+                        className="inline-flex h-6.5 w-6.5 items-center justify-center rounded-md text-slate-lt hover:bg-mist hover:text-ink disabled:cursor-wait disabled:opacity-60"
                       >
-                        <svg viewBox="0 0 24 24" className="h-3.75 w-3.75" aria-hidden="true">
-                          <circle cx="12" cy="5" r="1.3" fill="currentColor" />
-                          <circle cx="12" cy="12" r="1.3" fill="currentColor" />
-                          <circle cx="12" cy="19" r="1.3" fill="currentColor" />
-                        </svg>
+                        {isExporting ? (
+                          <Spinner size="sm" />
+                        ) : (
+                          <svg viewBox="0 0 24 24" className="h-3.75 w-3.75" aria-hidden="true">
+                            <circle cx="12" cy="5" r="1.3" fill="currentColor" />
+                            <circle cx="12" cy="12" r="1.3" fill="currentColor" />
+                            <circle cx="12" cy="19" r="1.3" fill="currentColor" />
+                          </svg>
+                        )}
                       </button>
                     }
                   >
@@ -130,7 +140,9 @@ export function PrTable({
                     <MenuItem disabled={issueRfqDisabled} onClick={() => onIssueRfqRequested(row)}>
                       {t.rowMenu.issueRfq}
                     </MenuItem>
-                    <MenuItem disabled>{t.rowMenu.export}</MenuItem>
+                    <MenuItem disabled={isExporting} onClick={() => onExport(row)}>
+                      {t.rowMenu.export}
+                    </MenuItem>
                     <div className="my-1 border-t border-line" aria-hidden="true" />
                     <MenuItem tone="danger" disabled={deleteDisabled} onClick={() => onDeleteRequested(row)}>
                       {t.rowMenu.delete}

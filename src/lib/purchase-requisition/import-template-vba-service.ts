@@ -31,7 +31,10 @@ import {
 // Port" rather than "Supply Port", still mapped to the same `requiredPort`
 // form field. Everything generic (merge-aware label lookup, dynamic table
 // sizing, photo-anchor extraction) lives in import-template-vba-shared.ts.
-const LABEL = {
+// Exported so export-template-vba-service.ts (the write-side mirror of this
+// file) can target the exact same cells/columns instead of re-deriving its
+// own copy that could drift out of sync with a future template revision.
+export const LABEL = {
   imoNo: "imo no",
   date: "date",
   requisitionNo: "requisition no",
@@ -50,7 +53,7 @@ const LABEL = {
   equipmentOtherDetails: "any other details",
 };
 
-function findLineItemColumns(sheet: ExcelJS.Worksheet, headerRow: number): Map<string, number> {
+export function findLineItemColumns(sheet: ExcelJS.Worksheet, headerRow: number): Map<string, number> {
   const map = new Map<string, number>();
   // first-match-wins — see the Stores parser's identical comment on
   // findLineItemColumns for why (merged multi-column headers make eachCell

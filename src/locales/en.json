@@ -458,7 +458,8 @@
           "confirm": "Delete requisition"
         },
         "deleteSuccess": "Requisition deleted.",
-        "deleteError": "Couldn't delete this requisition. Try again."
+        "deleteError": "Couldn't delete this requisition. Try again.",
+        "exportError": "Couldn't export this requisition. Try again."
       },
       "toolbar": {
         "searchPlaceholder": "Search ref, requisition no., item, requester",
