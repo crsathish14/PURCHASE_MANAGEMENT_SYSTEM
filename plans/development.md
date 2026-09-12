@@ -640,8 +640,9 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
     structure (RFQ Details / Vendor Details / Item Details table / Quotation Summary), reusing its copy
     verbatim (`en.vendorQuote.storesForm`) since the fields mean the same thing here — every field
     renders `disabled` (not `readOnly`, so nothing in an entirely non-interactive card looks
-    focusable/editable). A "Lowest total" `Badge`, computed client-side, is the one cross-vendor cue this
-    per-vendor-card layout still offers.
+    focusable/editable). A client-computed "Lowest total" `Badge` was tried here initially and then
+    removed by product decision — this per-vendor-card layout offers no cross-vendor cue of its own;
+    the Award badge (below) is the only per-card indicator now.
   - **Zero new migrations.** `purchase_requisition_rfq_quotations`/`_quotation_items` already grant
     `select to authenticated using (true)` — nothing staff-facing read them before this, but the RLS was
     already in place. `src/lib/data/rfq-quote-comparison.ts`'s `getRfqQuoteComparison()` reads: PR header
@@ -701,6 +702,92 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
   max for that vendor's other, valid line items. The dialog itself widened from `size="lg"` to
   `size="xl"` to fit the 3 new columns alongside its existing 6, matching
   `create-requisition-dialog.tsx`'s own precedent for "wide table needs a wide dialog."
+- **Award** — staff pick exactly one vendor's submitted quote as the winner, from either the RFQ
+  vendor modal or the Compare Quotes modal. `purchase_requisitions` gained one nullable column,
+  `awarded_rfq_link_id` (FK to `purchase_requisition_rfq_links`, no `on delete cascade` — default
+  `no action` means Postgres itself refuses to delete a link this column still points to, on top of
+  the guard below), and one new RPC, `award_purchase_requisition(p_id, p_rfq_link_id)`
+  (`20260913040000_purchase_requisitions_award_column.sql`,
+  `20260913050000_award_purchase_requisition_rpc.sql`), mirroring `cancel_purchase_requisition`'s own
+  auth/status-guard shape exactly. Only reachable from `quotes_received` (errcode `55000` otherwise —
+  this is what makes "only one vendor can ever be awarded" hold, since an already-`awarded` or
+  `cancelled` requisition both fail the same check), and only for a link that genuinely has a
+  submitted quote for that requisition (`55001` otherwise). `PR_STATUS.AWARDED` itself, its `moss`
+  badge tone, and `pr-table.tsx`'s Cancel/Issue-RFQ disabling for it all **already existed** before
+  this feature — this was the one missing piece that could actually reach that state, so the PR list
+  page needed zero changes of its own.
+  - **`issue_rfq_link`/`reissue_rfq_link` needed no changes at all.** Both already guard on a status
+    allow-list that excludes `'awarded'` (raising their own pre-existing `55000`), so both were
+    already correctly refused post-award before this feature touched anything — confirmed live
+    (awarding a requisition, then calling `reissue_rfq_link` against one of its other links, still
+    fails with reissue's own original guard). The only change needed was a **frontend-only** one:
+    `rfq-links-dialog.tsx` stops rendering the Reissue button at all once any link
+    `isAwarded` (an `anyAwarded` check), purely so the UI never offers a button that would just 409 —
+    **Copy is deliberately left unchanged** (already gated to `PENDING` rows only, independent of
+    award, and copying a dead link isn't a broken action the way clicking Reissue would be).
+  - **`RfqLinkRow` and `QuoteComparisonData` both gained an award flag, not a 4th status value.**
+    `RfqLinkRow.isAwarded: boolean` (`src/lib/data/rfq-links.ts`, a third parallel query reading
+    `purchase_requisitions.awarded_rfq_link_id`) and `QuoteComparisonData.awardedLinkId: string | null`
+    (`src/lib/data/rfq-quote-comparison.ts`, from the same column, already queried by that file).
+    `RFQ_LINK_STATUS` itself stays a 3-state enum — an awarded link is always, definitionally, also
+    `QUOTE_RECEIVED` underneath, so award is layered on top at render time (the vendor modal's Status
+    column shows an "Awarded" badge instead of the normal status badge when `isAwarded`, rather than
+    teaching `STATUS_TONE`/`statusLabels` a 4th key) — same "keep derived concepts distinct" reasoning
+    `REQUESTED_QUOTE_STATUS` already documents for staying separate from `PR_STATUS`. For that same
+    reason, **the Requested Quote list's own progress column/`pr_rfq_progress` view is untouched** —
+    awarding doesn't change vendor/quote counts, so `derived_status` is unaffected by design.
+  - **One shared confirm dialog + one submit handler for both entry points.** `AwardConfirmDialog`
+    (`src/components/rfq/award-confirm-dialog.tsx`, same trivial shape as
+    `reissue-warning-dialog.tsx`/`cancel-pr-dialog.tsx`) and its `handleAwardConfirmed` both live in
+    `rfq-links-dialog.tsx` alone — the per-row Award button (shown only when a row is
+    `QUOTE_RECEIVED` and no vendor is awarded yet) and `CompareQuotesModal`'s own per-card Award
+    button both just set the same `awardTarget` state via a passed-down `onAwardClick` prop, so the
+    actual POST to `/api/purchase-requisitions/[id]/award` exists exactly once. On success, the
+    dialog patches its own local `compareData.awardedLinkId` directly (so an already-open Compare
+    modal reflects the award immediately, since that data isn't part of the `onAwarded()` refetch
+    below) and calls `onAwarded()` — a new prop on `RfqLinksDialog`, wired the same
+    fetch-and-replace-`selectedLinks` way `onReissued`/`handleLinksReissued` already are in
+    `requested-quote-view.tsx`.
+  - **`Dialog` atom gained one optional prop, `zIndexClassName` (default `"z-30"`, every existing
+    call site unaffected).** `CompareQuotesModal` is a bespoke `z-40` `createPortal` (not built on
+    this atom, per its own already-documented reasoning), and `AwardConfirmDialog` is the one confirm
+    dialog that can be opened *from inside* it — at the atom's default `z-30` it would've rendered
+    behind the compare modal instead of on top of it. `AwardConfirmDialog` passes `zIndexClassName="z-50"`
+    unconditionally (harmless when opened from the vendor modal instead, where nothing else is above
+    `z-30` anyway).
+  - Scope: this does **not** create a Purchase Order record — matches the already-documented decision
+    (above) that Compare Quotes itself shipped view-only, with "award → create PO" left as a separate,
+    not-yet-planned feature. Award here is exactly: pick a winner, lock out further RFQ activity on
+    this requisition, flip its status.
+  - **Reversed, by later product decision: the Requested Quote list's own status column now DOES show
+    "Awarded."** The original reasoning above (`REQUESTED_QUOTE_STATUS`/`pr_rfq_progress` must never
+    know about `PR_STATUS`) still holds for `pr_rfq_progress` itself — that view is untouched, stays a
+    pure vendor/quote-count concept. The override happens one layer up, in `search_requested_quotes`
+    (`20260913060000_search_requested_quotes_awarded_override.sql`, `create or replace function`):
+    restructured around a `with matched as (...)` CTE so `case when v.status = 'awarded' then
+    'awarded_status' else p.derived_status end` is computed once and reused by both the output column
+    and the `p_derived_statuses` filter (a plain inline `case` in the `where` clause would have had to
+    repeat the expression, and filtering by "Awarded" wouldn't have matched what the same query's
+    `select` labels as awarded). `REQUESTED_QUOTE_STATUS` gained a 4th value, `AWARDED: "awarded_status"`
+    (`src/lib/constants/requested-quote.ts`) — deliberately not the bare string `"awarded"`, to avoid
+    that value colliding with `PR_STATUS.AWARDED`'s own string despite being a different concept, same
+    disambiguation `RFQ_ISSUED: "rfq_issued_status"` already used for the same reason. `rfq-table.tsx`'s
+    `STATUS_TONE` maps it to `moss`, matching `PR_STATUS.AWARDED`'s own tone elsewhere in the app.
+    Everywhere else that reads `derivedStatus`/builds status filter options (`requested-quotes.ts`,
+    `requested-quote-view.tsx`'s `STATUS_OPTIONS`, `api/requested-quotes/route.ts`'s `VALID_STATUSES`)
+    already derives from this one constant or casts the RPC's own string output, so all three picked up
+    the new value with zero code changes.
+  - **Bug fix: reissuing or awarding a vendor from the RFQ vendor modal didn't refresh the Requested
+    Quote table row behind it.** `requested-quote-view.tsx`'s old `handleLinksReissued` only refetched
+    the already-open dialog's own `selectedLinks` (via `fetchLinksForRow`), never the outer table's
+    `fetchList(...)` — harmless for Reissue-of-a-never-submitted-link, but wrong for reissuing an
+    already-`QUOTE_RECEIVED` link (deletes its quotation, so `quote_count`/`derived_status` on the
+    outer row change too) and wrong for Award once the bullet above made `derived_status` itself
+    award-sensitive. Replaced with one `handleLinksChanged`, run via `Promise.all` (`fetchLinksForRow`
+    + `fetchList({ page, pageSize, ...appliedParams })`, the same params shape `RfqPager`'s own
+    `onPageChange` already uses), passed as both `onReissued` and `onAwarded` to `RfqLinksDialog` —
+    both actions need the identical two-part refresh, so there's no reason for two near-duplicate
+    handlers.
 
 ## 19. Keeping this file current
 

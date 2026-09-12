@@ -165,11 +165,20 @@ export function RequestedQuoteView({ initialDropdownFields, initialRows, initial
     setSelectedRow(row);
   }
 
-  // Refreshes the already-open dialog's own list after a reissue — no row
-  // loading cursor, no dialog open/close toggling, just an in-place update.
-  async function handleLinksReissued() {
+  // Refreshes both the already-open dialog's own list AND the outer table's
+  // current page in place — no row loading cursor, no dialog open/close
+  // toggling. Both a reissue and an award can change what the outer table
+  // shows for this row: reissuing a submitted quote deletes it (quote_count
+  // drops, derived_status can fall from all_received back to
+  // partial_received/rfq_issued_status), and awarding flips derived_status
+  // to "awarded_status" (search_requested_quotes' own override — see that
+  // migration). Run in parallel since the two fetches are independent.
+  async function handleLinksChanged() {
     if (!selectedRow) return;
-    const links = await fetchLinksForRow(selectedRow.id);
+    const [links] = await Promise.all([
+      fetchLinksForRow(selectedRow.id),
+      fetchList({ page, pageSize, ...appliedParams }),
+    ]);
     if (links !== null) setSelectedLinks(links);
   }
 
@@ -281,7 +290,8 @@ export function RequestedQuoteView({ initialDropdownFields, initialRows, initial
         requisitionId={selectedRow?.id ?? ""}
         prNumber={selectedRow?.prNumber ?? ""}
         links={selectedLinks}
-        onReissued={handleLinksReissued}
+        onReissued={handleLinksChanged}
+        onAwarded={handleLinksChanged}
       />
     </div>
   );

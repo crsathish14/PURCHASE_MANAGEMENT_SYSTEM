@@ -48,6 +48,13 @@ export type RfqLinkRow = {
   grandTotal: number | null;
   deliveryTerms: string | null;
   maxDeliveryLeadTimeDays: number | null;
+  // True for exactly one link at most, per requisition — this vendor's quote
+  // was chosen via award_purchase_requisition. Deliberately a flag on top of
+  // RfqLinkStatus rather than a 4th status value: an awarded link is always
+  // also, definitionally, QUOTE_RECEIVED underneath (same "keep derived
+  // concepts distinct" reasoning REQUESTED_QUOTE_STATUS already documents
+  // for staying separate from PR_STATUS).
+  isAwarded: boolean;
 };
 
 // Staff-facing, for the RFQ vendor management dialog on the Requested Quote
@@ -61,7 +68,11 @@ export type RfqLinkRow = {
 // not a workaround.
 export async function getRfqLinksForRequisition(requisitionId: string): Promise<RfqLinkRow[]> {
   const supabase = await createClient();
-  const [{ data: links, error: linksError }, { data: quotations, error: quotationsError }] = await Promise.all([
+  const [
+    { data: links, error: linksError },
+    { data: quotations, error: quotationsError },
+    { data: requisition, error: requisitionError },
+  ] = await Promise.all([
     supabase
       .from("purchase_requisition_rfq_links")
       .select("id, vendor_name, vendor_email, access_token, expires_at, submitted_at, created_at")
@@ -71,10 +82,16 @@ export async function getRfqLinksForRequisition(requisitionId: string): Promise<
       .from("purchase_requisition_rfq_quotations")
       .select("id, rfq_link_id, created_at, total_quoted_amount, delivery_terms")
       .eq("requisition_id", requisitionId),
+    supabase
+      .from("purchase_requisitions")
+      .select("awarded_rfq_link_id")
+      .eq("id", requisitionId)
+      .maybeSingle(),
   ]);
 
   if (linksError) throw linksError;
   if (quotationsError) throw quotationsError;
+  if (requisitionError) throw requisitionError;
 
   const quotationIds = (quotations ?? []).map((row) => row.id);
 
@@ -125,6 +142,7 @@ export async function getRfqLinksForRequisition(requisitionId: string): Promise<
       grandTotal: quotation?.total_quoted_amount ?? null,
       deliveryTerms: quotation?.delivery_terms ?? null,
       maxDeliveryLeadTimeDays: leadTimes.length > 0 ? Math.max(...leadTimes) : null,
+      isAwarded: row.id === requisition?.awarded_rfq_link_id,
     };
   });
 }

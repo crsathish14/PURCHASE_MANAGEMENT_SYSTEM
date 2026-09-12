@@ -75,6 +75,11 @@ export type QuoteComparisonData = {
   requisitionDate: string | null;
   requiredPort: string | null;
   requiredDate: string | null;
+  // Set once award_purchase_requisition has been called for this
+  // requisition — the winning vendor's rfq_link_id, or null before any
+  // award. See RfqLinkRow.isAwarded (src/lib/data/rfq-links.ts) for the same
+  // flag on the vendor management dialog's own side.
+  awardedLinkId: string | null;
   vendors: QuoteComparisonVendor[];
 };
 
@@ -104,7 +109,7 @@ export async function getRfqQuoteComparison(
       .maybeSingle(),
     supabase
       .from("purchase_requisitions")
-      .select("requisition_date, required_port, requested_by")
+      .select("requisition_date, required_port, requested_by, awarded_rfq_link_id")
       .eq("id", requisitionId)
       .maybeSingle(),
   ]);
@@ -297,6 +302,7 @@ export async function getRfqQuoteComparison(
     requisitionDate: prRow.requisition_date,
     requiredPort: prRow.required_port,
     requiredDate: prRow.requested_by,
+    awardedLinkId: prRow.awarded_rfq_link_id,
     vendors,
   };
 }

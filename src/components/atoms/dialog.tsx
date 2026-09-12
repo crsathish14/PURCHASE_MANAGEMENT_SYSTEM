@@ -28,9 +28,16 @@ export type DialogProps = {
   // the CTAs reachable without following the body's scroll. Omit it for a
   // short dialog whose own inline button row never needs to leave the flow.
   footer?: ReactNode;
+  // Default z-30 stacks correctly above every other Dialog-based dialog.
+  // CompareQuotesModal (rfq/compare-quotes-modal.tsx) is the one screen in
+  // the app that isn't built on this atom (it needs a near-fullscreen custom
+  // layout) and uses z-40 — AwardConfirmDialog is the one Dialog that can be
+  // opened while that modal is showing, so it passes z-50 here to render on
+  // top of it instead of behind it.
+  zIndexClassName?: string;
 };
 
-export function Dialog({ open, onClose, title, children, size = "md", footer }: DialogProps) {
+export function Dialog({ open, onClose, title, children, size = "md", footer, zIndexClassName = "z-30" }: DialogProps) {
   useEffect(() => {
     if (!open) return;
 
@@ -45,7 +52,7 @@ export function Dialog({ open, onClose, title, children, size = "md", footer }: 
 
   return createPortal(
     <div
-      className="fixed inset-0 z-30 flex items-center justify-center bg-ink/40 px-4 py-8"
+      className={`fixed inset-0 ${zIndexClassName} flex items-center justify-center bg-ink/40 px-4 py-8`}
       onClick={onClose}
     >
       <div

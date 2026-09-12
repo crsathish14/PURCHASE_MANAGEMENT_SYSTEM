@@ -2,7 +2,16 @@
 
 import { useState } from "react";
 
-import { Badge, ImagePreviewModal, Input, Label, PhotoThumbnailStack, Textarea, type PreviewImage } from "@/components/atoms";
+import {
+  Badge,
+  Button,
+  ImagePreviewModal,
+  Input,
+  Label,
+  PhotoThumbnailStack,
+  Textarea,
+  type PreviewImage,
+} from "@/components/atoms";
 import en from "@/locales/en.json";
 import type { PrLineItemAttachment } from "@/lib/data/purchase-requisition";
 import type { QuoteComparisonVendor } from "@/lib/data/rfq-quote-comparison";
@@ -69,10 +78,24 @@ export type StoresQuoteComparisonCardProps = {
     requiredPort: string | null;
     requiredDate: string | null;
   };
-  isLowest: boolean;
+  // True for at most one vendor per requisition (award_purchase_requisition
+  // already enforces that server-side) — see RfqLinkRow.isAwarded for the
+  // same flag on the vendor management dialog's own table.
+  isAwarded: boolean;
+  // False once any vendor has been awarded, even on a card that isn't the
+  // winner — only one Award action can ever succeed per requisition, so the
+  // button disappears everywhere once that's already happened.
+  canAward: boolean;
+  onAward: () => void;
 };
 
-export function StoresQuoteComparisonCard({ vendor, pr, isLowest }: StoresQuoteComparisonCardProps) {
+export function StoresQuoteComparisonCard({
+  vendor,
+  pr,
+  isAwarded,
+  canAward,
+  onAward,
+}: StoresQuoteComparisonCardProps) {
   return (
     <div className="h-full min-h-0 overflow-y-auto rounded-lg border border-line bg-paper p-5">
       <div className="mb-6 flex items-start justify-between gap-3 border-b border-line pb-4">
@@ -82,7 +105,15 @@ export function StoresQuoteComparisonCard({ vendor, pr, isLowest }: StoresQuoteC
             {tCompare.submittedOn.replace("{date}", dateFormatter.format(new Date(vendor.submittedAt)))}
           </p>
         </div>
-        {isLowest ? <Badge tone="moss">{tCompare.lowestTotalBadge}</Badge> : null}
+        <div className="flex flex-col items-end gap-2">
+          {isAwarded ? (
+            <Badge tone="moss">{tCompare.awardedBadge}</Badge>
+          ) : canAward ? (
+            <Button type="button" variant="primary" size="sm" onClick={onAward}>
+              {tCompare.award}
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <section>
@@ -232,7 +263,6 @@ export function StoresQuoteComparisonCard({ vendor, pr, isLowest }: StoresQuoteC
           <Label>{t.quotationSummary.totalQuotedAmount}</Label>
           <div className="flex items-center gap-2">
             <Input disabled value={formatCurrencyUsd(vendor.totalQuotedAmount)} className="flex-1" />
-            {isLowest ? <Badge tone="moss">{tCompare.lowestTotalBadge}</Badge> : null}
           </div>
         </div>
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">

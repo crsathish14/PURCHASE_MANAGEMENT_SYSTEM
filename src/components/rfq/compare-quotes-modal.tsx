@@ -32,9 +32,15 @@ export type CompareQuotesModalProps = {
   onClose: () => void;
   data: QuoteComparisonData | null;
   requestedCount: number;
+  // Opens rfq-links-dialog.tsx's own award confirm dialog on top of this
+  // modal — awarding itself isn't handled here, this is purely presentational
+  // (see that file for why: it owns the one shared confirm dialog + submit
+  // handler used by both this modal's per-card button and the vendor
+  // dialog's own per-row button).
+  onAwardClick: (vendor: { linkId: string; vendorName: string }) => void;
 };
 
-export function CompareQuotesModal({ open, onClose, data, requestedCount }: CompareQuotesModalProps) {
+export function CompareQuotesModal({ open, onClose, data, requestedCount, onAwardClick }: CompareQuotesModalProps) {
   useEffect(() => {
     if (!open) return;
 
@@ -48,7 +54,6 @@ export function CompareQuotesModal({ open, onClose, data, requestedCount }: Comp
   if (!open) return null;
 
   const vendors = data?.vendors ?? [];
-  const lowestTotal = vendors.length > 0 ? Math.min(...vendors.map((vendor) => vendor.totalQuotedAmount)) : null;
   const prContext = data
     ? {
         prNumber: data.prNumber,
@@ -111,7 +116,9 @@ export function CompareQuotesModal({ open, onClose, data, requestedCount }: Comp
                       key={vendor.linkId}
                       vendor={vendor}
                       pr={prContext}
-                      isLowest={vendor.totalQuotedAmount === lowestTotal}
+                      isAwarded={vendor.linkId === data?.awardedLinkId}
+                      canAward={!data?.awardedLinkId}
+                      onAward={() => onAwardClick({ linkId: vendor.linkId, vendorName: vendor.vendorName })}
                     />
                   ))}
                 </div>

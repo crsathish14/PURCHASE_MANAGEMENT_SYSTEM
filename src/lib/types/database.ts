@@ -133,6 +133,7 @@ export type Database = {
           equipment_other_details: string | null;
           requisitioned_by: string | null;
           captain_chief_engineer: string | null;
+          awarded_rfq_link_id: string | null;
           created_by: string;
           created_at: string;
           updated_at: string;
@@ -157,6 +158,7 @@ export type Database = {
           equipment_other_details?: string | null;
           requisitioned_by?: string | null;
           captain_chief_engineer?: string | null;
+          awarded_rfq_link_id?: string | null;
           created_by: string;
         };
         Update: {
@@ -177,6 +179,7 @@ export type Database = {
           equipment_other_details?: string | null;
           requisitioned_by?: string | null;
           captain_chief_engineer?: string | null;
+          awarded_rfq_link_id?: string | null;
         };
         Relationships: [
           {
@@ -663,6 +666,10 @@ export type Database = {
       cancel_purchase_requisition: {
         Args: { p_id: string };
         Returns: { id: string; status: PrStatus }[];
+      };
+      award_purchase_requisition: {
+        Args: { p_id: string; p_rfq_link_id: string };
+        Returns: { id: string; status: PrStatus; awarded_rfq_link_id: string }[];
       };
       duplicate_purchase_requisition: {
         Args: { p_id: string };

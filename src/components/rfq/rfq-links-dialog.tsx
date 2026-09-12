@@ -10,6 +10,7 @@ import type { RfqLinkRow } from "@/lib/data/rfq-links";
 import type { QuoteComparisonData } from "@/lib/data/rfq-quote-comparison";
 import { formatCurrencyUsd } from "@/lib/format-currency";
 import { toast } from "@/store/toast-store";
+import { AwardConfirmDialog } from "./award-confirm-dialog";
 import { CompareQuotesModal } from "./compare-quotes-modal";
 import { ReissueRfqDialog } from "./reissue-rfq-dialog";
 import { ReissueWarningDialog } from "./reissue-warning-dialog";
@@ -39,9 +40,20 @@ export type RfqLinksDialogProps = {
   // Fired after a successful reissue so the parent can refetch this same
   // list in place, without closing/reopening the dialog.
   onReissued: () => void;
+  // Fired after a successful award, same in-place-refetch contract as
+  // onReissued above.
+  onAwarded: () => void;
 };
 
-export function RfqLinksDialog({ open, onClose, requisitionId, prNumber, links, onReissued }: RfqLinksDialogProps) {
+export function RfqLinksDialog({
+  open,
+  onClose,
+  requisitionId,
+  prNumber,
+  links,
+  onReissued,
+  onAwarded,
+}: RfqLinksDialogProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [reissueTarget, setReissueTarget] = useState<RfqLinkRow | null>(null);
   const [reissueWarningTarget, setReissueWarningTarget] = useState<RfqLinkRow | null>(null);
@@ -50,6 +62,15 @@ export function RfqLinksDialog({ open, onClose, requisitionId, prNumber, links, 
   const [compareLoading, setCompareLoading] = useState(false);
   const [compareData, setCompareData] = useState<QuoteComparisonData | null>(null);
   const [compareRequestedCount, setCompareRequestedCount] = useState(0);
+  const [awardTarget, setAwardTarget] = useState<{ id: string; vendorName: string } | null>(null);
+  const [awarding, setAwarding] = useState(false);
+
+  // Only one vendor can ever be awarded per requisition — once true, every
+  // row's Award button disappears (nothing left to award) and every row's
+  // Reissue button disappears too (award_purchase_requisition's own guard
+  // already refuses reissue_rfq_link post-award, so hiding it here just
+  // avoids offering a button that would 409 — see plans/development.md §18).
+  const anyAwarded = links.some((link) => link.isAwarded);
 
   function handleReissueClick(row: RfqLinkRow) {
     if (row.status === RFQ_LINK_STATUS.QUOTE_RECEIVED) {
@@ -87,6 +108,37 @@ export function RfqLinksDialog({ open, onClose, requisitionId, prNumber, links, 
       toast.error(t.compareLoadError);
     } finally {
       setCompareLoading(false);
+    }
+  }
+
+  async function handleAwardConfirmed() {
+    if (!awardTarget) return;
+    setAwarding(true);
+    try {
+      const response = await fetch(`/api/purchase-requisitions/${requisitionId}/award`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rfqLinkId: awardTarget.id }),
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        toast.error(payload?.error?.message ?? t.awardError);
+        return;
+      }
+
+      toast.success(t.awardSuccess.replace("{vendorName}", awardTarget.vendorName));
+      // Patches the already-open Compare modal in place, if it's open — its
+      // own data isn't part of the onAwarded() refetch below (that only
+      // refreshes this dialog's own `links` prop upstream), and nothing else
+      // about a comparison changes just because a vendor was awarded.
+      setCompareData((current) => (current ? { ...current, awardedLinkId: awardTarget.id } : current));
+      setAwardTarget(null);
+      onAwarded();
+    } catch {
+      toast.error(t.awardError);
+    } finally {
+      setAwarding(false);
     }
   }
 
@@ -171,7 +223,11 @@ export function RfqLinksDialog({ open, onClose, requisitionId, prNumber, links, 
                   <td className={cellClass}>{row.deliveryTerms ?? "—"}</td>
                   <td className={`${cellClass} font-mono text-slate`}>{row.maxDeliveryLeadTimeDays ?? "—"}</td>
                   <td className={cellClass}>
-                    <Badge tone={STATUS_TONE[row.status]}>{t.statusLabels[row.status]}</Badge>
+                    {row.isAwarded ? (
+                      <Badge tone="moss">{t.awardedBadge}</Badge>
+                    ) : (
+                      <Badge tone={STATUS_TONE[row.status]}>{t.statusLabels[row.status]}</Badge>
+                    )}
                   </td>
                   <td className={`${cellClass} whitespace-nowrap`}>
                     <div className="flex items-center gap-1.5">
@@ -185,7 +241,17 @@ export function RfqLinksDialog({ open, onClose, requisitionId, prNumber, links, 
                           {copiedId === row.id ? t.copied : t.copyLink}
                         </Button>
                       ) : null}
-                      {row.status !== RFQ_LINK_STATUS.PENDING ? (
+                      {row.status === RFQ_LINK_STATUS.QUOTE_RECEIVED && !anyAwarded ? (
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          onClick={() => setAwardTarget({ id: row.id, vendorName: row.vendorName })}
+                        >
+                          {t.award}
+                        </Button>
+                      ) : null}
+                      {row.status !== RFQ_LINK_STATUS.PENDING && !anyAwarded ? (
                         <Button type="button" variant="secondary" size="sm" onClick={() => handleReissueClick(row)}>
                           {t.reissue}
                         </Button>
@@ -228,6 +294,16 @@ export function RfqLinksDialog({ open, onClose, requisitionId, prNumber, links, 
         onClose={() => setCompareOpen(false)}
         data={compareData}
         requestedCount={compareRequestedCount}
+        onAwardClick={(vendor) => setAwardTarget({ id: vendor.linkId, vendorName: vendor.vendorName })}
+      />
+
+      <AwardConfirmDialog
+        open={awardTarget !== null}
+        onClose={() => setAwardTarget(null)}
+        onConfirm={handleAwardConfirmed}
+        vendorName={awardTarget?.vendorName ?? ""}
+        prNumber={prNumber}
+        loading={awarding}
       />
     </>
   );

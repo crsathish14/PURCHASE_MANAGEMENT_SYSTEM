@@ -11,6 +11,7 @@ const STATUS_TONE: Record<RequestedQuoteStatus, BadgeTone> = {
   [REQUESTED_QUOTE_STATUS.RFQ_ISSUED]: "amber",
   [REQUESTED_QUOTE_STATUS.PARTIAL_RECEIVED]: "teal",
   [REQUESTED_QUOTE_STATUS.ALL_RECEIVED]: "moss",
+  [REQUESTED_QUOTE_STATUS.AWARDED]: "moss",
 };
 
 const dateFormatter = new Intl.DateTimeFormat("en", { day: "numeric", month: "short" });
