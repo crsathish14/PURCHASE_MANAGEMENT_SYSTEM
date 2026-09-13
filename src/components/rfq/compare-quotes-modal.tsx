@@ -6,7 +6,10 @@ import { Send, X } from "lucide-react";
 
 import { Button } from "@/components/atoms";
 import en from "@/locales/en.json";
+import { PR_CATEGORY } from "@/lib/constants/purchase-requisition";
 import type { QuoteComparisonData } from "@/lib/data/rfq-quote-comparison";
+import { ServiceQuoteComparisonCard } from "./service-quote-comparison-card";
+import { SparesQuoteComparisonCard } from "./spares-quote-comparison-card";
 import { StoresQuoteComparisonCard } from "./stores-quote-comparison-card";
 
 const t = en.staff.requestedQuote.compare;
@@ -62,8 +65,25 @@ export function CompareQuotesModal({ open, onClose, data, requestedCount, onAwar
         requisitionDate: data.requisitionDate,
         requiredPort: data.requiredPort,
         requiredDate: data.requiredDate,
+        equipmentName: data.equipmentName,
+        equipmentType: data.equipmentType,
+        equipmentMake: data.equipmentMake,
+        equipmentSerialNo: data.equipmentSerialNo,
+        equipmentModel: data.equipmentModel,
+        equipmentSpecifications: data.equipmentSpecifications,
+        equipmentOtherDetails: data.equipmentOtherDetails,
       }
     : null;
+
+  // A comparison is always scoped to one requisition, which has exactly one
+  // category shared by every vendor quoted against it — so this is picked
+  // once per modal render, not per vendor card.
+  const ComparisonCard =
+    data?.category === PR_CATEGORY.SPARES
+      ? SparesQuoteComparisonCard
+      : data?.category === PR_CATEGORY.SERVICE
+        ? ServiceQuoteComparisonCard
+        : StoresQuoteComparisonCard;
 
   return createPortal(
     <div className="fixed inset-0 z-40 flex flex-col bg-ink/40 p-4 sm:p-6" onClick={onClose}>
@@ -112,7 +132,7 @@ export function CompareQuotesModal({ open, onClose, data, requestedCount, onAwar
               {prContext ? (
                 <div className={`grid min-h-0 flex-1 gap-4 ${GRID_COLS_CLASS[vendors.length] ?? "grid-cols-3"}`}>
                   {vendors.map((vendor) => (
-                    <StoresQuoteComparisonCard
+                    <ComparisonCard
                       key={vendor.linkId}
                       vendor={vendor}
                       pr={prContext}

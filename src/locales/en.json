@@ -702,6 +702,162 @@
         "deliveryTermsRequired": "Delivery terms are required",
         "remarksNotesRequired": "Remarks / notes are required"
       }
+    },
+    "sparesForm": {
+      "rfqDetails": {
+        "title": "RFQ Details",
+        "vesselName": "Vessel Name",
+        "imoNo": "IMO No.",
+        "dateOfIssue": "Date of Issue",
+        "requisitionNo": "Requisition No. (PR No.)",
+        "portOfDelivery": "Port / Place of Delivery",
+        "requiredDate": "Required Date",
+        "requestedCurrency": "Requested Currency",
+        "quotationNo": "Quotation No.",
+        "quotationNoPlaceholder": "e.g. Q-2045",
+        "refNo": "Ref. No.",
+        "refNoPlaceholder": "e.g. REF-2045"
+      },
+      "vendorDetails": {
+        "title": "Vendor Details",
+        "vendorName": "Vendor / Company Name",
+        "vendorNamePlaceholder": "e.g. Anchor Marine Supplies",
+        "contactPerson": "Contact Person",
+        "contactNo": "Contact No.",
+        "email": "Email ID",
+        "otherDetails": "Other Details",
+        "optional": "optional"
+      },
+      "equipmentDetails": {
+        "title": "Equipment Details",
+        "nameOfEquipment": "Name of Equipment",
+        "type": "Type",
+        "make": "Make",
+        "serialNo": "Sr. No.",
+        "model": "Model",
+        "specifications": "Specifications",
+        "otherDetails": "Any Other Details"
+      },
+      "itemDetails": {
+        "title": "Item Details",
+        "columns": {
+          "slNo": "S.No.",
+          "requestedDescription": "Requested Item Description",
+          "partNo": "Requested Part No.",
+          "offeredDescription": "Offered Item Description",
+          "offeredPartNo": "Offered Part No.",
+          "itemType": "Item Type (Genuine OEM / Equivalent / Recon.)",
+          "qty": "Qty",
+          "uom": "UOM",
+          "unitPrice": "Unit Price",
+          "totalPrice": "Total Price",
+          "deliveryLeadTime": "Delivery Lead Time (In Days)",
+          "remarks": "Remarks",
+          "vendorPhotos": "Supporting Photos"
+        },
+        "noPhotos": "No photos",
+        "viewPhoto": "View photo",
+        "viewPhotoStack": "View {count} photos",
+        "grandTotal": "Grand Total"
+      },
+      "quotationSummary": {
+        "title": "Quotation Summary & Terms",
+        "totalQuotedAmount": "Total Quoted Amount",
+        "quotationValidity": "Quotation Validity",
+        "quotationValidityPlaceholder": "e.g. 30 days from quotation date",
+        "paymentTerms": "Payment Terms",
+        "paymentTermsPlaceholder": "e.g. 30 days net",
+        "deliveryTerms": "Delivery Terms (Incoterm)",
+        "deliveryTermsPlaceholder": "e.g. FOB Singapore",
+        "remarksNotes": "Remarks / Notes"
+      },
+      "submit": "Submit Quotation",
+      "submitting": "Submitting…",
+      "errors": {
+        "vendorNameRequired": "Vendor / Company name is required",
+        "vendorEmailInvalid": "Enter a valid email address",
+        "unitPriceInvalid": "Enter a valid amount",
+        "deliveryLeadTimeInvalid": "Enter a whole number of days",
+        "quotationValidityRequired": "Quotation validity is required",
+        "paymentTermsRequired": "Payment terms are required",
+        "deliveryTermsRequired": "Delivery terms are required",
+        "remarksNotesRequired": "Remarks / notes are required"
+      }
+    },
+    "serviceForm": {
+      "rfqDetails": {
+        "title": "RFQ Details",
+        "vesselName": "Vessel Name",
+        "imoNo": "IMO No.",
+        "dateOfIssue": "Date of Issue",
+        "requisitionNo": "Requisition No. (PR No.)",
+        "portOfDelivery": "Port / Place of Service",
+        "requiredDate": "Required Date",
+        "requestedCurrency": "Requested Currency",
+        "quotationNo": "Quotation No.",
+        "quotationNoPlaceholder": "e.g. Q-2045",
+        "refNo": "Ref. No.",
+        "refNoPlaceholder": "e.g. REF-2045"
+      },
+      "vendorDetails": {
+        "title": "Vendor Details",
+        "vendorName": "Vendor / Company Name",
+        "vendorNamePlaceholder": "e.g. Anchor Marine Supplies",
+        "contactPerson": "Contact Person",
+        "contactNo": "Contact No.",
+        "email": "Email ID",
+        "otherDetails": "Other Details",
+        "optional": "optional"
+      },
+      "equipmentDetails": {
+        "title": "Equipment Details",
+        "nameOfEquipment": "Name of Equipment",
+        "type": "Type",
+        "make": "Make",
+        "serialNo": "Sr. No.",
+        "model": "Model",
+        "specifications": "Specifications",
+        "otherDetails": "Any Other Details"
+      },
+      "itemDetails": {
+        "title": "Item Details",
+        "columns": {
+          "slNo": "S.No.",
+          "description": "Scope of Work / Service Description",
+          "estimatedDuration": "Estimated Duration",
+          "sparesConsumablesIncluded": "Spares/Consumables Included (Y/N)",
+          "unitPrice": "Unit Price / Lump Sum",
+          "totalPrice": "Total Price",
+          "remarks": "Remarks",
+          "vendorPhotos": "Supporting Photos"
+        },
+        "noPhotos": "No photos",
+        "viewPhoto": "View photo",
+        "viewPhotoStack": "View {count} photos",
+        "grandTotal": "Grand Total"
+      },
+      "quotationSummary": {
+        "title": "Quotation Summary & Terms",
+        "totalQuotedAmount": "Total Quoted Amount",
+        "quotationValidity": "Quotation Validity",
+        "quotationValidityPlaceholder": "e.g. 30 days from quotation date",
+        "paymentTerms": "Payment Terms",
+        "paymentTermsPlaceholder": "e.g. 30 days net",
+        "deliveryTerms": "Delivery Terms (Incoterm)",
+        "deliveryTermsPlaceholder": "e.g. FOB Singapore",
+        "remarksNotes": "Remarks / Notes"
+      },
+      "submit": "Submit Quotation",
+      "submitting": "Submitting…",
+      "errors": {
+        "vendorNameRequired": "Vendor / Company name is required",
+        "vendorEmailInvalid": "Enter a valid email address",
+        "unitPriceInvalid": "Enter a valid amount",
+        "quotationValidityRequired": "Quotation validity is required",
+        "paymentTermsRequired": "Payment terms are required",
+        "deliveryTermsRequired": "Delivery terms are required",
+        "remarksNotesRequired": "Remarks / notes are required"
+      }
     }
   }
 }

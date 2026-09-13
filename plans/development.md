@@ -419,7 +419,7 @@ one:
   streams the file straight off disk with no ExcelJS involved — only Export, which loads and re-saves
   through ExcelJS, ever hits this).
 
-## 17. Vendor RFQ quote submission (Stores — first of three categories)
+## 17. Vendor RFQ quote submission (Stores, Spares, Service)
 
 The vendor-facing side of `purchase_requisition_rfq_links` (§11's own bullet on the file-upload
 pattern is the closest sibling precedent for "one shared plumbing, reused across the app"). The link/
@@ -467,15 +467,72 @@ this feature — everything below is additive, sitting alongside it.
   client genuinely can't do the job" cases §11 already documents — narrowly used here, only to sign
   paths the token-validated, requisition-scoped RPC call already returned.
 - **Category-driven, shared-backend architecture** — the same "shared plumbing, category-specific
-  renderer" shape as §16's import templates: `get_rfq_quote_details_by_token` is fully
-  category-agnostic (it returns whatever columns/line items exist for any PR), and
-  `src/app/[lang]/quote/[token]/page.tsx` branches purely on the returned `category` to decide
-  which form component to render — `stores` → `StoresQuoteForm`
-  (`src/components/vendor-quote/stores-quote-form.tsx`), anything else → the original generic stub
-  `QuoteForm`. Adding Spares/Service forms later needs no backend changes, only new sibling
-  components following `StoresQuoteForm`'s pattern (its own category-specific bits — which columns
-  to surface as locked fields, which labels to match on — are the only genuinely Stores-specific
-  code in this feature).
+  renderer" shape as §16's import templates: `get_rfq_quote_details_by_token`'s line-item flattening
+  is fully category-agnostic (it returns whatever columns/line items exist for any PR — no changes
+  needed there when Spares/Service were added), and `src/app/[lang]/quote/[token]/page.tsx` branches
+  purely on the returned `category` to decide which form component to render — `stores` →
+  `StoresQuoteForm`, `spares` → `SparesQuoteForm`, `service` → `ServiceQuoteForm` (all three under
+  `src/components/vendor-quote/`), anything else/invalid → the original generic stub `QuoteForm`.
+  Two backend pieces *did* need category-aware changes when Spares/Service were added (see the
+  bullet below) — a correction to what this section originally said before those categories existed.
+- **Extending to Spares and Service** — Store shipped first as the reference implementation; Spares
+  and Service reuse its entire lifecycle (issue/reissue/award/link generation/Requested Quote list
+  were all already 100% category-agnostic and needed zero changes) but needed real, not purely
+  additive-component, changes in exactly two places:
+  - `submit_rfq_quotation` (`20260913080000_submit_rfq_quotation_spares_service.sql`, `create or
+    replace` — signature unchanged) now resolves the requisition's own category once, before its
+    per-item loop (same 2-hop dropdown lookup `issue_rfq_link`'s own `v_is_service` check already
+    uses), and branches: Stores keeps its original `'IMPA/ISSA Code'`/`'UOM'`/`'Approved Qty'`
+    label lookups unchanged; Spares shares Stores' `UOM`/`Approved Qty` lookups but adds its own
+    `'Part No./Ref. No.'` lookup (→ `requested_part_no`) plus vendor-supplied `offeredPartNo`/
+    `itemType` (free text, not a constrained dropdown — product decision); Service has no
+    Qty/UOM/IMPA concept at all, so those columns stay null and `total_price` is instead set
+    directly from the vendor's `unitPrice` (no multiplication — Service's own Word-doc form has no
+    Qty column, so Unit Price/Lump Sum *is* the line total by product decision). An unrecognized or
+    missing category falls through to the original Stores-shaped branch, so this can never change
+    behavior for an existing Stores row. `purchase_requisition_rfq_quotation_items` gained 5 new
+    nullable columns for this (`20260913070000_...`): `requested_part_no`, `offered_part_no`,
+    `item_type`, `estimated_duration`, `spares_consumables_included` — always null for Stores rows.
+  - `get_rfq_quote_details_by_token` (`20260913090000_rfq_quote_details_equipment_fields.sql`,
+    `drop function` + `create function` — Postgres refuses `create or replace` when a function's
+    `returns table` column list changes, same situation §5's `search_purchase_requisitions`
+    migration already hit and documented) now also returns the requisition's 7 `equipment_*`
+    fields (already populated for Spares/Service PRs via `create-requisition-dialog.tsx`, never
+    selected by this function before), so `SparesQuoteForm`/`ServiceQuoteForm` can render a
+    pre-filled, read-only Equipment Details section the same way the office-side form already does.
+    Stores PRs never populate these, so `StoresQuoteForm` simply doesn't render that section.
+  - **Frontend: 3 shared presentational sections, category-specific item tables.** RFQ
+    Details/Vendor Details/Quotation Summary are byte-identical in structure across all 3
+    categories' Word-doc source forms (only the RFQ Details port label text differs — "Port / Place
+    of Delivery" for Stores/Spares, "Port / Place of Service" for Service), so they were extracted
+    out of `stores-quote-form.tsx` into shared, generic-over-`TFieldValues` components
+    (`rfq-details-section.tsx`, `vendor-details-section.tsx`, `quotation-summary-section.tsx`,
+    `src/components/vendor-quote/`) — a pure lift, `StoresQuoteForm`'s own rendered output is
+    unchanged. Each is generic (`<TFieldValues extends {...the fields it registers...}>`) rather
+    than typed to one concrete form's input type, since react-hook-form's `register`/`errors`
+    otherwise fight a shared component's generics once the 3 forms' full input types diverge (each
+    call site instantiates the generic independently from its own `register`, so there's no
+    cross-schema assignability question). A new `equipment-details-section.tsx` (Spares/Service
+    only, purely read-only — never had an editable form to extract from) rounds out the shared set.
+    The Item Details table itself is **not** shared — Spares' and Service's column sets differ too
+    much from Stores' (and from each other) to force into one generic table, so `SparesQuoteForm`/
+    `ServiceQuoteForm` each have their own table JSX, following `StoresQuoteForm`'s exact
+    conventions (same non-`useMemo`'d `watch("items")` row-total pattern below, same
+    `photosByIndex` local-state photo handling, same submit-payload shape) — the same "shared
+    lifecycle, thin per-category files" precedent §16's import/export parsers already established.
+  - **New validation schemas**, `src/lib/validation/vendor-quote.ts`: `submitSparesVendorQuoteSchema`/
+    `submitServiceVendorQuoteSchema` (and their own item schemas) sit alongside the original
+    `submitStoresVendorQuoteSchema` — untouched, not merged into one — since each category's item
+    shape is genuinely different (Service's item schema, for instance, has no `offeredDescription`
+    or `deliveryLeadTime` at all, since its Word-doc form has neither). `api/quote/[token]/submit/
+    route.ts` fetches `getRfqQuoteDetailsByToken(token)` first to pick the right schema by
+    `detail.category` — this also means an invalid/expired/already-submitted link now cleanly 409s
+    regardless of payload shape, rather than sometimes surfacing a generic 400 from a failed Zod
+    parse first; `submit_rfq_quotation`'s own atomic single-submission gate remains the sole
+    authoritative check either way.
+  - **Comparison cards** (§18) each get their own per-category component, same non-shared-with-the-
+    form pattern `StoresQuoteComparisonCard` already established (a fully independent, always-
+    `disabled`-input clone, not a "read-only mode" retrofit into the §17 shared form sections).
 - **Photo thumbnails — shared between the editable and read-only views.** `PhotoThumbnailStack`
   (`src/components/atoms/photo-thumbnail-stack.tsx`) renders 0-1 photos as a single square tile and
   2+ as one collapsed stack tile (front photo, thin peeking edges behind it, a count badge) rather
@@ -756,6 +813,25 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
   - Scope is view-only for this pass, per an explicit decision when asked: no "award/choose vendor →
     create Purchase Order" action yet (that's a separate, larger, not-yet-planned feature) — matches the
     already-established "nothing happens yet" state of the Compare CTA before this change.
+  - **Extended to Spares/Service** (see §17's own "Extending to Spares and Service" bullet for the
+    full picture): `CompareQuotesModal` no longer hardcodes `StoresQuoteComparisonCard` — it picks
+    one of `StoresQuoteComparisonCard`/`SparesQuoteComparisonCard`/`ServiceQuoteComparisonCard` once
+    per render, keyed on `QuoteComparisonData.category` (a requisition has exactly one category for
+    its whole lifetime, shared by every vendor quoted against it, so this lives on `data`, not on
+    each `QuoteComparisonVendor`). `getRfqQuoteComparison()` gained `category` (from
+    `pr_requisition_list.category_value`, already selected elsewhere in this codebase for the same
+    view) and the 7 `equipment_*` PR-context fields plus the 5 new Spares/Service
+    `QuoteComparisonLineItem` snapshot fields (`requestedPartNo`/`offeredPartNo`/`itemType`/
+    `estimatedDuration`/`sparesConsumablesIncluded`) — note this file has two separate lists that
+    must both stay in sync when a quotation-item column is added: the type-level
+    `Pick<Database[...]["Row"], ...>` for `QuotationItemRow` and the runtime `.select("...")` string
+    a few lines away. `SparesQuoteComparisonCard`/`ServiceQuoteComparisonCard` follow
+    `StoresQuoteComparisonCard`'s exact standalone-clone pattern (not a reuse of §17's shared form
+    sections for RFQ/Vendor Details/Quotation Summary — those were extracted from an *editable* form
+    and would need a new prop/mode to be safely reused in a read-only card, which is more risk than
+    benefit here), except each also renders the new `EquipmentDetailsSection` — safe to reuse
+    directly there since that one component was purely read-only from the start, never extracted
+    from editable JSX.
 - **`issue_rfq_link` requires every line item's Approved Qty to be filled before an RFQ can be issued**
   (`20260913030000_require_approved_qty_before_issue_rfq.sql`, a new `55002` errcode, mapped to its own
   message in `rfq-links/route.ts`) — an RFQ sent out with a blank Approved Qty can't actually be priced

@@ -10,14 +10,19 @@ type QuotationItemRow = Pick<
   | "line_item_id"
   | "requested_description"
   | "requested_impa_code"
+  | "requested_part_no"
   | "approved_qty"
   | "uom"
   | "offered_description"
   | "offered_impa_code"
+  | "offered_part_no"
+  | "item_type"
   | "unit_price"
   | "total_price"
   | "delivery_lead_time"
   | "remarks"
+  | "estimated_duration"
+  | "spares_consumables_included"
   | "sort_order"
 >;
 
@@ -35,14 +40,19 @@ export type QuoteComparisonLineItem = {
   lineItemId: string;
   requestedDescription: string;
   requestedImpaCode: string | null;
+  requestedPartNo: string | null;
   approvedQty: string | null;
   uom: string | null;
   offeredDescription: string | null;
   offeredImpaCode: string | null;
+  offeredPartNo: string | null;
+  itemType: string | null;
   unitPrice: number | null;
   totalPrice: number | null;
   deliveryLeadTime: string | null;
   remarks: string | null;
+  estimatedDuration: string | null;
+  sparesConsumablesIncluded: string | null;
   attachments: PrLineItemAttachment[];
   vendorPhotos: PrLineItemAttachment[];
 };
@@ -68,6 +78,10 @@ export type QuoteComparisonVendor = {
 
 export type QuoteComparisonData = {
   requisitionId: string;
+  // A requisition has exactly one category for its whole lifetime (immutable
+  // after creation — see create_purchase_requisition's own guard), shared by
+  // every vendor quoted against it — so this lives here, not per-vendor.
+  category: string | null;
   prNumber: string;
   requisitionNumber: string | null;
   vesselLabel: string | null;
@@ -75,6 +89,15 @@ export type QuoteComparisonData = {
   requisitionDate: string | null;
   requiredPort: string | null;
   requiredDate: string | null;
+  // Spares/Service only — always null for a Stores requisition (see
+  // create-requisition-dialog.tsx's Equipment Details section).
+  equipmentName: string | null;
+  equipmentType: string | null;
+  equipmentMake: string | null;
+  equipmentSerialNo: string | null;
+  equipmentModel: string | null;
+  equipmentSpecifications: string | null;
+  equipmentOtherDetails: string | null;
   // Set once award_purchase_requisition has been called for this
   // requisition — the winning vendor's rfq_link_id, or null before any
   // award. See RfqLinkRow.isAwarded (src/lib/data/rfq-links.ts) for the same
@@ -104,12 +127,18 @@ export async function getRfqQuoteComparison(
   ] = await Promise.all([
     supabase
       .from("pr_requisition_list")
-      .select("pr_number, requisition_number, vessel_label")
+      .select("pr_number, requisition_number, vessel_label, category_value")
       .eq("id", requisitionId)
       .maybeSingle(),
     supabase
       .from("purchase_requisitions")
-      .select("requisition_date, required_port, requested_by, awarded_rfq_link_id")
+      .select(
+        `
+        requisition_date, required_port, requested_by, awarded_rfq_link_id,
+        equipment_name, equipment_type, equipment_make, equipment_serial_no,
+        equipment_model, equipment_specifications, equipment_other_details
+        `,
+      )
       .eq("id", requisitionId)
       .maybeSingle(),
   ]);
@@ -162,9 +191,10 @@ export async function getRfqQuoteComparison(
       .from("purchase_requisition_rfq_quotation_items")
       .select(
         `
-        id, quotation_id, line_item_id, requested_description, requested_impa_code, approved_qty, uom,
-        offered_description, offered_impa_code, unit_price, total_price, delivery_lead_time, remarks,
-        sort_order
+        id, quotation_id, line_item_id, requested_description, requested_impa_code, requested_part_no,
+        approved_qty, uom, offered_description, offered_impa_code, offered_part_no, item_type,
+        unit_price, total_price, delivery_lead_time, remarks, estimated_duration,
+        spares_consumables_included, sort_order
         `,
       )
       .in("quotation_id", quotationIds)
@@ -280,14 +310,19 @@ export async function getRfqQuoteComparison(
       lineItemId: item.line_item_id,
       requestedDescription: item.requested_description,
       requestedImpaCode: item.requested_impa_code,
+      requestedPartNo: item.requested_part_no,
       approvedQty: item.approved_qty === null ? null : String(item.approved_qty),
       uom: item.uom,
       offeredDescription: item.offered_description,
       offeredImpaCode: item.offered_impa_code,
+      offeredPartNo: item.offered_part_no,
+      itemType: item.item_type,
       unitPrice: item.unit_price,
       totalPrice: item.total_price,
       deliveryLeadTime: item.delivery_lead_time,
       remarks: item.remarks,
+      estimatedDuration: item.estimated_duration,
+      sparesConsumablesIncluded: item.spares_consumables_included,
       attachments: mapAttachments(item.line_item_id),
       vendorPhotos: mapVendorPhotos(item.id),
     })),
@@ -295,6 +330,7 @@ export async function getRfqQuoteComparison(
 
   return {
     requisitionId,
+    category: listRow.category_value,
     prNumber: listRow.pr_number,
     requisitionNumber: listRow.requisition_number,
     vesselLabel: listRow.vessel_label,
@@ -302,6 +338,13 @@ export async function getRfqQuoteComparison(
     requisitionDate: prRow.requisition_date,
     requiredPort: prRow.required_port,
     requiredDate: prRow.requested_by,
+    equipmentName: prRow.equipment_name,
+    equipmentType: prRow.equipment_type,
+    equipmentMake: prRow.equipment_make,
+    equipmentSerialNo: prRow.equipment_serial_no,
+    equipmentModel: prRow.equipment_model,
+    equipmentSpecifications: prRow.equipment_specifications,
+    equipmentOtherDetails: prRow.equipment_other_details,
     awardedLinkId: prRow.awarded_rfq_link_id,
     vendors,
   };

@@ -29,6 +29,16 @@ export type RfqQuoteDetail = {
   requiredPort: string | null;
   vesselLabel: string | null;
   vesselImoNo: string | null;
+  // Spares/Service only — Stores PRs never populate these (see
+  // create-requisition-dialog.tsx's Equipment Details section), so they're
+  // always null for a Stores quote and simply unused by StoresQuoteForm.
+  equipmentName: string | null;
+  equipmentType: string | null;
+  equipmentMake: string | null;
+  equipmentSerialNo: string | null;
+  equipmentModel: string | null;
+  equipmentSpecifications: string | null;
+  equipmentOtherDetails: string | null;
   lineItems: RfqQuoteLineItem[];
 };
 
@@ -95,6 +105,13 @@ export async function getRfqQuoteDetailsByToken(token: string): Promise<RfqQuote
     requiredPort: data.required_port,
     vesselLabel: data.vessel_label,
     vesselImoNo: data.vessel_imo_no,
+    equipmentName: data.equipment_name,
+    equipmentType: data.equipment_type,
+    equipmentMake: data.equipment_make,
+    equipmentSerialNo: data.equipment_serial_no,
+    equipmentModel: data.equipment_model,
+    equipmentSpecifications: data.equipment_specifications,
+    equipmentOtherDetails: data.equipment_other_details,
     lineItems: rawLineItems.map((item) => ({
       lineItemId: item.lineItemId,
       description: item.description,
