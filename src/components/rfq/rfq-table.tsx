@@ -25,12 +25,13 @@ export type RfqTableProps = {
 export function RfqTable({ rows, onRowSelect, detailLoadingId }: RfqTableProps) {
   return (
     <div className="overflow-x-auto rounded-xl border border-line bg-paper shadow-(--shadow-e1)">
-      <table className="w-full min-w-160 text-left text-[13px]">
+      <table className="w-full min-w-190 text-left text-[13px]">
         <thead>
           <tr className="border-b border-line text-[11px] font-bold tracking-wide text-slate-lt uppercase">
             <th className="px-4 py-3">{t.table.columns.ref}</th>
             <th className="px-4 py-3">{t.table.columns.requisitionNumber}</th>
             <th className="px-4 py-3">{t.table.columns.vessel}</th>
+            <th className="px-4 py-3">{t.table.columns.category}</th>
             <th className="px-4 py-3">{t.table.columns.quotes}</th>
             <th className="px-4 py-3">{t.table.columns.status}</th>
             <th className="px-4 py-3">{t.table.columns.firstIssuedDate}</th>
@@ -51,6 +52,7 @@ export function RfqTable({ rows, onRowSelect, detailLoadingId }: RfqTableProps) 
               <td className="px-4 py-3 font-mono text-ink">{row.prNumber}</td>
               <td className="px-4 py-3 font-mono text-ink">{row.requisitionNumber ?? "—"}</td>
               <td className="px-4 py-3 text-ink">{row.vesselLabel ?? "—"}</td>
+              <td className="px-4 py-3 text-ink">{row.categoryLabel ?? "—"}</td>
               <td className="px-4 py-3">
                 <QuoteProgress
                   received={row.quoteCount}

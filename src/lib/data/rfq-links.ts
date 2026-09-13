@@ -98,11 +98,12 @@ export async function getRfqLinksForRequisition(requisitionId: string): Promise<
   // A requisition realistically has a handful of line items, so the max is
   // computed here in JS rather than via a SQL aggregate/RPC — matches this
   // function's own existing "flat query, derive in JS" style above.
-  let itemRows: Array<{ quotation_id: string; delivery_lead_time: string | null }> = [];
+  let itemRows: Array<{ quotation_id: string; delivery_lead_time: string | null; estimated_duration: string | null }> =
+    [];
   if (quotationIds.length > 0) {
     const { data, error: itemsError } = await supabase
       .from("purchase_requisition_rfq_quotation_items")
-      .select("quotation_id, delivery_lead_time")
+      .select("quotation_id, delivery_lead_time, estimated_duration")
       .in("quotation_id", quotationIds);
     if (itemsError) throw itemsError;
     itemRows = data ?? [];
@@ -110,7 +111,19 @@ export async function getRfqLinksForRequisition(requisitionId: string): Promise<
 
   const leadTimesByQuotationId = new Map<string, number[]>();
   for (const row of itemRows) {
-    const parsed = Number(row.delivery_lead_time);
+    // delivery_lead_time (Stores/Spares) and estimated_duration (Service) are
+    // mutually exclusive per requisition — a requisition has exactly one
+    // category for its whole lifetime, so exactly one of these two columns is
+    // ever populated across all of a quotation's items. Coalescing them lets
+    // this "max days" figure work for Service (which has no delivery-lead-
+    // time concept at all) without this function needing to know the
+    // requisition's own category. Explicit null-check first, not just
+    // Number.isFinite on the coalesced value — Number(null) is 0, which is
+    // finite, and would otherwise silently count a vendor's blank field as
+    // "0 days" instead of excluding it.
+    const raw = row.delivery_lead_time ?? row.estimated_duration;
+    if (raw === null) continue;
+    const parsed = Number(raw);
     if (!Number.isFinite(parsed)) continue;
     const existing = leadTimesByQuotationId.get(row.quotation_id);
     if (existing) existing.push(parsed);

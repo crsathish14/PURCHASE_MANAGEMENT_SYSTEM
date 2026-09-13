@@ -573,6 +573,7 @@
           "ref": "PR Ref",
           "requisitionNumber": "Requisition No.",
           "vessel": "Vessel",
+          "category": "Category",
           "quotes": "Quotes",
           "status": "Status",
           "firstIssuedDate": "First Quote Issued Date"
@@ -749,6 +750,7 @@
           "itemType": "Item Type (Genuine OEM / Equivalent / Recon.)",
           "qty": "Qty",
           "uom": "UOM",
+          "photos": "Photos",
           "unitPrice": "Unit Price",
           "totalPrice": "Total Price",
           "deliveryLeadTime": "Delivery Lead Time (In Days)",
@@ -824,7 +826,8 @@
         "columns": {
           "slNo": "S.No.",
           "description": "Scope of Work / Service Description",
-          "estimatedDuration": "Estimated Duration",
+          "photos": "Photos",
+          "estimatedDuration": "Estimated Duration (In Days)",
           "sparesConsumablesIncluded": "Spares/Consumables Included (Y/N)",
           "unitPrice": "Unit Price / Lump Sum",
           "totalPrice": "Total Price",
@@ -853,6 +856,7 @@
         "vendorNameRequired": "Vendor / Company name is required",
         "vendorEmailInvalid": "Enter a valid email address",
         "unitPriceInvalid": "Enter a valid amount",
+        "estimatedDurationInvalid": "Enter a whole number of days",
         "quotationValidityRequired": "Quotation validity is required",
         "paymentTermsRequired": "Payment terms are required",
         "deliveryTermsRequired": "Delivery terms are required",

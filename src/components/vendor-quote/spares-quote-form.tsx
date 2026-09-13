@@ -12,6 +12,7 @@ import { submitSparesVendorQuoteSchema, type SubmitSparesVendorQuoteInput } from
 import { toast } from "@/store/toast-store";
 import { displayValue } from "./format-display-value";
 import { EquipmentDetailsSection } from "./equipment-details-section";
+import { ItemPhotos } from "./item-photos";
 import { QuotationSummarySection } from "./quotation-summary-section";
 import { RfqDetailsSection } from "./rfq-details-section";
 import { VendorDetailsSection } from "./vendor-details-section";
@@ -189,7 +190,7 @@ export function SparesQuoteForm({ token, detail }: SparesQuoteFormProps) {
           <input key={item.lineItemId} type="hidden" {...register(`items.${index}.lineItemId`)} />
         ))}
         <div className="overflow-x-auto rounded-lg border border-line">
-          <table className="w-full min-w-275 border-collapse">
+          <table className="w-full min-w-300 border-collapse">
             <thead>
               <tr className="border-b border-line">
                 <th className={`${headerCellClass} w-10`}>{t.itemDetails.columns.slNo}</th>
@@ -200,6 +201,7 @@ export function SparesQuoteForm({ token, detail }: SparesQuoteFormProps) {
                 <th className={headerCellClass}>{t.itemDetails.columns.itemType}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.qty}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.uom}</th>
+                <th className={headerCellClass}>{t.itemDetails.columns.photos}</th>
                 <th className={`${headerCellClass} w-24`}>{t.itemDetails.columns.unitPrice}</th>
                 <th className={`${headerCellClass} w-24`}>{t.itemDetails.columns.totalPrice}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.deliveryLeadTime}</th>
@@ -231,6 +233,9 @@ export function SparesQuoteForm({ token, detail }: SparesQuoteFormProps) {
                   </td>
                   <td className={cellClass}>
                     <Input disabled value={displayValue(findColumnValue(item.columns, UOM_LABEL))} />
+                  </td>
+                  <td className={cellClass}>
+                    <ItemPhotos attachments={item.attachments} t={t.itemDetails} />
                   </td>
                   <td className={cellClass}>
                     <Input

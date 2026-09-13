@@ -110,7 +110,11 @@ const tService = en.vendorQuote.serviceForm.errors;
 // offeredDescription and no deliveryLeadTime field here at all.
 export const serviceVendorQuoteItemSchema = z.object({
   lineItemId: z.string().min(1),
-  estimatedDuration: z.string(),
+  // Whole days only, same shape as Stores/Spares' own deliveryLeadTime — this
+  // is what rfq-links.ts's max-days computation for the vendor modal reads.
+  estimatedDuration: z.string().refine((value) => value === "" || /^\d+$/.test(value), {
+    error: tService.estimatedDurationInvalid,
+  }),
   sparesConsumablesIncluded: z.string(),
   // Doubles as the Lump Sum value; Total Price is computed from this
   // directly (no Qty to multiply by) rather than being its own field.

@@ -4,13 +4,14 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { Button, ImagePreviewModal, Input, PhotoThumbnailStack, type PreviewImage } from "@/components/atoms";
+import { Button, Input } from "@/components/atoms";
 import en from "@/locales/en.json";
 import type { RfqQuoteDetail, RfqQuoteLineItem } from "@/lib/data/rfq-quote";
 import { formatCurrencyUsd } from "@/lib/format-currency";
 import { submitStoresVendorQuoteSchema, type SubmitStoresVendorQuoteInput } from "@/lib/validation/vendor-quote";
 import { toast } from "@/store/toast-store";
 import { displayValue } from "./format-display-value";
+import { ItemPhotos } from "./item-photos";
 import { QuotationSummarySection } from "./quotation-summary-section";
 import { RfqDetailsSection } from "./rfq-details-section";
 import { VendorDetailsSection } from "./vendor-details-section";
@@ -52,37 +53,6 @@ function computeTotalPrice(approvedQty: number | null, unitPriceRaw: string): nu
 const headerCellClass = "px-2 py-1.5 text-left font-mono text-[9.5px] font-bold tracking-wide text-slate-lt uppercase";
 const cellClass = "px-2 py-1.5 align-top";
 const sectionHeadingClass = "mb-3 font-display text-[15px] font-semibold text-ink";
-
-function ItemPhotos({ attachments }: { attachments: RfqQuoteLineItem["attachments"] }) {
-  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-
-  if (attachments.length === 0) {
-    return <span className="text-xs text-slate-lt">{t.itemDetails.noPhotos}</span>;
-  }
-
-  const previewImages: PreviewImage[] = attachments.map((attachment) => ({
-    url: attachment.url,
-    fileName: attachment.fileName,
-  }));
-
-  return (
-    <>
-      <PhotoThumbnailStack
-        images={previewImages}
-        onSelect={(index) => setPreviewIndex(index)}
-        ariaLabel={(count) =>
-          count > 1 ? t.itemDetails.viewPhotoStack.replace("{count}", String(count)) : t.itemDetails.viewPhoto
-        }
-      />
-      <ImagePreviewModal
-        open={previewIndex !== null}
-        onClose={() => setPreviewIndex(null)}
-        images={previewImages}
-        initialIndex={previewIndex ?? 0}
-      />
-    </>
-  );
-}
 
 export type StoresQuoteFormProps = {
   token: string;
@@ -265,7 +235,7 @@ export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
                     <Input disabled value={displayValue(findColumnValue(item.columns, UOM_LABEL))} />
                   </td>
                   <td className={cellClass}>
-                    <ItemPhotos attachments={item.attachments} />
+                    <ItemPhotos attachments={item.attachments} t={t.itemDetails} />
                   </td>
                   <td className={cellClass}>
                     <Input type="text" {...register(`items.${index}.offeredDescription`)} />

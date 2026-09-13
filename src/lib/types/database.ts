@@ -816,6 +816,7 @@ export type Database = {
           pr_number: string;
           requisition_number: string | null;
           vessel_label: string | null;
+          category_label: string | null;
           vendor_count: number;
           quote_count: number;
           derived_status: string;

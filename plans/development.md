@@ -590,6 +590,24 @@ this feature — everything below is additive, sitting alongside it.
   `getRfqQuoteComparison()` fetches and signs these the same way it already does the office's own
   reference photos (one shared `createSignedUrls` batch call across both sets, session-scoped client),
   reusing that file's existing local `ItemPhotos` component as-is.
+- **Office reference photos (the same read-only "Photos" column Stores already had) extended to
+  Spares and Service**, by later request. `get_rfq_quote_details_by_token`/`getRfqQuoteComparison()`
+  were already returning each line item's own `attachments` for every category (nothing
+  category-specific about that query), so this was purely a frontend gap: `SparesQuoteForm`/
+  `ServiceQuoteForm` and their comparison cards simply weren't rendering the column yet. `ItemPhotos`
+  — previously duplicated byte-for-byte across `stores-quote-form.tsx` and all 3 comparison cards —
+  is now one shared component (`src/components/vendor-quote/item-photos.tsx`), used in all 6 places
+  now that 2 more needed it. It's typed structurally against `{fileName, url}` rather than a shared
+  attachment type, since the form-side `RfqQuoteLineItemAttachment` and comparison-card-side
+  `PrLineItemAttachment` are two different types that both happen to carry those two fields. Column
+  placement (no Word-doc precedent to follow — neither doc had this column at all) mirrors Stores'
+  own: immediately after the last read-only/office-supplied column, before any vendor-editable field
+  — after UOM for Spares, after the single description column for Service.
+- **Service's Estimated Duration is digits-only**, same `/^\d+$/` shape as Delivery Lead Time
+  (`serviceVendorQuoteItemSchema.estimatedDuration`) — needed once `rfq-links-dialog.tsx`'s own "Max
+  Delivery Lead Time (Days)" column (§18) started reading this field for Service PRs, since it needs
+  to actually be a day count. Column header updated to "Estimated Duration (In Days)" to match the
+  existing "Delivery Lead Time (In Days)" convention.
 
 ## 18. Requested Quote page (RFQ progress tracking)
 
@@ -847,6 +865,15 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
   PR ref — in both `pr-table.tsx` (`t.columns.requisitionNumber`) and `rfq-table.tsx`
   (`t.table.columns.requisitionNumber`). Same `row.requisitionNumber` data both tables already had; this
   was a display-only layout change (each cell simply moved into its own `<th>`/`<td>`, `"—"` when null).
+- **Requested Quote table gained a Category column** (`rfq-table.tsx`, `t.table.columns.category`,
+  positioned right after Vessel — same relative placement `pr-table.tsx`'s own Category column
+  already uses) — previously called out as a deferred/optional enhancement when the Spares/Service
+  RFQ extension shipped, implemented directly on later request. Reads the same `category_label` data
+  `pr-table.tsx` already reads (`pr_requisition_list.category_label`, via `RequestedQuoteListRow.
+  categoryLabel`). `search_requested_quotes` gained one trailing `category_label` output column
+  (`20260913100000_search_requested_quotes_category_label.sql`, `drop function` + `create function`
+  — the same `returns table` column-count-changed situation this file already documents for this
+  exact RPC's own prior migration and for `get_rfq_quote_details_by_token`).
 - **RFQ vendors modal (`rfq-links-dialog.tsx`) gained three per-vendor summary columns** — Grand Total,
   Delivery Terms (Incoterm), and the maximum Delivery Lead Time across that vendor's own line items —
   `null`/"—" for `PENDING`/`EXPIRED` rows, since there's no quotation to read them from yet.
@@ -861,7 +888,13 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
   hold pre-validation free-text values that must be silently skipped, not thrown on or NaN-poison the
   max for that vendor's other, valid line items. The dialog itself widened from `size="lg"` to
   `size="xl"` to fit the 3 new columns alongside its existing 6, matching
-  `create-requisition-dialog.tsx`'s own precedent for "wide table needs a wide dialog."
+  `create-requisition-dialog.tsx`'s own precedent for "wide table needs a wide dialog." **Extended
+  for Service**: since a Service line item has no `delivery_lead_time` at all, the computation now
+  coalesces `delivery_lead_time ?? estimated_duration` per item before taking the max — the two are
+  mutually exclusive per requisition (one category, for its whole lifetime), so this works without
+  the function needing to know the requisition's own category. Fixed in the same change: the
+  previous `Number(row.delivery_lead_time)` had no null-guard, so a vendor's blank field silently
+  counted as `0` days rather than being excluded from the max — now explicitly skipped.
 - **Award** — staff pick exactly one vendor's submitted quote as the winner, from either the RFQ
   vendor modal or the Compare Quotes modal. `purchase_requisitions` gained one nullable column,
   `awarded_rfq_link_id` (FK to `purchase_requisition_rfq_links`, no `on delete cascade` — default

@@ -7,6 +7,7 @@ export type RequestedQuoteListRow = {
   prNumber: string;
   requisitionNumber: string | null;
   vesselLabel: string | null;
+  categoryLabel: string | null;
   vendorCount: number;
   quoteCount: number;
   derivedStatus: RequestedQuoteStatus;
@@ -64,6 +65,7 @@ export async function getRequestedQuotes({
     prNumber: row.pr_number,
     requisitionNumber: row.requisition_number,
     vesselLabel: row.vessel_label,
+    categoryLabel: row.category_label,
     vendorCount: row.vendor_count,
     quoteCount: row.quote_count,
     derivedStatus: row.derived_status as RequestedQuoteStatus,

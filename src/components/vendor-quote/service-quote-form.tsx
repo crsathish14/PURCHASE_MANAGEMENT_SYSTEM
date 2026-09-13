@@ -11,6 +11,7 @@ import { formatCurrencyUsd } from "@/lib/format-currency";
 import { submitServiceVendorQuoteSchema, type SubmitServiceVendorQuoteInput } from "@/lib/validation/vendor-quote";
 import { toast } from "@/store/toast-store";
 import { EquipmentDetailsSection } from "./equipment-details-section";
+import { ItemPhotos } from "./item-photos";
 import { QuotationSummarySection } from "./quotation-summary-section";
 import { RfqDetailsSection } from "./rfq-details-section";
 import { VendorDetailsSection } from "./vendor-details-section";
@@ -166,11 +167,12 @@ export function ServiceQuoteForm({ token, detail }: ServiceQuoteFormProps) {
           <input key={item.lineItemId} type="hidden" {...register(`items.${index}.lineItemId`)} />
         ))}
         <div className="overflow-x-auto rounded-lg border border-line">
-          <table className="w-full min-w-225 border-collapse">
+          <table className="w-full min-w-250 border-collapse">
             <thead>
               <tr className="border-b border-line">
                 <th className={`${headerCellClass} w-10`}>{t.itemDetails.columns.slNo}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.description}</th>
+                <th className={headerCellClass}>{t.itemDetails.columns.photos}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.estimatedDuration}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.sparesConsumablesIncluded}</th>
                 <th className={`${headerCellClass} w-24`}>{t.itemDetails.columns.unitPrice}</th>
@@ -187,7 +189,15 @@ export function ServiceQuoteForm({ token, detail }: ServiceQuoteFormProps) {
                     <Input disabled value={item.description} />
                   </td>
                   <td className={cellClass}>
-                    <Input type="text" {...register(`items.${index}.estimatedDuration`)} />
+                    <ItemPhotos attachments={item.attachments} t={t.itemDetails} />
+                  </td>
+                  <td className={cellClass}>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      error={errors.items?.[index]?.estimatedDuration?.message}
+                      {...register(`items.${index}.estimatedDuration`)}
+                    />
                   </td>
                   <td className={cellClass}>
                     <Input type="text" {...register(`items.${index}.sparesConsumablesIncluded`)} />

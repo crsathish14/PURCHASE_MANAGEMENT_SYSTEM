@@ -1,23 +1,12 @@
 "use client";
 
-import { useState } from "react";
-
-import {
-  Badge,
-  Button,
-  ImagePreviewModal,
-  Input,
-  Label,
-  PhotoThumbnailStack,
-  Textarea,
-  type PreviewImage,
-} from "@/components/atoms";
+import { Badge, Button, Input, Label, Textarea } from "@/components/atoms";
 import en from "@/locales/en.json";
-import type { PrLineItemAttachment } from "@/lib/data/purchase-requisition";
 import type { QuoteComparisonVendor } from "@/lib/data/rfq-quote-comparison";
 import { formatCurrencyUsd } from "@/lib/format-currency";
 import { VENDOR_QUOTE_CURRENCY } from "@/lib/constants/vendor-quote";
 import { EquipmentDetailsSection } from "@/components/vendor-quote/equipment-details-section";
+import { ItemPhotos } from "@/components/vendor-quote/item-photos";
 
 // A read-only clone of spares-quote-form.tsx's exact section structure,
 // reusing its copy verbatim (en.vendorQuote.sparesForm) — same pattern
@@ -33,37 +22,6 @@ const dateFormatter = new Intl.DateTimeFormat("en", { day: "numeric", month: "sh
 
 function displayValue(value: string | null): string {
   return value && value.trim() ? value : "—";
-}
-
-function ItemPhotos({ attachments }: { attachments: PrLineItemAttachment[] }) {
-  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-
-  if (attachments.length === 0) {
-    return <span className="text-xs text-slate-lt">{t.itemDetails.noPhotos}</span>;
-  }
-
-  const previewImages: PreviewImage[] = attachments.map((attachment) => ({
-    url: attachment.url,
-    fileName: attachment.fileName,
-  }));
-
-  return (
-    <>
-      <PhotoThumbnailStack
-        images={previewImages}
-        onSelect={(index) => setPreviewIndex(index)}
-        ariaLabel={(count) =>
-          count > 1 ? t.itemDetails.viewPhotoStack.replace("{count}", String(count)) : t.itemDetails.viewPhoto
-        }
-      />
-      <ImagePreviewModal
-        open={previewIndex !== null}
-        onClose={() => setPreviewIndex(null)}
-        images={previewImages}
-        initialIndex={previewIndex ?? 0}
-      />
-    </>
-  );
 }
 
 export type SparesQuoteComparisonCardProps = {
@@ -187,7 +145,7 @@ export function SparesQuoteComparisonCard({ vendor, pr, isAwarded, canAward, onA
       <section className="mt-8">
         <h3 className={sectionHeadingClass}>{t.itemDetails.title}</h3>
         <div className="overflow-x-auto rounded-lg border border-line">
-          <table className="w-full min-w-275 border-collapse">
+          <table className="w-full min-w-300 border-collapse">
             <thead>
               <tr className="border-b border-line">
                 <th className={`${headerCellClass} w-10`}>{t.itemDetails.columns.slNo}</th>
@@ -198,6 +156,7 @@ export function SparesQuoteComparisonCard({ vendor, pr, isAwarded, canAward, onA
                 <th className={headerCellClass}>{t.itemDetails.columns.itemType}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.qty}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.uom}</th>
+                <th className={headerCellClass}>{t.itemDetails.columns.photos}</th>
                 <th className={`${headerCellClass} w-24`}>{t.itemDetails.columns.unitPrice}</th>
                 <th className={`${headerCellClass} w-24`}>{t.itemDetails.columns.totalPrice}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.deliveryLeadTime}</th>
@@ -231,6 +190,9 @@ export function SparesQuoteComparisonCard({ vendor, pr, isAwarded, canAward, onA
                     <Input disabled value={displayValue(item.uom)} />
                   </td>
                   <td className={cellClass}>
+                    <ItemPhotos attachments={item.attachments} t={t.itemDetails} />
+                  </td>
+                  <td className={cellClass}>
                     <Input disabled value={formatCurrencyUsd(item.unitPrice)} />
                   </td>
                   <td className={cellClass}>
@@ -243,7 +205,7 @@ export function SparesQuoteComparisonCard({ vendor, pr, isAwarded, canAward, onA
                     <Input disabled value={displayValue(item.remarks)} />
                   </td>
                   <td className={cellClass}>
-                    <ItemPhotos attachments={item.vendorPhotos} />
+                    <ItemPhotos attachments={item.vendorPhotos} t={t.itemDetails} />
                   </td>
                 </tr>
               ))}
