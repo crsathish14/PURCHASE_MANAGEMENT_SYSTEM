@@ -83,7 +83,14 @@ These files hold every value that would otherwise be a magic string:
   in one place, `getPresetColumnsForCategory()` in `src/lib/purchase-requisition/preset-columns.ts`
   — both `LineItemsField` (manual create/edit) and the import-template parser (§16) import it, so
   they can't drift apart. `APPROVED_QTY` is office-only (filled in during review, never sourced from
-  the import template) but is still part of this set, since the column must exist either way.
+  the import template) but is still part of this set, since the column must exist either way. It's
+  also the one preset column `LineItemsField`'s header row never shows an "X" remove button for
+  (`line-items-field.tsx`'s `isApprovedQty` check, matched by key **or** label — a saved-and-reloaded
+  preset column comes back with its real DB uuid as `key`, not the literal preset string, so the label
+  match is what still catches it post-reload) — it can be left blank and saved, it just can never be
+  deleted from a Stores/Spares requisition's column set via the UI. `handleRemoveColumn` itself is
+  untouched, since the category-switch effect still needs to call it when switching *away* from
+  Stores/Spares into Service, which has no Approved Qty column at all.
 - `src/lib/routes.ts` — `ROUTES`, every locale-prefixed path the app links to or redirects to (see
   §3).
 - `src/lib/constants/storage.ts` — `STORAGE_BUCKET` (currently just `ATTACHMENTS`), `MAX_PHOTO_SIZE_BYTES`,
@@ -148,6 +155,23 @@ for loading, Client Component + `unstable_retry` for error).
   siblings) rather than one polymorphic `entity_type`/`entity_id` table. What's actually
   centralized/reused is the bucket + path convention + signing route + `src/lib/constants/storage.ts`,
   not the DB table shape.
+- **Anonymous-vendor uploads are a second, genuinely different shape of the above** — the vendor RFQ
+  quote form (§17) lets an anonymous, token-only vendor (no Supabase session at all) attach their own
+  photos per line item. `api/uploads/sign` can't be reused as-is: it hard-gates on
+  `requireApiActiveUser()`, and `storage.objects` RLS has no `anon` policy on this or any bucket (by
+  design — RLS can't cross-reference a `purchase_requisition_rfq_links.access_token` against the
+  request). Instead, `src/app/api/quote/[token]/photos/sign/route.ts` re-validates the token itself
+  (via `getRfqQuoteDetailsByToken` — not expired, not yet submitted, and the target line item genuinely
+  belongs to that token's requisition) before minting a signed upload URL with the **admin/service-role
+  client** (`createAdminClient()`), never a session-scoped one. This is the write-side mirror of
+  `rfq-quote.ts`'s own existing read-side pattern (batch-signing *display* URLs via the admin client for
+  an anonymous vendor) — same trust model, just for an upload instead of a read. The path convention
+  (`RFQ_QUOTE_ITEM_PHOTO_PATH_PREFIX = "rfq-quote-item-photos"`, sibling to `PR_LINE_ITEM_PHOTO_PATH_PREFIX`
+  in `src/lib/constants/storage.ts`) uses the RFQ link's own access token as the scope segment instead of
+  a separate draft token — it already uniquely and securely identifies the in-progress submission.
+  `submit_rfq_quotation` (§17) re-verifies each photo's `storagePath` actually starts with
+  `rfq-quote-item-photos/<token>/<line_item_id>/` before persisting its metadata row (`23514` otherwise)
+  — the same "don't trust the payload" posture it already applies to `lineItemId` ownership.
 - `src/lib/types/database.ts` is a hand-written stub — replace with
   `npx supabase gen types typescript --linked` once the generated output is worth the churn; keep
   `UserRole`/`ProfileStatus` re-exported from `src/lib/constants/profile.ts` either way.
@@ -311,7 +335,91 @@ one:
   column like Approved Qty that a template deliberately omits (office-only, filled in during review)
   still exists after import, just blank.
 
-## 17. Vendor RFQ quote submission (Stores — first of three categories)
+**Export (the reverse direction — a PR's own data, filled into a copy of its category's template)**
+- `pr-table.tsx`'s row menu has an **Export** action (`GET /api/purchase-requisitions/[id]/export`).
+  Always enabled, no status-based gating — unlike Cancel/Duplicate/Issue RFQ, there's no PR state where
+  exporting what's already there doesn't make sense. It had briefly existed as a permanently-`disabled`
+  placeholder with no implementation behind it at all; this replaced that placeholder with the real
+  thing.
+- **Downloaded via `fetch` + blob, not a plain `<a href>`/`window.location.href` navigation** — the
+  route can take a couple of seconds (loads the category's `.xlsm` template, fills it, re-serializes
+  it), and a bare navigation gives the browser nothing to hook a loading indicator off of. `po-requests-view.tsx`'s
+  `handleExport` (same `xxxId`-state shape as `duplicatingId`/`handleDuplicate`) tracks `exportingId`,
+  `await fetch(...)`, reads the filename back out of the response's own `Content-Disposition` header
+  (falling back to `${row.prNumber}-export.xlsx` if that ever fails to match — kept in sync with the
+  route's own filename convention rather than duplicating it blindly), then does the actual save via a
+  synthetic `<a download>` click on an object URL (revoked right after). `pr-table.tsx` shows this as a
+  `Spinner` in place of the row's kebab-menu dots (disabled meanwhile, so a second click can't fire a
+  duplicate export for the same row) — mirrors `detailLoadingId`'s existing per-row loading affordance
+  rather than introducing a new visual pattern.
+- **Deliberately produces a plain `.xlsx`, never `.xlsm`.** Confirmed directly against ExcelJS
+  4.4.0's own source (not just its docs): `workbook.xlsx.load()`'s part-parsing `switch` has no case
+  for `xl/vbaProject.bin`, and `writeBuffer()` rebuilds the zip from scratch with no code path that
+  ever emits one (its `ContentTypesXform` even hardcodes the plain-`.xlsx` content type). Loading one
+  of these templates and saving it back out under the `.xlsm` name would silently strip the embedded
+  VBA project (the Add Line Item button, the Ctrl+V photo-paste binding) and risk Excel flagging the
+  output as corrupted. What *does* survive the load→write round trip (verified against the real
+  files): fonts/colors/borders, the embedded logo image, the merged-cell layout, and sheet protection
+  — everything but the macros, which a completed record doesn't need anyway (product decision, along
+  with skipping photos for this feature entirely and adding an Approved Qty column — see below).
+- **Architecture mirrors Import's own "shared engine + thin per-category files" shape, in reverse.**
+  New `export-template-vba-shared.ts` provides the write-side counterparts to
+  `import-template-vba-shared.ts`'s read helpers (`writeLabeledValue`/`writeLabeledDateValue` mirror
+  `readLabeledValue`/`readDateValue` — write into the cell one column past a label's own merge span,
+  instead of reading it) plus `expandLineItemRows` (see below) and `findLineItemPhotosColumn` (locates
+  the line-items table's own "Supporting Photos" column, searched only within that table's header
+  row). Three thin per-category writers — `export-template-vba.ts` (Stores), `-spares.ts`, `-service.ts`
+  — mirror `import-template-vba*.ts` exactly, reusing (not duplicating) each import parser's own
+  previously-module-private `LABEL` const and `findLineItemColumns` function (now `export`ed for
+  exactly this reuse) rather than re-deriving a second copy that could silently drift out of sync if a
+  template is revised again (Stores' own template already has been, twice).
+- **Line-item rows are inserted, never assumed to be a fixed count.** Every template ships exactly 1
+  pre-formatted line-item row. `expandLineItemRows` calls `sheet.duplicateRow(firstDataRow, count - 1,
+  true)` once per export — verified (via a standalone script against the real `.xlsm` files, loading
+  the generated output back with a fresh ExcelJS instance and asserting cell-by-cell) that this
+  correctly shifts everything below the line-items table (the SUPPORTING PHOTOS banner/header, the
+  Requisitioned-by/Approved-by sign-off footer) down by the right amount, with their own merges intact
+  — the one genuinely novel operation here, with no prior precedent anywhere in this codebase and a
+  documented ExcelJS rough edge (README: "Splice vs Merge") that made this worth proving empirically
+  rather than trusting blindly.
+- **Approved Qty has no cell in any category's template** (office-only, same reason it's already
+  invisible to Import) but is included anyway, per product decision, by repurposing the now-otherwise-
+  unused **Supporting Photos column** in the line-items table for Stores/Spares (its header cell is
+  relabeled "Approved Qty" once per sheet) — since photos are skipped for this feature, that column
+  would otherwise just sit empty. Service has no Approved Qty concept at all, so its own Supporting
+  Photos column is left completely untouched.
+- **Custom (non-preset) line-item columns and header-level custom fields are not exportable** into the
+  template's fixed layout — the mirror image of Import's own "not every preset column is importable"
+  asymmetry, for the same reason: there's no cell for them.
+- **Vessel name/IMO No. resolution needed new glue code** — `getPurchaseRequisitionById`'s own
+  `dropdowns.vessel` is only ever the raw option slug, never a name. Resolved the same two-hop way
+  `get_rfq_quote_details_by_token`/`add_vessel()` already establish, as plain TS calls in the route
+  itself: `getPrDropdownFields()` → the `vessel` field's option matching that slug → its label (the
+  vessel name) → `getVessels()` → matched by exact name → its `imoNo`. Export writes both the name and
+  the IMO No. into the sheet (Import only ever round-trips the IMO No.).
+- **Bug fixed live: exported Spares files triggered Excel's "we found a problem with content" repair
+  prompt** (every other category's export opened cleanly). Root cause had nothing to do with the
+  line-item writer — it's an ExcelJS limitation on the raw template file itself, confirmed by loading
+  and saving the Spares `.xlsm` back out through ExcelJS with **zero modifications** and seeing the
+  exact same corruption. `requisition-form-spares.xlsm`'s `workbook.xml` declares a second sheet,
+  `Chart1` — a chart sheet (a distinct OOXML part type from a regular worksheet), evidently a stray
+  leftover from whenever the template was last edited in Excel, never referenced by any parser or
+  writer in this codebase. ExcelJS's `load()` has no support for chart sheets at all and drops the part
+  from its model silently, no error — but the workbook's own `bookViews` (`activeTab`/`firstSheet`,
+  copied straight through from the loaded XML unchanged) still pointed at that sheet's original tab
+  index (`1`, since Chart1 was tab `0` and the requisition sheet was tab `1`). Once only one worksheet
+  survives the round trip, `activeTab="1"` points past the end of the sheet list — an internally
+  inconsistent file, which is exactly what Excel's own integrity check flags. Fixed in
+  `api/purchase-requisitions/[id]/export/route.ts`, right after `workbook.xlsx.load()`, for every
+  category (not just Spares, since the same class of bug would resurface for any future template with
+  its own stray non-worksheet part): `workbook.views = workbook.views.map((view) => ({ ...view,
+  firstSheet: 0, activeTab: 0 }))` — safe unconditionally, since the export always has exactly one
+  meaningful sheet to land on regardless of category. The stray `Chart1` sheet itself was left in the
+  source `.xlsm` file untouched (it doesn't affect the *raw template* download at all, since that route
+  streams the file straight off disk with no ExcelJS involved — only Export, which loads and re-saves
+  through ExcelJS, ever hits this).
+
+## 17. Vendor RFQ quote submission (Stores, Spares, Service)
 
 The vendor-facing side of `purchase_requisition_rfq_links` (§11's own bullet on the file-upload
 pattern is the closest sibling precedent for "one shared plumbing, reused across the app"). The link/
@@ -359,15 +467,72 @@ this feature — everything below is additive, sitting alongside it.
   client genuinely can't do the job" cases §11 already documents — narrowly used here, only to sign
   paths the token-validated, requisition-scoped RPC call already returned.
 - **Category-driven, shared-backend architecture** — the same "shared plumbing, category-specific
-  renderer" shape as §16's import templates: `get_rfq_quote_details_by_token` is fully
-  category-agnostic (it returns whatever columns/line items exist for any PR), and
-  `src/app/[lang]/quote/[token]/page.tsx` branches purely on the returned `category` to decide
-  which form component to render — `stores` → `StoresQuoteForm`
-  (`src/components/vendor-quote/stores-quote-form.tsx`), anything else → the original generic stub
-  `QuoteForm`. Adding Spares/Service forms later needs no backend changes, only new sibling
-  components following `StoresQuoteForm`'s pattern (its own category-specific bits — which columns
-  to surface as locked fields, which labels to match on — are the only genuinely Stores-specific
-  code in this feature).
+  renderer" shape as §16's import templates: `get_rfq_quote_details_by_token`'s line-item flattening
+  is fully category-agnostic (it returns whatever columns/line items exist for any PR — no changes
+  needed there when Spares/Service were added), and `src/app/[lang]/quote/[token]/page.tsx` branches
+  purely on the returned `category` to decide which form component to render — `stores` →
+  `StoresQuoteForm`, `spares` → `SparesQuoteForm`, `service` → `ServiceQuoteForm` (all three under
+  `src/components/vendor-quote/`), anything else/invalid → the original generic stub `QuoteForm`.
+  Two backend pieces *did* need category-aware changes when Spares/Service were added (see the
+  bullet below) — a correction to what this section originally said before those categories existed.
+- **Extending to Spares and Service** — Store shipped first as the reference implementation; Spares
+  and Service reuse its entire lifecycle (issue/reissue/award/link generation/Requested Quote list
+  were all already 100% category-agnostic and needed zero changes) but needed real, not purely
+  additive-component, changes in exactly two places:
+  - `submit_rfq_quotation` (`20260913080000_submit_rfq_quotation_spares_service.sql`, `create or
+    replace` — signature unchanged) now resolves the requisition's own category once, before its
+    per-item loop (same 2-hop dropdown lookup `issue_rfq_link`'s own `v_is_service` check already
+    uses), and branches: Stores keeps its original `'IMPA/ISSA Code'`/`'UOM'`/`'Approved Qty'`
+    label lookups unchanged; Spares shares Stores' `UOM`/`Approved Qty` lookups but adds its own
+    `'Part No./Ref. No.'` lookup (→ `requested_part_no`) plus vendor-supplied `offeredPartNo`/
+    `itemType` (free text, not a constrained dropdown — product decision); Service has no
+    Qty/UOM/IMPA concept at all, so those columns stay null and `total_price` is instead set
+    directly from the vendor's `unitPrice` (no multiplication — Service's own Word-doc form has no
+    Qty column, so Unit Price/Lump Sum *is* the line total by product decision). An unrecognized or
+    missing category falls through to the original Stores-shaped branch, so this can never change
+    behavior for an existing Stores row. `purchase_requisition_rfq_quotation_items` gained 5 new
+    nullable columns for this (`20260913070000_...`): `requested_part_no`, `offered_part_no`,
+    `item_type`, `estimated_duration`, `spares_consumables_included` — always null for Stores rows.
+  - `get_rfq_quote_details_by_token` (`20260913090000_rfq_quote_details_equipment_fields.sql`,
+    `drop function` + `create function` — Postgres refuses `create or replace` when a function's
+    `returns table` column list changes, same situation §5's `search_purchase_requisitions`
+    migration already hit and documented) now also returns the requisition's 7 `equipment_*`
+    fields (already populated for Spares/Service PRs via `create-requisition-dialog.tsx`, never
+    selected by this function before), so `SparesQuoteForm`/`ServiceQuoteForm` can render a
+    pre-filled, read-only Equipment Details section the same way the office-side form already does.
+    Stores PRs never populate these, so `StoresQuoteForm` simply doesn't render that section.
+  - **Frontend: 3 shared presentational sections, category-specific item tables.** RFQ
+    Details/Vendor Details/Quotation Summary are byte-identical in structure across all 3
+    categories' Word-doc source forms (only the RFQ Details port label text differs — "Port / Place
+    of Delivery" for Stores/Spares, "Port / Place of Service" for Service), so they were extracted
+    out of `stores-quote-form.tsx` into shared, generic-over-`TFieldValues` components
+    (`rfq-details-section.tsx`, `vendor-details-section.tsx`, `quotation-summary-section.tsx`,
+    `src/components/vendor-quote/`) — a pure lift, `StoresQuoteForm`'s own rendered output is
+    unchanged. Each is generic (`<TFieldValues extends {...the fields it registers...}>`) rather
+    than typed to one concrete form's input type, since react-hook-form's `register`/`errors`
+    otherwise fight a shared component's generics once the 3 forms' full input types diverge (each
+    call site instantiates the generic independently from its own `register`, so there's no
+    cross-schema assignability question). A new `equipment-details-section.tsx` (Spares/Service
+    only, purely read-only — never had an editable form to extract from) rounds out the shared set.
+    The Item Details table itself is **not** shared — Spares' and Service's column sets differ too
+    much from Stores' (and from each other) to force into one generic table, so `SparesQuoteForm`/
+    `ServiceQuoteForm` each have their own table JSX, following `StoresQuoteForm`'s exact
+    conventions (same non-`useMemo`'d `watch("items")` row-total pattern below, same
+    `photosByIndex` local-state photo handling, same submit-payload shape) — the same "shared
+    lifecycle, thin per-category files" precedent §16's import/export parsers already established.
+  - **New validation schemas**, `src/lib/validation/vendor-quote.ts`: `submitSparesVendorQuoteSchema`/
+    `submitServiceVendorQuoteSchema` (and their own item schemas) sit alongside the original
+    `submitStoresVendorQuoteSchema` — untouched, not merged into one — since each category's item
+    shape is genuinely different (Service's item schema, for instance, has no `offeredDescription`
+    or `deliveryLeadTime` at all, since its Word-doc form has neither). `api/quote/[token]/submit/
+    route.ts` fetches `getRfqQuoteDetailsByToken(token)` first to pick the right schema by
+    `detail.category` — this also means an invalid/expired/already-submitted link now cleanly 409s
+    regardless of payload shape, rather than sometimes surfacing a generic 400 from a failed Zod
+    parse first; `submit_rfq_quotation`'s own atomic single-submission gate remains the sole
+    authoritative check either way.
+  - **Comparison cards** (§18) each get their own per-category component, same non-shared-with-the-
+    form pattern `StoresQuoteComparisonCard` already established (a fully independent, always-
+    `disabled`-input clone, not a "read-only mode" retrofit into the §17 shared form sections).
 - **Photo thumbnails — shared between the editable and read-only views.** `PhotoThumbnailStack`
   (`src/components/atoms/photo-thumbnail-stack.tsx`) renders 0-1 photos as a single square tile and
   2+ as one collapsed stack tile (front photo, thin peeking edges behind it, a count badge) rather
@@ -386,8 +551,506 @@ this feature — everything below is additive, sitting alongside it.
   reliably return a referentially-new array on every change, so the memo can silently stop
   recomputing after the first render. `stores-quote-form.tsx`'s row-total/grand-total calculation
   is deliberately a plain (unmemoized) computation for exactly this reason.
+- **Delivery Lead Time is digits-only** (`vendorQuoteItemSchema.deliveryLeadTime` in
+  `src/lib/validation/vendor-quote.ts`, `/^\d+$/`, same optional-if-empty shape every other item field
+  already has) and its column header reads "Delivery Lead Time (In Days)" — product decision, since the
+  field is always a whole number of days. **Approved Qty's vendor-facing header was separately renamed
+  to "Qty"** — display-only, `en.vendorQuote.storesForm.itemDetails.columns.approvedQty`, NOT
+  `presetColumnsCopy.approvedQty` (`en.staff.poRequests.createDialog.columns.approvedQty`), which stays
+  `"Approved Qty"` unchanged since `stores-quote-form.tsx`'s own `APPROVED_QTY_LABEL` uses that exact
+  string to look up the line item's value by label match against the DB-stored column — renaming it
+  would have silently broken that lookup. Both `stores-quote-comparison-card.tsx` (§18) and the vendor
+  form read the same renamed header key, so both updated from one locale edit.
+- **Unit Price accepts any number of decimal places** (`vendorQuoteItemSchema.unitPrice`,
+  `/^\d+(\.\d+)?$/` — was `/^\d+(\.\d{1,2})?$/`, a 2dp cap) — product decision, some vendors quote
+  fractional-cent unit prices. Note this is purely an input-acceptance change: `total_price`/
+  `unit_price` are still stored as `numeric(14,2)` (`purchase_requisition_rfq_quotation_items`), so a
+  more-than-2dp value is still rounded at the DB boundary — only the *validation* was ever rejecting
+  it outright before this change.
+- **Vendor-attached photos per line item** — a new column, `t.itemDetails.columns.vendorPhotos`
+  ("Attach Photos"), after Remarks in `stores-quote-form.tsx`'s item table, genuinely distinct from the
+  existing read-only Photos column (the office's own reference photos for that item, untouched). Backed
+  by a new table, `purchase_requisition_rfq_quotation_item_photos` (FK to
+  `purchase_requisition_rfq_quotation_items`, `on delete cascade`, RLS matching every sibling
+  `purchase_requisition_rfq_quotation*` table exactly — `select to authenticated`, no anon policy, no
+  insert/update/delete policy since the only write path is `submit_rfq_quotation` itself). See §11's
+  "Anonymous-vendor uploads" bullet for the new signing mechanism this needed (an anonymous vendor has
+  no session, so `api/uploads/sign` couldn't be reused). Frontend: `VendorItemPhotosField`
+  (`src/components/vendor-quote/vendor-item-photos-field.tsx`) is a trimmed clone of
+  `LineItemPhotosField`'s exact pending/uploading/error tile UX and reuses its micro-copy verbatim
+  (`en.staff.poRequests.createDialog`) — simplified because every photo here was uploaded in *this*
+  browser session (a vendor never reloads mid-quote), so `previewUrl` is just the local blob URL for the
+  field's whole lifetime, no separate "already has a real signed display URL" bookkeeping needed. Not
+  RHF-registered (same reasoning `LineItemPhotosField` isn't either) — tracked in `StoresQuoteForm`'s own
+  `photosByIndex` state and merged into each item's payload only at submit time, so
+  `vendorQuoteItemSchema`'s `photos` field is always populated (possibly `[]`) by the time the server
+  re-validates the full request body. No cap on count per line item, matching this codebase's existing
+  explicit "no photos-per-line-item limit, by design" convention (§7) for the office-side equivalent.
+  Also surfaced to staff as a new "Vendor Photos" column in `stores-quote-comparison-card.tsx` (§18) —
+  `getRfqQuoteComparison()` fetches and signs these the same way it already does the office's own
+  reference photos (one shared `createSignedUrls` batch call across both sets, session-scoped client),
+  reusing that file's existing local `ItemPhotos` component as-is.
+- **Office reference photos (the same read-only "Photos" column Stores already had) extended to
+  Spares and Service**, by later request. `get_rfq_quote_details_by_token`/`getRfqQuoteComparison()`
+  were already returning each line item's own `attachments` for every category (nothing
+  category-specific about that query), so this was purely a frontend gap: `SparesQuoteForm`/
+  `ServiceQuoteForm` and their comparison cards simply weren't rendering the column yet. `ItemPhotos`
+  — previously duplicated byte-for-byte across `stores-quote-form.tsx` and all 3 comparison cards —
+  is now one shared component (`src/components/vendor-quote/item-photos.tsx`), used in all 6 places
+  now that 2 more needed it. It's typed structurally against `{fileName, url}` rather than a shared
+  attachment type, since the form-side `RfqQuoteLineItemAttachment` and comparison-card-side
+  `PrLineItemAttachment` are two different types that both happen to carry those two fields. Column
+  placement (no Word-doc precedent to follow — neither doc had this column at all) mirrors Stores'
+  own: immediately after the last read-only/office-supplied column, before any vendor-editable field
+  — after UOM for Spares, after the single description column for Service.
+- **Service's Estimated Duration is digits-only**, same `/^\d+$/` shape as Delivery Lead Time
+  (`serviceVendorQuoteItemSchema.estimatedDuration`) — needed once `rfq-links-dialog.tsx`'s own "Max
+  Delivery Lead Time (Days)" column (§18) started reading this field for Service PRs, since it needs
+  to actually be a day count. Column header updated to "Estimated Duration (In Days)" to match the
+  existing "Delivery Lead Time (In Days)" convention.
 
-## 18. Keeping this file current
+## 18. Requested Quote page (RFQ progress tracking)
+
+A staff-facing list of PRs that have had an RFQ issued to at least one vendor, showing per-PR quote
+progress (`{received} of {total}`) and a derived 3-state status. Lives at the pre-existing
+`ROUTES.RFQ_LIST` (`/en/rfq-list`) slot, which already had a nav entry and route constant reserved
+for it — only the route itself was unbuilt until now. Sits alongside §17's vendor RFQ/quote-submission
+plumbing rather than duplicating it — this page is a read-only aggregation over
+`purchase_requisition_rfq_links`/`purchase_requisition_rfq_quotations`, with no new write path.
+
+- **New view**, `pr_rfq_progress` (`20260911010000_pr_rfq_progress_view.sql`) — one row per
+  requisition with ≥1 issued RFQ link (grouped `from purchase_requisition_rfq_links`, not left-joined
+  off `purchase_requisitions`, so a PR with zero links structurally produces no row here), with
+  `vendor_count`, `quote_count`, `first_issued_at` (`min(created_at)` across that PR's links), and a
+  precomputed `derived_status`. Carries no RLS/GRANT of its own, same as `pr_requisition_list` —
+  access flows from the querying role's existing `select to authenticated using (true)` policies on
+  the two underlying tables.
+- **New RPC**, `search_requested_quotes` (`20260911020000_search_requested_quotes_rpc.sql`) — the
+  list page's equivalent of `search_purchase_requisitions`: same search/filter/pagination/
+  `count(*) over()` shape, joined to `pr_rfq_progress` (which is what enforces "≥1 RFQ issued," not a
+  `where` clause) and always excluding `status = 'cancelled'` (a PR that was cancelled after RFQs went
+  out never appears here — a deliberate scope decision, since this page tracks the active pipeline,
+  not a full history). Its date filter runs against `first_issued_at`, not the PR's own `created_at`,
+  since that's this page's own displayed date column.
+- **Derived status** — `REQUESTED_QUOTE_STATUS` (`src/lib/constants/requested-quote.ts`):
+  `RFQ_ISSUED` (0 received) / `PARTIAL_RECEIVED` (0 < received < total) / `ALL_RECEIVED`
+  (received = total). Computed once, in SQL, inside `pr_rfq_progress` — never re-derived client-side
+  or read from `purchase_requisitions.status` (that column alone can't distinguish 1-of-3 from 3-of-3,
+  since both read as `quotes_received` — see §17's note on `submit_rfq_quotation`'s single-first-
+  submission semantics). Values are deliberately distinct strings from `PR_STATUS`'s own — a different
+  concept that happens to share a name, never compare one against the other.
+- **Data access / API**: `src/lib/data/requested-quotes.ts` (`getRequestedQuotes`) →
+  `GET /api/requested-quotes`, following §12's conventions exactly (hand-parsed coerce-never-fail
+  query params, `{data, meta}`/`{error}` envelope, `requireApiActiveUser()`). No PG-error-code mapping
+  needed — pure read, no mutation path.
+- **Frontend**: `src/app/[lang]/(staff)/rfq-list/page.tsx` + `src/components/rfq/`
+  (`requested-quote-view.tsx`, `rfq-table.tsx`, `rfq-toolbar.tsx`, `rfq-pager.tsx`,
+  `rfq-empty-state.tsx`, `date-range-filter.tsx`) — a trimmed clone of the Purchase Request list
+  page's own structure (same staged/applied filter split, same `requestIdRef` stale-response guard,
+  same retry-at-page-1-on-overrun). `FilterMultiselect` is imported directly from
+  `purchase-requisition/` rather than cloned — unlike `date-range-filter.tsx`, it has no copy baked
+  in (fully prop-driven), so duplicating it would only add drift risk for no benefit. Row click
+  originally reused `CreateRequisitionDialog` (the read-only PR detail view); this was replaced by
+  the RFQ vendor management dialog described below, since a PR's own fields aren't what this page's
+  users need to see when they click through — see that bullet.
+- **New atom**, `QuoteProgress` (`src/components/atoms/quote-progress.tsx`) — the
+  "`{received} of {total}`" fraction + progress bar (track `bg-line`, fill `bg-teal` while partial →
+  `bg-moss` at 100%), replicating the design doc's `.frac` component (`Design-docs/app/rfq-list.html`).
+  Kept fully generic/prop-driven (no PR-specific typing) since any future "N of M" progress display
+  can reuse it.
+- **Naming note**: the design doc and this page's pre-existing nav/route slot both used "Request for
+  Quote" — relabeled to "Requested Quote" (`staff.nav.rfq`, `staff.requestedQuote.title` in
+  `en.json`) per product decision; the static design mock's own on-page strings were left as-is (a
+  reference file, not live copy).
+- **RFQ vendor management dialog** (`src/components/rfq/rfq-links-dialog.tsx`) — what a row click
+  actually opens now: every vendor ever invited to that PR's RFQ, with issue/received dates, their
+  shareable link (copy-to-clipboard), a per-vendor-link status, and a **Reissue** action. This is a
+  genuinely different 3-state concept from the page's own `REQUESTED_QUOTE_STATUS` (a per-PR
+  aggregate) — kept in its own constant, `RFQ_LINK_STATUS`
+  (`src/lib/constants/rfq-link.ts`: `PENDING` / `QUOTE_RECEIVED` / `EXPIRED`), derived from
+  `submitted_at`/`expires_at` in `src/lib/data/rfq-links.ts`'s `getRfqLinksForRequisition` (two flat
+  queries joined in JS — `purchase_requisition_rfq_quotations` already denormalizes `requisition_id`
+  for exactly this, so no nested-embed/PostgREST-shape guesswork is needed, same reasoning
+  `getPurchaseRequisitionById` already documents for its own attachments query). Follows the exact
+  fetch-by-id-then-open pattern `CreateRequisitionDialog` itself used to use (parent fetches via a new
+  `GET` on `api/purchase-requisitions/[id]/rfq-links` before the dialog opens, row shows the same
+  `detailLoadingId` cursor meanwhile) — the dialog component itself is purely presentational, no
+  fetching of its own. This split isn't just style: an internal `useEffect(() => { fetchLinks() }, [])`
+  was tried first and hit this repo's `react-hooks/set-state-in-effect` lint rule as a hard error, not
+  a warning — fetch-on-mount-via-effect has no precedent anywhere else in this codebase, and the
+  fetch-before-open pattern already established for `CreateRequisitionDialog` sidesteps the rule
+  entirely by triggering the fetch from an event handler instead.
+- **Reissue** (`reissue_rfq_link`, `20260911040000_reissue_rfq_link_rpc.sql`, corrected by
+  `20260911050000_fix_reissue_rfq_link_ambiguous_id.sql`) — one atomic RPC, not two separate
+  actions: expires the vendor's current link (`expires_at = now()`, only ever moving it earlier) and
+  inserts a fresh one for the same vendor, in one transaction, mirroring `issue_rfq_link`'s own guard
+  style. Refuses to reissue a link that already has a submitted quote (`55000`) — that's not a stale
+  invite, it already did its job. No distinction between "expired naturally" and "expired because an
+  officer reissued it" — both are just `expires_at < now()`, no new column. **Gotcha hit and fixed
+  during manual verification**: `returns table (id uuid, access_token text)` implicitly declares `id`
+  as a PL/pgSQL variable visible through the whole function body, so an unqualified
+  `where id = p_link_id` in the expire-step UPDATE was ambiguous (`42702`) against
+  `purchase_requisition_rfq_links.id` — exactly the pitfall `issue_rfq_link`'s own status-flip UPDATE
+  already fully-qualifies its columns to avoid. Any new RPC whose `RETURNS TABLE` column names
+  overlap with a table it writes to needs the same qualification.
+- **`pr_rfq_progress` counts distinct vendors, not raw link rows** (fixed by
+  `20260911030000_pr_rfq_progress_distinct_vendors.sql`, `create or replace view`, column
+  names/types unchanged so nothing downstream needed to change) — necessary once reissue can create a
+  second link row for the same vendor, or "X of Y" would inflate by one on every reissue. Grouping is
+  by `vendor_email` (not `vendor_name`, which can vary run to run for the same real vendor — confirmed
+  against live data where this had already silently happened before this fix: one PR's `vendor_count`
+  dropped from 9 raw link rows to 2 real distinct vendors once corrected). `first_issued_at` stays
+  correct across a reissue for a subtler reason: expiring a link only changes `expires_at`, never
+  `created_at`, so `min(created_at)` across a vendor's old-and-new links is still the true first-ever
+  invite date. A reissue changes none of `pr_rfq_progress`'s output for its PR — same `vendor_email`
+  still counted once, `quote_count`/`derived_status` unaffected, `first_issued_at` unmoved — so
+  `requested-quote-view.tsx` deliberately never refetches the main list after one; only the vendor
+  dialog's own list refetches, via an explicit `onReissued` callback (not another effect).
+- **`issue_rfq_link` rejects a duplicate vendor email on the same requisition**
+  (`20260911060000_restrict_duplicate_rfq_vendor_email.sql`, a new `55001` errcode distinct from the
+  existing `55000` "wrong requisition status" conflict, mapped to its own message in
+  `rfq-links/route.ts`) — found live: an officer using the plain Issue RFQ form (not Reissue) to
+  invite what they intended as a second vendor, but reusing the same email, silently created a second
+  link that `pr_rfq_progress`'s distinct-vendor counting then correctly collapsed into "still 1
+  vendor" — confusing, since nothing on screen explained why the fraction hadn't moved. This blocks
+  that state from occurring at all rather than only explaining it after the fact: once an email has
+  any link on a requisition, a further plain Issue RFQ to that same email is rejected — Reissue is the
+  one remaining path for "invite this vendor again," and it isn't affected by this new check since
+  `reissue_rfq_link` is a fully separate function body, not a wrapper around `issue_rfq_link`. Compared
+  case-sensitively, deliberately consistent with `pr_rfq_progress`'s own `vendor_email` grouping
+  (neither normalizes case) rather than fixing it in only one of the two places that key off this
+  column.
+- **Reissue hard-deletes the old link** (`20260912010000_reissue_deletes_old_link.sql`) — was
+  `update ... set expires_at = now()`, now `delete`. "Expired" is reserved for a link that genuinely
+  ran out its own clock with no officer intervention; a reissued-away link isn't that, and showing it
+  as "Expired" alongside links that actually timed out was misleading. Safe to hard-delete because the
+  function's own guard already confirms `submitted_at is null` before reaching this point — no
+  `purchase_requisition_rfq_quotations` row ever references the deleted id. **Known, accepted
+  side effect**: `pr_rfq_progress.first_issued_at` is `min(created_at)` over whatever rows currently
+  exist, so if the reissued link happened to be the PR's chronologically-first invite, that column can
+  advance forward once the old row is gone, rather than continuing to reflect the true original issue
+  moment — accepted in favor of never mislabeling a reissued link as "Expired." The vendor list
+  dialog's Copy action is also now hidden (not just inert) once a link's status is `QUOTE_RECEIVED` or
+  `EXPIRED` — copying a link nobody can use anymore isn't a real action, and hiding it keeps the row's
+  remaining state (a Badge and, only if still resendable, a disabled/enabled Reissue button) the whole
+  story instead of a stray button that does something pointless.
+- **Compare Quote moved from the main table into the vendor list dialog, as a selection, not a
+  per-row action.** The list page's own `compareQuote` column (a permanently-disabled placeholder
+  button, `rfq-table.tsx`) is removed outright — comparing quotes is a cross-vendor action, so it
+  never belonged on a single PR row to begin with. `rfq-links-dialog.tsx` now has a leading checkbox
+  column, enabled only when a row's status is `QUOTE_RECEIVED` (there's nothing to compare for a
+  `PENDING` or `EXPIRED` link) and capped at 3 selections at once (`MAX_COMPARE_SELECTION`) — once 3
+  are checked, every other eligible checkbox disables until one is unchecked. A **Compare Quote**
+  button sits in the dialog footer beside Close, disabled until at least one row is selected. Its
+  `onClick` is intentionally a no-op for now (`handleCompare`, a stub) — the actual comparison screen
+  is a future feature; this just gets the selection UX and its enablement rules in place ahead of it.
+  Selection state (`selectedIds`) lives in the dialog and needs no manual reset logic: the dialog is
+  already remounted per PR via `requested-quote-view.tsx`'s `key={selectedRow?.id ?? "closed"}` (see
+  above), so a fresh open always starts with nothing selected.
+- **Reissue CTA visibility now mirrors Copy's, inverted** — shown only for `EXPIRED` and
+  `QUOTE_RECEIVED` links, never `PENDING`. A still-pending link already has a working Copy button for
+  resending the exact same invite, so a second, different action to generate a brand-new link for it
+  had no real use case; Reissue is reserved for the two states where Copy is hidden because the
+  existing link genuinely can't be reused (`rfq-links-dialog.tsx`'s `row.status !== RFQ_LINK_STATUS.PENDING`
+  guard on the button, replacing the old always-rendered-but-disabled-for-`QUOTE_RECEIVED` version).
+- **Reissuing a `QUOTE_RECEIVED` link is now allowed, gated by a confirmation warning instead of a
+  hard backend block.** Product decision, reversing the original design: an officer can need a revised
+  quote from a vendor who already responded (pricing changed, items added, etc.), and Reissue is the
+  supported path for that. `reissue_rfq_link` (`20260912020000_allow_reissue_after_quote_received.sql`)
+  drops the `v_old_submitted_at is not null` guard entirely — the RPC no longer distinguishes a
+  never-submitted link from a submitted one, it just deletes-and-reissues either way, same as it
+  already did for `PENDING`/`EXPIRED`. Because that delete cascades
+  (`purchase_requisition_rfq_quotations.rfq_link_id ... on delete cascade`, `20260830010000`), reissuing
+  a `QUOTE_RECEIVED` link permanently destroys the vendor's already-submitted quotation and every one of
+  its quotation_items — accepted as the intended effect (the officer is asking for a fresh quote to
+  replace the old one, not to keep both; keeping both would also leave `pr_rfq_progress`'s distinct-vendor
+  `quote_count` wrongly still counting this vendor as "quoted" against their new, unsubmitted link). This
+  is exactly the kind of one-way data loss that needs an explicit "are you sure" step before it happens,
+  not a hard block — so the gate moved from the database to the client: `rfq-links-dialog.tsx` now opens
+  `ReissueWarningDialog` (new, `reissue-warning-dialog.tsx`, following the same small
+  confirm/cancel-`Dialog` shape as `purchase-requisition/cancel-pr-dialog.tsx`) when Reissue is clicked
+  on a `QUOTE_RECEIVED` row; only confirming it opens the normal `ReissueRfqDialog` form. Clicking
+  Reissue on an `EXPIRED` row skips the warning and opens `ReissueRfqDialog` directly, same as before —
+  there's no existing quote to lose there.
+- **Compare Quotes modal** (`rfq-links-dialog.tsx`'s Compare Quote button, previously a no-op stub) —
+  a full-viewport modal (`src/components/rfq/compare-quotes-modal.tsx`), not a page navigation. A first
+  version used a dedicated route (`/rfq-list/compare/[requisitionId]`); the user rejected that after
+  trying it ("taking me to some other path") and asked for an in-place modal instead, so that route was
+  removed entirely — `getRfqQuoteComparison()` (below) is now called from a new API route instead of a
+  Server Component page. `rfq-links-dialog.tsx`'s `handleCompare()` fetches
+  `GET .../rfq-links/compare?linkIds=a,b,c` (new route,
+  `src/app/api/purchase-requisitions/[id]/rfq-links/compare/route.ts`) before opening the modal — same
+  fetch-then-open pattern this file's own parent already uses for opening *this* dialog, so
+  `CompareQuotesModal` itself stays purely presentational.
+  - **Layout**: also revised after live feedback. When first asked to choose between a shared
+    metrics-comparison table (vendors as columns, one row per metric — matching the *other*, unused
+    design mockup at `Design-docs/app/compare-quotes.html`) and three full read-only copies of the
+    Stores vendor quote form, the user chose the latter. Built as a full-page horizontal-scrolling row
+    first — but that didn't fit a normal screen width (each form's own item table alone needs ~1100px)
+    and required navigating away, both of which the user then asked to fix. Landed on: a near-fullscreen
+    modal (`fixed inset-0` with a small gutter, not the centered/max-width `Dialog` atom every other
+    dialog uses — even `xl`'s 1200px cap is too narrow for this) laid out as a CSS grid with exactly N
+    equal-width columns (`grid-cols-1`/`-2`/`-3` picked by vendor count) so all selected vendors are
+    visible at once with **no horizontal scrolling of the set** — each column (`StoresQuoteComparisonCard`
+    itself, `h-full overflow-y-auto`) scrolls independently instead, and the item table inside a column
+    keeps its own already-existing `overflow-x-auto` for its own width overflow.
+    `src/components/rfq/stores-quote-comparison-card.tsx` is a read-only clone of
+    [`stores-quote-form.tsx`](src/components/vendor-quote/stores-quote-form.tsx)'s exact section
+    structure (RFQ Details / Vendor Details / Item Details table / Quotation Summary), reusing its copy
+    verbatim (`en.vendorQuote.storesForm`) since the fields mean the same thing here — every field
+    renders `disabled` (not `readOnly`, so nothing in an entirely non-interactive card looks
+    focusable/editable). A client-computed "Lowest total" `Badge` was tried here initially and then
+    removed by product decision — this per-vendor-card layout offers no cross-vendor cue of its own;
+    the Award badge (below) is the only per-card indicator now.
+  - **Zero new migrations.** `purchase_requisition_rfq_quotations`/`_quotation_items` already grant
+    `select to authenticated using (true)` — nothing staff-facing read them before this, but the RLS was
+    already in place. `src/lib/data/rfq-quote-comparison.ts`'s `getRfqQuoteComparison()` reads: PR header
+    + `vessel_label` from `pr_requisition_list` (the same view `searchPurchaseRequisitions` already
+    relies on), `vessel_imo_no` via a plain `vessels` lookup by name (same relationship
+    `get_rfq_quote_details_by_token`/`add_vessel()` already establish, just as a TS query instead of
+    embedded SQL), quotations scoped by `.eq("requisition_id", …).in("rfq_link_id", linkIds)` (no join to
+    the links table needed — the quotations table already denormalizes `requisition_id`), quotation items
+    grouped per vendor via a `Map` (same flat-query-plus-Map pattern `getRfqLinksForRequisition`
+    established), and line item photos signed with the normal **session-scoped** client (not
+    `admin.ts` — staff has a real session, unlike the anonymous-vendor path in `rfq-quote.ts`). The API
+    route also clamps `linkIds` server-side to `MAX_COMPARE_SELECTION` (`src/lib/constants/rfq-link.ts`,
+    shared with the dialog's own checkbox cap) — defense in depth, since a query string isn't trusted to
+    already respect the client's own selection limit.
+  - Each vendor's card is fully self-contained (own line-item snapshot from
+    `purchase_requisition_rfq_quotation_items`, own order) — no cross-vendor row alignment is needed,
+    since this is N independent cards, not a merged table. This also means the read-only card needs none
+    of `stores-quote-form.tsx`'s live dynamic-column label-matching (`findColumnValue`): the snapshot
+    columns (`requested_description`/`requested_impa_code`/`approved_qty`/`uom`) are read straight off
+    each `purchase_requisition_rfq_quotation_items` row.
+  - **Graceful degradation for a since-reissued link**: reissuing an already-submitted link
+    (previous bullet) hard-deletes the old link and cascades away its quotation, so a `linkId` a staff
+    member selected earlier may no longer resolve to a quotation by the time Compare Quote is clicked (or
+    the modal reopened later in the same session). `getRfqQuoteComparison()` simply returns fewer
+    `vendors` than requested `linkIds` rather than erroring; `CompareQuotesModal` shows an amber
+    partial-selection notice if some are missing, or a full empty state if none resolved — never a crash.
+  - Scope is view-only for this pass, per an explicit decision when asked: no "award/choose vendor →
+    create Purchase Order" action yet (that's a separate, larger, not-yet-planned feature) — matches the
+    already-established "nothing happens yet" state of the Compare CTA before this change.
+  - **Extended to Spares/Service** (see §17's own "Extending to Spares and Service" bullet for the
+    full picture): `CompareQuotesModal` no longer hardcodes `StoresQuoteComparisonCard` — it picks
+    one of `StoresQuoteComparisonCard`/`SparesQuoteComparisonCard`/`ServiceQuoteComparisonCard` once
+    per render, keyed on `QuoteComparisonData.category` (a requisition has exactly one category for
+    its whole lifetime, shared by every vendor quoted against it, so this lives on `data`, not on
+    each `QuoteComparisonVendor`). `getRfqQuoteComparison()` gained `category` (from
+    `pr_requisition_list.category_value`, already selected elsewhere in this codebase for the same
+    view) and the 7 `equipment_*` PR-context fields plus the 5 new Spares/Service
+    `QuoteComparisonLineItem` snapshot fields (`requestedPartNo`/`offeredPartNo`/`itemType`/
+    `estimatedDuration`/`sparesConsumablesIncluded`) — note this file has two separate lists that
+    must both stay in sync when a quotation-item column is added: the type-level
+    `Pick<Database[...]["Row"], ...>` for `QuotationItemRow` and the runtime `.select("...")` string
+    a few lines away. `SparesQuoteComparisonCard`/`ServiceQuoteComparisonCard` follow
+    `StoresQuoteComparisonCard`'s exact standalone-clone pattern (not a reuse of §17's shared form
+    sections for RFQ/Vendor Details/Quotation Summary — those were extracted from an *editable* form
+    and would need a new prop/mode to be safely reused in a read-only card, which is more risk than
+    benefit here), except each also renders the new `EquipmentDetailsSection` — safe to reuse
+    directly there since that one component was purely read-only from the start, never extracted
+    from editable JSX.
+- **`issue_rfq_link` requires every line item's Approved Qty to be filled before an RFQ can be issued**
+  (`20260913030000_require_approved_qty_before_issue_rfq.sql`, a new `55002` errcode, mapped to its own
+  message in `rfq-links/route.ts`) — an RFQ sent out with a blank Approved Qty can't actually be priced
+  against (`submit_rfq_quotation`'s own `total_price` computation already silently returns `null`
+  whenever `approved_qty` is missing), so this catches the gap when it's still actionable instead of only
+  surfacing it once an incomplete quote comes back. **Skipped entirely for Service PRs** — checked via
+  the requisition's own `category` dropdown value (`= 'service'`) — since Service has no Qty concept at
+  all (§7's `PR_LINE_ITEM_PRESET_COLUMN`), so there's no Approved Qty column to require in the first
+  place; Stores and Spares are both checked. The check is "every line item has a non-empty Approved Qty
+  value," which also naturally covers the (shouldn't-happen-but-defensive) case of the column being
+  entirely absent from a line item.
+- **Requisition No. is its own table column**, no longer stacked as a smaller secondary line under the
+  PR ref — in both `pr-table.tsx` (`t.columns.requisitionNumber`) and `rfq-table.tsx`
+  (`t.table.columns.requisitionNumber`). Same `row.requisitionNumber` data both tables already had; this
+  was a display-only layout change (each cell simply moved into its own `<th>`/`<td>`, `"—"` when null).
+- **Requested Quote table gained a Category column** (`rfq-table.tsx`, `t.table.columns.category`,
+  positioned right after Vessel — same relative placement `pr-table.tsx`'s own Category column
+  already uses) — previously called out as a deferred/optional enhancement when the Spares/Service
+  RFQ extension shipped, implemented directly on later request. Reads the same `category_label` data
+  `pr-table.tsx` already reads (`pr_requisition_list.category_label`, via `RequestedQuoteListRow.
+  categoryLabel`). `search_requested_quotes` gained one trailing `category_label` output column
+  (`20260913100000_search_requested_quotes_category_label.sql`, `drop function` + `create function`
+  — the same `returns table` column-count-changed situation this file already documents for this
+  exact RPC's own prior migration and for `get_rfq_quote_details_by_token`).
+- **RFQ vendors modal (`rfq-links-dialog.tsx`) gained three per-vendor summary columns** — Grand Total,
+  Delivery Terms (Incoterm), and the maximum Delivery Lead Time across that vendor's own line items —
+  `null`/"—" for `PENDING`/`EXPIRED` rows, since there's no quotation to read them from yet.
+  `getRfqLinksForRequisition` (`src/lib/data/rfq-links.ts`) gained a third flat query
+  (`purchase_requisition_rfq_quotation_items`, `quotation_id`/`delivery_lead_time` only, run only when
+  at least one quotation exists) alongside its existing links/quotations pair, joined the same
+  flat-query-plus-Map way as everywhere else in this file. The max is computed in JS, not a SQL
+  aggregate/RPC — a requisition realistically has a handful of line items — via
+  `Number(delivery_lead_time)` + `Number.isFinite` filtering per item before `Math.max`, deliberately
+  defensive rather than assuming every stored value is already digits-only: that validation
+  (`vendorQuoteItemSchema.deliveryLeadTime`, §17) only applies going forward, so older rows can still
+  hold pre-validation free-text values that must be silently skipped, not thrown on or NaN-poison the
+  max for that vendor's other, valid line items. The dialog itself widened from `size="lg"` to
+  `size="xl"` to fit the 3 new columns alongside its existing 6, matching
+  `create-requisition-dialog.tsx`'s own precedent for "wide table needs a wide dialog." **Extended
+  for Service**: since a Service line item has no `delivery_lead_time` at all, the computation now
+  coalesces `delivery_lead_time ?? estimated_duration` per item before taking the max — the two are
+  mutually exclusive per requisition (one category, for its whole lifetime), so this works without
+  the function needing to know the requisition's own category. Fixed in the same change: the
+  previous `Number(row.delivery_lead_time)` had no null-guard, so a vendor's blank field silently
+  counted as `0` days rather than being excluded from the max — now explicitly skipped.
+- **Award** — staff pick exactly one vendor's submitted quote as the winner, from either the RFQ
+  vendor modal or the Compare Quotes modal. `purchase_requisitions` gained one nullable column,
+  `awarded_rfq_link_id` (FK to `purchase_requisition_rfq_links`, no `on delete cascade` — default
+  `no action` means Postgres itself refuses to delete a link this column still points to, on top of
+  the guard below), and one new RPC, `award_purchase_requisition(p_id, p_rfq_link_id)`
+  (`20260913040000_purchase_requisitions_award_column.sql`,
+  `20260913050000_award_purchase_requisition_rpc.sql`), mirroring `cancel_purchase_requisition`'s own
+  auth/status-guard shape exactly. Only reachable from `quotes_received` (errcode `55000` otherwise —
+  this is what makes "only one vendor can ever be awarded" hold, since an already-`awarded` or
+  `cancelled` requisition both fail the same check), and only for a link that genuinely has a
+  submitted quote for that requisition (`55001` otherwise). `PR_STATUS.AWARDED` itself, its `moss`
+  badge tone, and `pr-table.tsx`'s Cancel/Issue-RFQ disabling for it all **already existed** before
+  this feature — this was the one missing piece that could actually reach that state, so the PR list
+  page needed zero changes of its own.
+  - **`issue_rfq_link`/`reissue_rfq_link` needed no changes at all.** Both already guard on a status
+    allow-list that excludes `'awarded'` (raising their own pre-existing `55000`), so both were
+    already correctly refused post-award before this feature touched anything — confirmed live
+    (awarding a requisition, then calling `reissue_rfq_link` against one of its other links, still
+    fails with reissue's own original guard). The only change needed was a **frontend-only** one:
+    `rfq-links-dialog.tsx` stops rendering the Reissue button at all once any link
+    `isAwarded` (an `anyAwarded` check), purely so the UI never offers a button that would just 409 —
+    **Copy is deliberately left unchanged** (already gated to `PENDING` rows only, independent of
+    award, and copying a dead link isn't a broken action the way clicking Reissue would be).
+  - **`RfqLinkRow` and `QuoteComparisonData` both gained an award flag, not a 4th status value.**
+    `RfqLinkRow.isAwarded: boolean` (`src/lib/data/rfq-links.ts`, a third parallel query reading
+    `purchase_requisitions.awarded_rfq_link_id`) and `QuoteComparisonData.awardedLinkId: string | null`
+    (`src/lib/data/rfq-quote-comparison.ts`, from the same column, already queried by that file).
+    `RFQ_LINK_STATUS` itself stays a 3-state enum — an awarded link is always, definitionally, also
+    `QUOTE_RECEIVED` underneath, so award is layered on top at render time (the vendor modal's Status
+    column shows an "Awarded" badge instead of the normal status badge when `isAwarded`, rather than
+    teaching `STATUS_TONE`/`statusLabels` a 4th key) — same "keep derived concepts distinct" reasoning
+    `REQUESTED_QUOTE_STATUS` already documents for staying separate from `PR_STATUS`. For that same
+    reason, **the Requested Quote list's own progress column/`pr_rfq_progress` view is untouched** —
+    awarding doesn't change vendor/quote counts, so `derived_status` is unaffected by design.
+  - **One shared confirm dialog + one submit handler for both entry points.** `AwardConfirmDialog`
+    (`src/components/rfq/award-confirm-dialog.tsx`, same trivial shape as
+    `reissue-warning-dialog.tsx`/`cancel-pr-dialog.tsx`) and its `handleAwardConfirmed` both live in
+    `rfq-links-dialog.tsx` alone — the per-row Award button (shown only when a row is
+    `QUOTE_RECEIVED` and no vendor is awarded yet) and `CompareQuotesModal`'s own per-card Award
+    button both just set the same `awardTarget` state via a passed-down `onAwardClick` prop, so the
+    actual POST to `/api/purchase-requisitions/[id]/award` exists exactly once. On success, the
+    dialog patches its own local `compareData.awardedLinkId` directly (so an already-open Compare
+    modal reflects the award immediately, since that data isn't part of the `onAwarded()` refetch
+    below) and calls `onAwarded()` — a new prop on `RfqLinksDialog`, wired the same
+    fetch-and-replace-`selectedLinks` way `onReissued`/`handleLinksReissued` already are in
+    `requested-quote-view.tsx`.
+  - **`Dialog` atom gained one optional prop, `zIndexClassName` (default `"z-30"`, every existing
+    call site unaffected).** `CompareQuotesModal` is a bespoke `z-40` `createPortal` (not built on
+    this atom, per its own already-documented reasoning), and `AwardConfirmDialog` is the one confirm
+    dialog that can be opened *from inside* it — at the atom's default `z-30` it would've rendered
+    behind the compare modal instead of on top of it. `AwardConfirmDialog` passes `zIndexClassName="z-50"`
+    unconditionally (harmless when opened from the vendor modal instead, where nothing else is above
+    `z-30` anyway).
+  - Scope: this does **not** create a Purchase Order record — matches the already-documented decision
+    (above) that Compare Quotes itself shipped view-only, with "award → create PO" left as a separate,
+    not-yet-planned feature. Award here is exactly: pick a winner, lock out further RFQ activity on
+    this requisition, flip its status.
+  - **Reversed, by later product decision: the Requested Quote list's own status column now DOES show
+    "Awarded."** The original reasoning above (`REQUESTED_QUOTE_STATUS`/`pr_rfq_progress` must never
+    know about `PR_STATUS`) still holds for `pr_rfq_progress` itself — that view is untouched, stays a
+    pure vendor/quote-count concept. The override happens one layer up, in `search_requested_quotes`
+    (`20260913060000_search_requested_quotes_awarded_override.sql`, `create or replace function`):
+    restructured around a `with matched as (...)` CTE so `case when v.status = 'awarded' then
+    'awarded_status' else p.derived_status end` is computed once and reused by both the output column
+    and the `p_derived_statuses` filter (a plain inline `case` in the `where` clause would have had to
+    repeat the expression, and filtering by "Awarded" wouldn't have matched what the same query's
+    `select` labels as awarded). `REQUESTED_QUOTE_STATUS` gained a 4th value, `AWARDED: "awarded_status"`
+    (`src/lib/constants/requested-quote.ts`) — deliberately not the bare string `"awarded"`, to avoid
+    that value colliding with `PR_STATUS.AWARDED`'s own string despite being a different concept, same
+    disambiguation `RFQ_ISSUED: "rfq_issued_status"` already used for the same reason. `rfq-table.tsx`'s
+    `STATUS_TONE` maps it to `moss`, matching `PR_STATUS.AWARDED`'s own tone elsewhere in the app.
+    Everywhere else that reads `derivedStatus`/builds status filter options (`requested-quotes.ts`,
+    `requested-quote-view.tsx`'s `STATUS_OPTIONS`, `api/requested-quotes/route.ts`'s `VALID_STATUSES`)
+    already derives from this one constant or casts the RPC's own string output, so all three picked up
+    the new value with zero code changes.
+  - **Bug fix: reissuing or awarding a vendor from the RFQ vendor modal didn't refresh the Requested
+    Quote table row behind it.** `requested-quote-view.tsx`'s old `handleLinksReissued` only refetched
+    the already-open dialog's own `selectedLinks` (via `fetchLinksForRow`), never the outer table's
+    `fetchList(...)` — harmless for Reissue-of-a-never-submitted-link, but wrong for reissuing an
+    already-`QUOTE_RECEIVED` link (deletes its quotation, so `quote_count`/`derived_status` on the
+    outer row change too) and wrong for Award once the bullet above made `derived_status` itself
+    award-sensitive. Replaced with one `handleLinksChanged`, run via `Promise.all` (`fetchLinksForRow`
+    + `fetchList({ page, pageSize, ...appliedParams })`, the same params shape `RfqPager`'s own
+    `onPageChange` already uses), passed as both `onReissued` and `onAwarded` to `RfqLinksDialog` —
+    both actions need the identical two-part refresh, so there's no reason for two near-duplicate
+    handlers.
+- **Export received vendor quote as PDF.** A per-row **Export PDF** action in `rfq-links-dialog.tsx`
+  (`row.status === RFQ_LINK_STATUS.QUOTE_RECEIVED` only, deliberately independent of `anyAwarded` — it
+  keeps working on every received-quote row, winner and losers alike, even after Award/Reissue both
+  disappear post-award), downloading that one vendor's quote as a PDF styled after the original vendor
+  quote Word form (`MYSEA SHIPPING` / "REQUEST FOR QUOTATION — STORE|SPARES|SERVICES"), images always
+  excluded. First PDF-generation feature in this app — `@react-pdf/renderer` is a new dependency
+  (server-side `renderToBuffer` in a Route Handler, same "backend builds the file, frontend
+  fetches+downloads" shape §16's Excel export already established; no headless browser). Reuses
+  `getRfqQuoteComparison()` as-is (called with a single-element `linkIds` array, `vendors[0]` taken) —
+  no new data-layer function, RPC, or migration.
+  - **New route**, `src/app/api/purchase-requisitions/[id]/rfq-links/[linkId]/export/route.tsx` — note
+    the `.tsx` extension, required since it constructs `@react-pdf/renderer` JSX inline
+    (`renderToBuffer(<PdfDocument .../>)`); every other Route Handler in this repo is a plain `.ts`
+    file. Auth/error-envelope shape matches `rfq-links/compare/route.ts` exactly
+    (`requireApiActiveUser()` first line, `{error:{message}}`/404/500). `vendors[0]` missing (a link
+    reissued away since the row was rendered, or a stale/bad id) is its own clean 404, not an
+    index-into-undefined crash. Category dispatch is a `Record<PrCategory, ...>` map, same pattern
+    `export/route.ts` already uses — but lenient-default-to-Stores on an unrecognized/null category,
+    matching `compare-quotes-modal.tsx`'s own existing behavior for this same nullable field, not the
+    stricter `isPrCategory` 400-guard the unrelated Excel export route uses.
+  - **New module**, `src/lib/rfq-quote-pdf/` — `styles.ts` (react-pdf `StyleSheet.create()` tokens,
+    pulled from `globals.css`'s light-mode `@theme` only; Times-Roman for headings/Helvetica for body,
+    the closest built-in-standard-font pairing to this app's own serif/sans-serif split — bold text
+    must reference the bold family directly, e.g. `"Helvetica-Bold"`, since a standard font doesn't
+    synthesize bold from a `fontWeight` style), `sections.tsx` (shared `PdfHeader`/`RfqDetailsSection`/
+    `VendorDetailsSection`/`EquipmentDetailsSection`/`QuotationSummarySection`/`GrandTotalRow`, plus the
+    `RfqQuotePdfPrContext` type every category's Document component shares — deliberately including all
+    7 `equipment_*` fields even for Stores, which just never renders them, so the route's
+    `Record<PrCategory, typeof StoresQuotePdf>` dispatch map typechecks cleanly), and one thin
+    `Document`/`Page` file per category (`stores-quote-pdf.tsx`/`spares-quote-pdf.tsx`/
+    `service-quote-pdf.tsx`) with its own Item Details table — same "shared sections, non-shared item
+    table" split §17's own comparison cards already established, for the same reason (the column sets
+    differ too much to force into one generic table). The shared `rfq-details-section.tsx`/
+    `equipment-details-section.tsx`/etc. components under `src/components/vendor-quote/` could **not**
+    be reused directly — they render real HTML via react-hook-form generics, and `@react-pdf/renderer`
+    only renders its own `Document`/`Page`/`View`/`Text` primitives, never DOM; what's reused is each
+    section's exact field breakdown and copy (`en.vendorQuote.storesForm`/`sparesForm`/`serviceForm`),
+    not the JSX. Portrait A4 throughout, even for Spares' ~12-column item table (the tightest case) —
+    fixed percentage-width columns, text wraps by default inside a `<Text>` rather than truncating, and
+    each table row has `wrap={false}` so a row is never split mid-row across a page break (verified
+    directly against a 30-line-item Spares render spanning 4 pages). No repeated table header past page
+    1 is an accepted v1 simplification (react-pdf's `fixed` prop is for absolutely-positioned content,
+    not a natural repeating header).
+  - **Header copy** lives as a new `pdfHeader: {companyName, documentTitle}` key inside each of
+    `storesForm`/`sparesForm`/`serviceForm` in `en.json` (`"MYSEA SHIPPING"` duplicated 3x rather than
+    hoisted — deliberate, since §6 requires no hardcoded strings in JSX and each category's PDF template
+    only ever imports its own one namespace). The Word forms' own fill-in instruction line ("Please
+    complete all applicable fields...") is omitted — it's guidance for a *blank* form, and this PDF
+    represents an already-completed quote. Store's document title, `"REQUEST FOR QUOTATION — STORE"`
+    (singular), has no source Word doc to verify against (only Service's and Spares' were provided) —
+    built instead from the already-shipped `StoresQuoteComparisonCard`'s own field list/copy (itself
+    already proven to match the real Store paper form) plus this app's own existing "Store" (not
+    "Stores") copy convention, e.g. `poRequests.createDialog.downloadStoreTemplate`.
+  - **Filename**: `RFQ-{prNumber}-{vendorName}-Quote.pdf`, built by
+    `src/lib/rfq-quote-pdf/filename.ts`'s `buildRfqQuotePdfFilename()`, which calls a new generic
+    `sanitizeFilenameSegment()` in `src/lib/format.ts` (alongside the existing `getInitials` — no
+    filename sanitizer existed anywhere in the repo before this; the one other filename this app builds,
+    `${prNumber}-export.xlsx`, never needed one since `prNumber` is filename-safe by construction, but a
+    vendor's own free-text name isn't). Strips characters invalid in Windows filenames, collapses
+    whitespace to `_`, trims stray leading/trailing `.`/`_`. Called from both the route (`Content-
+    Disposition` header) and `rfq-links-dialog.tsx`'s own fallback filename (if header-parsing ever
+    fails) — one shared function so the two ends can't drift apart, unlike the Excel export's two
+    independently-hand-typed filename templates.
+  - **No images anywhere in this PDF, by construction, not by filtering** — the shared/per-category PDF
+    components simply never import `Image` from `@react-pdf/renderer` or read `attachments`/
+    `vendorPhotos` off a line item at all (both are on `QuoteComparisonLineItem`, both are always
+    skipped), rather than fetching photos and then hiding them. A repo-wide `grep` for `Image` inside
+    `src/lib/rfq-quote-pdf/` should always return nothing.
+
+## 19. Keeping this file current
 
 This file is auto-loaded into every session via `CLAUDE.md`'s `@plans/development.md` import — it's
 only useful if it matches what the code actually does. Update the relevant section **in the same

@@ -133,6 +133,7 @@ export type Database = {
           equipment_other_details: string | null;
           requisitioned_by: string | null;
           captain_chief_engineer: string | null;
+          awarded_rfq_link_id: string | null;
           created_by: string;
           created_at: string;
           updated_at: string;
@@ -157,6 +158,7 @@ export type Database = {
           equipment_other_details?: string | null;
           requisitioned_by?: string | null;
           captain_chief_engineer?: string | null;
+          awarded_rfq_link_id?: string | null;
           created_by: string;
         };
         Update: {
@@ -177,6 +179,7 @@ export type Database = {
           equipment_other_details?: string | null;
           requisitioned_by?: string | null;
           captain_chief_engineer?: string | null;
+          awarded_rfq_link_id?: string | null;
         };
         Relationships: [
           {
@@ -497,14 +500,19 @@ export type Database = {
           line_item_id: string;
           requested_description: string;
           requested_impa_code: string | null;
+          requested_part_no: string | null;
           approved_qty: number | null;
           uom: string | null;
           offered_description: string | null;
           offered_impa_code: string | null;
+          offered_part_no: string | null;
+          item_type: string | null;
           unit_price: number | null;
           total_price: number | null;
           delivery_lead_time: string | null;
           remarks: string | null;
+          estimated_duration: string | null;
+          spares_consumables_included: string | null;
           sort_order: number;
         };
         Insert: {
@@ -513,14 +521,19 @@ export type Database = {
           line_item_id: string;
           requested_description: string;
           requested_impa_code?: string | null;
+          requested_part_no?: string | null;
           approved_qty?: number | null;
           uom?: string | null;
           offered_description?: string | null;
           offered_impa_code?: string | null;
+          offered_part_no?: string | null;
+          item_type?: string | null;
           unit_price?: number | null;
           total_price?: number | null;
           delivery_lead_time?: string | null;
           remarks?: string | null;
+          estimated_duration?: string | null;
+          spares_consumables_included?: string | null;
           sort_order?: number;
         };
         Update: never;
@@ -537,6 +550,37 @@ export type Database = {
             columns: ["line_item_id"];
             isOneToOne: false;
             referencedRelation: "purchase_requisition_line_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      purchase_requisition_rfq_quotation_item_photos: {
+        Row: {
+          id: string;
+          quotation_item_id: string;
+          storage_path: string;
+          file_name: string;
+          content_type: string;
+          size_bytes: number;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          quotation_item_id: string;
+          storage_path: string;
+          file_name: string;
+          content_type: string;
+          size_bytes: number;
+          sort_order?: number;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "purchase_requisition_rfq_quotation_item_photos_quotation_item_id_fkey";
+            columns: ["quotation_item_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_requisition_rfq_quotation_items";
             referencedColumns: ["id"];
           },
         ];
@@ -559,6 +603,16 @@ export type Database = {
           vessel_value: string | null;
           category_value: string | null;
           requisition_number: string | null;
+        };
+        Relationships: [];
+      };
+      pr_rfq_progress: {
+        Row: {
+          requisition_id: string;
+          vendor_count: number;
+          first_issued_at: string;
+          quote_count: number;
+          derived_status: string;
         };
         Relationships: [];
       };
@@ -623,6 +677,10 @@ export type Database = {
         Args: { p_id: string };
         Returns: { id: string; status: PrStatus }[];
       };
+      award_purchase_requisition: {
+        Args: { p_id: string; p_rfq_link_id: string };
+        Returns: { id: string; status: PrStatus; awarded_rfq_link_id: string }[];
+      };
       duplicate_purchase_requisition: {
         Args: { p_id: string };
         Returns: { id: string; pr_number: string; line_item_id_map: Json }[];
@@ -672,6 +730,16 @@ export type Database = {
         };
         Returns: { id: string; access_token: string }[];
       };
+      reissue_rfq_link: {
+        Args: {
+          p_link_id: string;
+          p_vendor_name: string;
+          p_vendor_email: string;
+          p_expires_at: string;
+          p_message: string;
+        };
+        Returns: { id: string; access_token: string }[];
+      };
       get_rfq_link_by_token: {
         Args: { p_token: string };
         Returns: {
@@ -703,6 +771,13 @@ export type Database = {
           required_port: string | null;
           vessel_label: string | null;
           vessel_imo_no: string | null;
+          equipment_name: string | null;
+          equipment_type: string | null;
+          equipment_make: string | null;
+          equipment_serial_no: string | null;
+          equipment_model: string | null;
+          equipment_specifications: string | null;
+          equipment_other_details: string | null;
           line_items: Json;
         }[];
       };
@@ -723,6 +798,31 @@ export type Database = {
           p_items: Json;
         };
         Returns: { success: boolean }[];
+      };
+      search_requested_quotes: {
+        Args: {
+          p_search: string | null;
+          p_derived_statuses: string[] | null;
+          p_vessels: string[] | null;
+          p_categories: string[] | null;
+          p_date_preset: string | null;
+          p_start_date: string | null;
+          p_end_date: string | null;
+          p_page: number;
+          p_page_size: number;
+        };
+        Returns: {
+          id: string;
+          pr_number: string;
+          requisition_number: string | null;
+          vessel_label: string | null;
+          category_label: string | null;
+          vendor_count: number;
+          quote_count: number;
+          derived_status: string;
+          first_issued_at: string;
+          total_count: number;
+        }[];
       };
     };
     Enums: {

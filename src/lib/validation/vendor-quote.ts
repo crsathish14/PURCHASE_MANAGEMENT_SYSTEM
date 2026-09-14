@@ -11,15 +11,34 @@ const t = en.vendorQuote.storesForm.errors;
 // empty string is exactly how "not priced" is represented on the wire; the
 // backend RPC re-derives/recalculates every total from this and the PR's own
 // Approved Qty regardless of what's sent here.
+// A vendor-uploaded photo already uploaded to Storage via
+// /api/quote/[token]/photos/sign + uploadToSignedUrl — this object is just
+// the metadata the final submit persists, never raw file bytes.
+export const vendorQuoteItemPhotoSchema = z.object({
+  storagePath: z.string().min(1),
+  fileName: z.string().min(1),
+  contentType: z.string().min(1),
+  sizeBytes: z.number().int().positive(),
+});
+
 export const vendorQuoteItemSchema = z.object({
   lineItemId: z.string().min(1),
   offeredDescription: z.string(),
   offeredImpaCode: z.string(),
-  unitPrice: z.string().refine((value) => value === "" || /^\d+(\.\d{1,2})?$/.test(value), {
+  // Any number of decimal places — no rounding/truncation to 2dp, per the
+  // confirmed spec (some vendors quote in fractional-cent unit prices).
+  unitPrice: z.string().refine((value) => value === "" || /^\d+(\.\d+)?$/.test(value), {
     error: t.unitPriceInvalid,
   }),
-  deliveryLeadTime: z.string(),
+  // Whole days only — matches the new "(In Days)" column header.
+  deliveryLeadTime: z.string().refine((value) => value === "" || /^\d+$/.test(value), {
+    error: t.deliveryLeadTimeInvalid,
+  }),
   remarks: z.string(),
+  // Not RHF-registered (see stores-quote-form.tsx / vendor-item-photos-field.tsx) — tracked in
+  // local component state and merged into the payload at submit time, so it's always present
+  // (possibly empty) by the time this schema validates the full request body.
+  photos: z.array(vendorQuoteItemPhotoSchema),
 });
 
 // Shared by the Stores vendor form (client-side resolver) and the submit
@@ -44,3 +63,81 @@ export const submitStoresVendorQuoteSchema = z.object({
 });
 
 export type SubmitStoresVendorQuoteInput = z.infer<typeof submitStoresVendorQuoteSchema>;
+
+const tSpares = en.vendorQuote.sparesForm.errors;
+
+// Mirrors vendorQuoteItemSchema exactly, swapping Stores' offeredImpaCode for
+// Spares' own offeredPartNo/itemType — itemType is free text per the
+// confirmed spec (not a constrained dropdown), so it's an unconstrained
+// z.string() like every other vendor-entered text field here.
+export const sparesVendorQuoteItemSchema = z.object({
+  lineItemId: z.string().min(1),
+  offeredDescription: z.string(),
+  offeredPartNo: z.string(),
+  itemType: z.string(),
+  unitPrice: z.string().refine((value) => value === "" || /^\d+(\.\d+)?$/.test(value), {
+    error: tSpares.unitPriceInvalid,
+  }),
+  deliveryLeadTime: z.string().refine((value) => value === "" || /^\d+$/.test(value), {
+    error: tSpares.deliveryLeadTimeInvalid,
+  }),
+  remarks: z.string(),
+  photos: z.array(vendorQuoteItemPhotoSchema),
+});
+
+export const submitSparesVendorQuoteSchema = z.object({
+  quotationNo: z.string(),
+  refNo: z.string(),
+  vendorName: z.string().min(1, { error: tSpares.vendorNameRequired }),
+  vendorContactPerson: z.string(),
+  vendorContactNo: z.string(),
+  vendorEmail: z.union([z.literal(""), z.email({ error: tSpares.vendorEmailInvalid })]),
+  vendorOtherDetails: z.string(),
+  quotationValidity: z.string().min(1, { error: tSpares.quotationValidityRequired }),
+  paymentTerms: z.string().min(1, { error: tSpares.paymentTermsRequired }),
+  deliveryTerms: z.string().min(1, { error: tSpares.deliveryTermsRequired }),
+  remarksNotes: z.string().min(1, { error: tSpares.remarksNotesRequired }),
+  items: z.array(sparesVendorQuoteItemSchema),
+});
+
+export type SubmitSparesVendorQuoteInput = z.infer<typeof submitSparesVendorQuoteSchema>;
+
+const tService = en.vendorQuote.serviceForm.errors;
+
+// Service has no Qty concept and no requested/offered description split (its
+// item table has exactly one, pre-filled, description column — see
+// plans/development.md §17) — so unlike Stores/Spares, there's no
+// offeredDescription and no deliveryLeadTime field here at all.
+export const serviceVendorQuoteItemSchema = z.object({
+  lineItemId: z.string().min(1),
+  // Whole days only, same shape as Stores/Spares' own deliveryLeadTime — this
+  // is what rfq-links.ts's max-days computation for the vendor modal reads.
+  estimatedDuration: z.string().refine((value) => value === "" || /^\d+$/.test(value), {
+    error: tService.estimatedDurationInvalid,
+  }),
+  sparesConsumablesIncluded: z.string(),
+  // Doubles as the Lump Sum value; Total Price is computed from this
+  // directly (no Qty to multiply by) rather than being its own field.
+  unitPrice: z.string().refine((value) => value === "" || /^\d+(\.\d+)?$/.test(value), {
+    error: tService.unitPriceInvalid,
+  }),
+  remarks: z.string(),
+  photos: z.array(vendorQuoteItemPhotoSchema),
+});
+
+export const submitServiceVendorQuoteSchema = z.object({
+  quotationNo: z.string(),
+  refNo: z.string(),
+  vendorName: z.string().min(1, { error: tService.vendorNameRequired }),
+  vendorContactPerson: z.string(),
+  vendorContactNo: z.string(),
+  vendorEmail: z.union([z.literal(""), z.email({ error: tService.vendorEmailInvalid })]),
+  vendorOtherDetails: z.string(),
+  quotationValidity: z.string().min(1, { error: tService.quotationValidityRequired }),
+  paymentTerms: z.string().min(1, { error: tService.paymentTermsRequired }),
+  deliveryTerms: z.string().min(1, { error: tService.deliveryTermsRequired }),
+  remarksNotes: z.string().min(1, { error: tService.remarksNotesRequired }),
+  items: z.array(serviceVendorQuoteItemSchema),
+});
+
+export type SubmitServiceVendorQuoteInput = z.infer<typeof submitServiceVendorQuoteSchema>;

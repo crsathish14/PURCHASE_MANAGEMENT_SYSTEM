@@ -5,6 +5,8 @@ import { PR_CATEGORY } from "@/lib/constants/purchase-requisition";
 import { getRfqQuoteDetailsByToken } from "@/lib/data/rfq-quote";
 import { LinkExpired, type LinkInvalidReason } from "@/components/vendor-quote/link-expired";
 import { QuoteForm } from "@/components/vendor-quote/quote-form";
+import { ServiceQuoteForm } from "@/components/vendor-quote/service-quote-form";
+import { SparesQuoteForm } from "@/components/vendor-quote/spares-quote-form";
 import { StoresQuoteForm } from "@/components/vendor-quote/stores-quote-form";
 
 const t = en.vendorQuote;
@@ -29,23 +31,29 @@ export default async function QuoteFormPage({ params }: { params: Promise<{ toke
   else if (detail.submittedAt) invalidReason = "submitted";
   else if (detail.isExpired) invalidReason = "expired";
 
-  // Only Stores has a real quotation form so far — every other category
-  // (and any invalid-link state) keeps rendering exactly what it does today.
-  // See plans/development.md: Spares/Service get their own form later,
-  // reusing this same shared plumbing.
-  const isStoresForm = !invalidReason && detail?.category === PR_CATEGORY.STORES;
+  // All 3 PR categories now have a real quotation form — the category comes
+  // straight from the PR, never a separate manual choice. Any invalid-link
+  // state, or a genuinely unrecognized/missing category, keeps falling back
+  // to the generic stub exactly as before.
+  const category = invalidReason ? null : (detail?.category ?? null);
+  const hasRealForm =
+    category === PR_CATEGORY.STORES || category === PR_CATEGORY.SPARES || category === PR_CATEGORY.SERVICE;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-mist px-6 py-10">
       <div
         className={`w-full rounded-lg border border-line bg-paper p-8 shadow-(--shadow-e2) ${
-          isStoresForm ? "max-w-6xl" : "max-w-105"
+          hasRealForm ? "max-w-6xl" : "max-w-105"
         }`}
       >
         {invalidReason || !detail ? (
           <LinkExpired reason={invalidReason ?? "not_found"} />
-        ) : isStoresForm ? (
+        ) : category === PR_CATEGORY.STORES ? (
           <StoresQuoteForm token={token} detail={detail} />
+        ) : category === PR_CATEGORY.SPARES ? (
+          <SparesQuoteForm token={token} detail={detail} />
+        ) : category === PR_CATEGORY.SERVICE ? (
+          <ServiceQuoteForm token={token} detail={detail} />
         ) : (
           <QuoteForm token={token} prNumber={detail.prNumber} />
         )}

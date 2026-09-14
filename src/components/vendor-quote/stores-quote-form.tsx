@@ -4,21 +4,18 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import {
-  Button,
-  ImagePreviewModal,
-  Input,
-  Label,
-  PhotoThumbnailStack,
-  Textarea,
-  type PreviewImage,
-} from "@/components/atoms";
+import { Button, Input } from "@/components/atoms";
 import en from "@/locales/en.json";
-import { VENDOR_QUOTE_CURRENCY } from "@/lib/constants/vendor-quote";
 import type { RfqQuoteDetail, RfqQuoteLineItem } from "@/lib/data/rfq-quote";
 import { formatCurrencyUsd } from "@/lib/format-currency";
 import { submitStoresVendorQuoteSchema, type SubmitStoresVendorQuoteInput } from "@/lib/validation/vendor-quote";
 import { toast } from "@/store/toast-store";
+import { displayValue } from "./format-display-value";
+import { ItemPhotos } from "./item-photos";
+import { QuotationSummarySection } from "./quotation-summary-section";
+import { RfqDetailsSection } from "./rfq-details-section";
+import { VendorDetailsSection } from "./vendor-details-section";
+import { VendorItemPhotosField, type VendorPhotoValue } from "./vendor-item-photos-field";
 
 const tCommon = en.vendorQuote;
 const t = en.vendorQuote.storesForm;
@@ -53,44 +50,9 @@ function computeTotalPrice(approvedQty: number | null, unitPriceRaw: string): nu
   return Number.isFinite(unitPrice) ? approvedQty * unitPrice : null;
 }
 
-function displayValue(value: string | null): string {
-  return value && value.trim() ? value : "—";
-}
-
 const headerCellClass = "px-2 py-1.5 text-left font-mono text-[9.5px] font-bold tracking-wide text-slate-lt uppercase";
 const cellClass = "px-2 py-1.5 align-top";
 const sectionHeadingClass = "mb-3 font-display text-[15px] font-semibold text-ink";
-
-function ItemPhotos({ attachments }: { attachments: RfqQuoteLineItem["attachments"] }) {
-  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-
-  if (attachments.length === 0) {
-    return <span className="text-xs text-slate-lt">{t.itemDetails.noPhotos}</span>;
-  }
-
-  const previewImages: PreviewImage[] = attachments.map((attachment) => ({
-    url: attachment.url,
-    fileName: attachment.fileName,
-  }));
-
-  return (
-    <>
-      <PhotoThumbnailStack
-        images={previewImages}
-        onSelect={(index) => setPreviewIndex(index)}
-        ariaLabel={(count) =>
-          count > 1 ? t.itemDetails.viewPhotoStack.replace("{count}", String(count)) : t.itemDetails.viewPhoto
-        }
-      />
-      <ImagePreviewModal
-        open={previewIndex !== null}
-        onClose={() => setPreviewIndex(null)}
-        images={previewImages}
-        initialIndex={previewIndex ?? 0}
-      />
-    </>
-  );
-}
 
 export type StoresQuoteFormProps = {
   token: string;
@@ -99,6 +61,9 @@ export type StoresQuoteFormProps = {
 
 export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
   const [submitted, setSubmitted] = useState(false);
+  // Not RHF-registered (see vendor-item-photos-field.tsx) — photos are
+  // merged into each item's payload at submit time instead.
+  const [photosByIndex, setPhotosByIndex] = useState<Record<number, VendorPhotoValue[]>>({});
 
   const defaultValues = useMemo<SubmitStoresVendorQuoteInput>(
     () => ({
@@ -123,6 +88,9 @@ export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
         unitPrice: "",
         deliveryLeadTime: "",
         remarks: "",
+        // Never actually read back from RHF state (see onSubmit) — kept here
+        // only so this object satisfies SubmitStoresVendorQuoteInput's shape.
+        photos: [],
       })),
     }),
     [detail],
@@ -167,16 +135,31 @@ export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
   const grandTotal = rowTotals.reduce((sum: number, value) => sum + (value ?? 0), 0);
 
   async function onSubmit(data: SubmitStoresVendorQuoteInput) {
+    // Photos live in their own local state (not RHF-registered), so they're
+    // merged into each item's payload here rather than being part of `data`.
+    const payload = {
+      ...data,
+      items: data.items.map((item, index) => ({
+        ...item,
+        photos: (photosByIndex[index] ?? []).map(({ storagePath, fileName, contentType, sizeBytes }) => ({
+          storagePath,
+          fileName,
+          contentType,
+          sizeBytes,
+        })),
+      })),
+    };
+
     try {
       const response = await fetch(`/api/quote/${token}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
-      const payload = await response.json();
+      const responseBody = await response.json();
 
       if (!response.ok) {
-        toast.error(payload?.error?.message ?? tCommon.submitError);
+        toast.error(responseBody?.error?.message ?? tCommon.submitError);
         return;
       }
 
@@ -197,100 +180,14 @@ export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate>
-      <section>
-        <h2 className={sectionHeadingClass}>{t.rfqDetails.title}</h2>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-          <div>
-            <Label>{t.rfqDetails.vesselName}</Label>
-            <Input disabled value={displayValue(detail.vesselLabel)} />
-          </div>
-          <div>
-            <Label>{t.rfqDetails.imoNo}</Label>
-            <Input disabled value={displayValue(detail.vesselImoNo)} />
-          </div>
-          <div>
-            <Label>{t.rfqDetails.dateOfIssue}</Label>
-            <Input disabled value={displayValue(detail.requisitionDate)} />
-          </div>
-          <div>
-            <Label>{t.rfqDetails.requisitionNo}</Label>
-            <Input disabled value={detail.prNumber} />
-          </div>
-          <div>
-            <Label>{t.rfqDetails.portOfDelivery}</Label>
-            <Input disabled value={displayValue(detail.requiredPort)} />
-          </div>
-          <div>
-            <Label>{t.rfqDetails.requiredDate}</Label>
-            <Input disabled value={displayValue(detail.requestedBy)} />
-          </div>
-          <div>
-            <Label>{t.rfqDetails.requestedCurrency}</Label>
-            <Input disabled value={VENDOR_QUOTE_CURRENCY} />
-          </div>
-          <div />
-          <div>
-            <Label htmlFor="quote-quotation-no">{t.rfqDetails.quotationNo}</Label>
-            <Input
-              id="quote-quotation-no"
-              type="text"
-              placeholder={t.rfqDetails.quotationNoPlaceholder}
-              {...register("quotationNo")}
-            />
-          </div>
-          <div>
-            <Label htmlFor="quote-ref-no">{t.rfqDetails.refNo}</Label>
-            <Input id="quote-ref-no" type="text" placeholder={t.rfqDetails.refNoPlaceholder} {...register("refNo")} />
-          </div>
-        </div>
-      </section>
+      <RfqDetailsSection t={t.rfqDetails} detail={detail} register={register} sectionHeadingClass={sectionHeadingClass} />
 
-      <section className="mt-8">
-        <h2 className={sectionHeadingClass}>{t.vendorDetails.title}</h2>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-          <div>
-            <Label htmlFor="quote-vendor-name" error={!!errors.vendorName}>
-              {t.vendorDetails.vendorName}
-            </Label>
-            <Input
-              id="quote-vendor-name"
-              type="text"
-              placeholder={t.vendorDetails.vendorNamePlaceholder}
-              error={errors.vendorName?.message}
-              {...register("vendorName")}
-            />
-          </div>
-          <div>
-            <Label htmlFor="quote-contact-person">
-              {t.vendorDetails.contactPerson} <span className="font-normal text-slate-lt">{t.vendorDetails.optional}</span>
-            </Label>
-            <Input id="quote-contact-person" type="text" {...register("vendorContactPerson")} />
-          </div>
-          <div>
-            <Label htmlFor="quote-contact-no">
-              {t.vendorDetails.contactNo} <span className="font-normal text-slate-lt">{t.vendorDetails.optional}</span>
-            </Label>
-            <Input id="quote-contact-no" type="text" {...register("vendorContactNo")} />
-          </div>
-          <div>
-            <Label htmlFor="quote-vendor-email" error={!!errors.vendorEmail}>
-              {t.vendorDetails.email} <span className="font-normal text-slate-lt">{t.vendorDetails.optional}</span>
-            </Label>
-            <Input
-              id="quote-vendor-email"
-              type="email"
-              error={errors.vendorEmail?.message}
-              {...register("vendorEmail")}
-            />
-          </div>
-          <div className="col-span-2">
-            <Label htmlFor="quote-vendor-other-details">
-              {t.vendorDetails.otherDetails} <span className="font-normal text-slate-lt">{t.vendorDetails.optional}</span>
-            </Label>
-            <Textarea id="quote-vendor-other-details" {...register("vendorOtherDetails")} />
-          </div>
-        </div>
-      </section>
+      <VendorDetailsSection
+        t={t.vendorDetails}
+        register={register}
+        errors={errors}
+        sectionHeadingClass={sectionHeadingClass}
+      />
 
       <section className="mt-8">
         <h2 className={sectionHeadingClass}>{t.itemDetails.title}</h2>
@@ -318,6 +215,7 @@ export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
                 <th className={`${headerCellClass} w-24`}>{t.itemDetails.columns.totalPrice}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.deliveryLeadTime}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.remarks}</th>
+                <th className={headerCellClass}>{t.itemDetails.columns.vendorPhotos}</th>
               </tr>
             </thead>
             <tbody>
@@ -337,7 +235,7 @@ export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
                     <Input disabled value={displayValue(findColumnValue(item.columns, UOM_LABEL))} />
                   </td>
                   <td className={cellClass}>
-                    <ItemPhotos attachments={item.attachments} />
+                    <ItemPhotos attachments={item.attachments} t={t.itemDetails} />
                   </td>
                   <td className={cellClass}>
                     <Input type="text" {...register(`items.${index}.offeredDescription`)} />
@@ -357,10 +255,23 @@ export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
                     <Input disabled value={rowTotals[index] === null ? "—" : formatCurrencyUsd(rowTotals[index])} />
                   </td>
                   <td className={cellClass}>
-                    <Input type="text" {...register(`items.${index}.deliveryLeadTime`)} />
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      error={errors.items?.[index]?.deliveryLeadTime?.message}
+                      {...register(`items.${index}.deliveryLeadTime`)}
+                    />
                   </td>
                   <td className={cellClass}>
                     <Input type="text" {...register(`items.${index}.remarks`)} />
+                  </td>
+                  <td className={cellClass}>
+                    <VendorItemPhotosField
+                      token={token}
+                      lineItemId={item.lineItemId}
+                      value={photosByIndex[index] ?? []}
+                      onChange={(next) => setPhotosByIndex((prev) => ({ ...prev, [index]: next }))}
+                    />
                   </td>
                 </tr>
               ))}
@@ -373,61 +284,13 @@ export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
         </div>
       </section>
 
-      <section className="mt-8">
-        <h2 className={sectionHeadingClass}>{t.quotationSummary.title}</h2>
-        <div className="mb-4">
-          <Label>{t.quotationSummary.totalQuotedAmount}</Label>
-          <Input disabled value={formatCurrencyUsd(grandTotal)} />
-        </div>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-          <div>
-            <Label htmlFor="quote-validity" error={!!errors.quotationValidity}>
-              {t.quotationSummary.quotationValidity}
-            </Label>
-            <Input
-              id="quote-validity"
-              type="text"
-              placeholder={t.quotationSummary.quotationValidityPlaceholder}
-              error={errors.quotationValidity?.message}
-              {...register("quotationValidity")}
-            />
-          </div>
-          <div>
-            <Label htmlFor="quote-payment-terms" error={!!errors.paymentTerms}>
-              {t.quotationSummary.paymentTerms}
-            </Label>
-            <Input
-              id="quote-payment-terms"
-              type="text"
-              placeholder={t.quotationSummary.paymentTermsPlaceholder}
-              error={errors.paymentTerms?.message}
-              {...register("paymentTerms")}
-            />
-          </div>
-          <div className="col-span-2">
-            <Label htmlFor="quote-delivery-terms" error={!!errors.deliveryTerms}>
-              {t.quotationSummary.deliveryTerms}
-            </Label>
-            <Input
-              id="quote-delivery-terms"
-              type="text"
-              placeholder={t.quotationSummary.deliveryTermsPlaceholder}
-              error={errors.deliveryTerms?.message}
-              {...register("deliveryTerms")}
-            />
-          </div>
-          <div className="col-span-2">
-            <Label htmlFor="quote-remarks-notes" error={!!errors.remarksNotes}>
-              {t.quotationSummary.remarksNotes}
-            </Label>
-            <Textarea
-              id="quote-remarks-notes"
-              error={errors.remarksNotes?.message}
-              {...register("remarksNotes")}
-            />
-          </div>
-        </div>
-      </section>
+      <QuotationSummarySection
+        t={t.quotationSummary}
+        grandTotal={grandTotal}
+        register={register}
+        errors={errors}
+        sectionHeadingClass={sectionHeadingClass}
+      />
 
       <Button
         type="submit"

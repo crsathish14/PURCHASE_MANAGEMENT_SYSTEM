@@ -45,6 +45,14 @@ export const PHOTO_EXTENSION_BY_MIME_TYPE: Record<AllowedPhotoMimeType, string> 
 // sibling prefix under the same bucket instead of colliding with this one.
 export const PR_LINE_ITEM_PHOTO_PATH_PREFIX = "pr-line-items";
 
+// Sibling prefix for the vendor RFQ quote form's own photo uploads (full
+// path: `${RFQ_QUOTE_ITEM_PHOTO_PATH_PREFIX}/${accessToken}/${lineItemId}/${uuid}.${ext}`,
+// see api/quote/[token]/photos/sign) — a genuinely different signing route
+// from api/uploads/sign, since this one is called by an anonymous vendor
+// with no session (the RFQ link's own access token is the scope segment,
+// there's no separate draft token to mint).
+export const RFQ_QUOTE_ITEM_PHOTO_PATH_PREFIX = "rfq-quote-item-photos";
+
 // TTL for the *display* signed URLs getPurchaseRequisitionById re-issues on
 // every read (nothing persists these). Unrelated to, and NOT how you'd
 // configure, the *upload* signed URL's expiry — createSignedUploadUrl fixes

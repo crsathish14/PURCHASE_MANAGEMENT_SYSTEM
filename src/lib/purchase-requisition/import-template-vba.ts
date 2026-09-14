@@ -34,7 +34,11 @@ export { isVbaRequisitionSheet } from "./import-template-vba-shared";
 // photo table widened to 7 slots. v1 files (the sheet named "Requisition
 // Form") are no longer recognized; this is a full replacement, not a
 // dual-format dispatch, since the paper form itself was revised.
-const LABEL = {
+// Exported (not just used internally) so export-template-vba.ts — the
+// write-side mirror of this file — can target the exact same cells/columns
+// rather than re-deriving its own copy that could silently drift out of sync
+// if this template is ever revised again.
+export const LABEL = {
   imoNo: "imo no",
   date: "date",
   requisitionNo: "requisition no",
@@ -49,7 +53,7 @@ const LABEL = {
   captainChiefEngineer: "approved by: (name&rank)",
 };
 
-function findLineItemColumns(sheet: ExcelJS.Worksheet, headerRow: number): Map<string, number> {
+export function findLineItemColumns(sheet: ExcelJS.Worksheet, headerRow: number): Map<string, number> {
   const map = new Map<string, number>();
   // first-match-wins: several of these headers are themselves multi-column
   // merges (e.g. "Description" spans C:D), and ExcelJS's merge-cell reads

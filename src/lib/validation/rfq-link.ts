@@ -25,3 +25,12 @@ export const issueRfqLinkSchema = z
   });
 
 export type IssueRfqLinkInput = z.infer<typeof issueRfqLinkSchema>;
+
+// Award has no real form behind it (just a confirm dialog), so there's no
+// user-facing field error to wire up here — a malformed id only ever means a
+// client bug, not something a user typed.
+export const awardRequisitionSchema = z.object({
+  rfqLinkId: z.uuid(),
+});
+
+export type AwardRequisitionInput = z.infer<typeof awardRequisitionSchema>;

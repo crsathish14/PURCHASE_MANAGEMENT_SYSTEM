@@ -127,7 +127,7 @@
       "dashboard": "Dashboard",
       "pipeline": "Pipeline",
       "poRequests": "Purchase Requisition",
-      "rfq": "Request for Quote",
+      "rfq": "Requested Quote",
       "purchaseOrders": "Purchase Orders",
       "invoiceLog": "Invoice Log",
       "deliveryNotes": "Delivery Notes",
@@ -388,6 +388,8 @@
         "submitting": "Creating…",
         "issueError": "Couldn't create this RFQ link. Try again.",
         "issueConflictError": "RFQ links can no longer be issued for this requisition.",
+        "issueDuplicateVendorError": "An RFQ has already been issued to this vendor for this requisition. Use Reissue from the Requested Quote page to resend it.",
+        "issueApprovedQtyMissingError": "Approved Qty must be filled for every line item before an RFQ can be issued.",
         "resultTitle": "RFQ link ready",
         "resultDescription": "Copy the link and message below and send them to the vendor yourself.",
         "linkLabel": "Shareable link",
@@ -407,6 +409,7 @@
       "table": {
         "columns": {
           "ref": "Ref",
+          "requisitionNumber": "Requisition No.",
           "vessel": "Vessel",
           "department": "Dept.",
           "category": "Category",
@@ -455,7 +458,8 @@
           "confirm": "Delete requisition"
         },
         "deleteSuccess": "Requisition deleted.",
-        "deleteError": "Couldn't delete this requisition. Try again."
+        "deleteError": "Couldn't delete this requisition. Try again.",
+        "exportError": "Couldn't export this requisition. Try again."
       },
       "toolbar": {
         "searchPlaceholder": "Search ref, requisition no., item, requester",
@@ -489,6 +493,133 @@
         "labelRequired": "Enter a label.",
         "pastDateNotAllowed": "Date cannot be in the past."
       }
+    },
+    "requestedQuote": {
+      "title": "Requested Quote",
+      "subtitle": "Every RFQ issued, from send to compare, with vendor quote progress at a glance.",
+      "empty": {
+        "title": "No requested quotes yet",
+        "description": "Issue an RFQ from a purchase requisition and it will appear here once at least one vendor has been invited.",
+        "action": "Go to Purchase Requisitions"
+      },
+      "linksDialog": {
+        "title": "RFQ vendors — {prNumber}",
+        "columns": {
+          "select": "Select",
+          "vendor": "Vendor",
+          "issued": "Issued",
+          "received": "Received",
+          "grandTotal": "Grand Total",
+          "deliveryTerms": "Delivery Terms (Incoterm)",
+          "maxDeliveryLeadTime": "Max Delivery Lead Time (Days)",
+          "status": "Status",
+          "actions": ""
+        },
+        "compareQuote": "Compare Quote",
+        "statusLabels": {
+          "pending": "Pending",
+          "quote_received": "Quote Received",
+          "expired": "Expired"
+        },
+        "copyLink": "Copy",
+        "copied": "Copied",
+        "reissue": "Reissue",
+        "award": "Award",
+        "exportPdf": "Export PDF",
+        "awardedBadge": "Awarded",
+        "loadError": "Couldn't load RFQ links.",
+        "compareLoadError": "Couldn't load the selected quotes. Try again.",
+        "empty": "No vendors invited yet.",
+        "close": "Close",
+        "awardSuccess": "Requisition awarded to {vendorName}.",
+        "awardConflictError": "This requisition can no longer be awarded.",
+        "awardInvalidLinkError": "This vendor's quote could not be awarded. Refresh and try again.",
+        "awardError": "Couldn't award this requisition. Please try again.",
+        "exportPdfError": "Couldn't export this quote as a PDF. Try again.",
+        "exportPdfNotFoundError": "This vendor's quote could not be found. It may have been reissued.",
+        "awardDialog": {
+          "title": "Award this vendor?",
+          "message": "Award {prNumber} to {vendorName}? This marks their quote as the winning quote and changes the requisition status to Awarded. This cannot be undone.",
+          "cancel": "Cancel",
+          "confirm": "Award",
+          "confirming": "Awarding…"
+        },
+        "reissueDialog": {
+          "title": "Reissue RFQ",
+          "description": "Expires the current link for this vendor and generates a new one. Nothing is emailed automatically — copy and send it yourself.",
+          "submit": "Reissue",
+          "submitting": "Reissuing…",
+          "reissueError": "Couldn't reissue this RFQ link. Try again.",
+          "reissueConflictError": "This RFQ link can no longer be reissued.",
+          "resultTitle": "New RFQ link ready"
+        },
+        "reissueWarningDialog": {
+          "title": "Reissue this vendor?",
+          "message": "{vendorName} already submitted a quote. Reissuing deletes that quote and sends them a new link to submit a fresh one. This can't be undone.",
+          "cancel": "Keep existing quote",
+          "confirm": "Reissue anyway"
+        }
+      },
+      "compare": {
+        "pageTitle": "Compare Quotes",
+        "close": "Close comparison",
+        "subtitle": "{prNumber} · {requisitionNumber} · {vesselLabel}",
+        "emptyTitle": "Nothing to compare",
+        "emptyDescription": "These quotes are no longer available. Close this and select from the current list.",
+        "partialNotice": "Showing {shown} of {requested} selected quotes — the rest are no longer available.",
+        "submittedOn": "Submitted {date}",
+        "award": "Award this vendor",
+        "awardedBadge": "Awarded"
+      },
+      "table": {
+        "columns": {
+          "ref": "PR Ref",
+          "requisitionNumber": "Requisition No.",
+          "vessel": "Vessel",
+          "category": "Category",
+          "quotes": "Quotes",
+          "status": "Status",
+          "firstIssuedDate": "First Quote Issued Date"
+        },
+        "quotesOfTotalSuffix": " of {total}",
+        "statusLabels": {
+          "rfq_issued_status": "RFQ Issued",
+          "partial_received": "Partial Received",
+          "all_received": "All Quotes Received",
+          "awarded_status": "Awarded"
+        },
+        "loadError": "Couldn't load requested quotes.",
+        "detailLoadError": "Couldn't load this requisition.",
+        "noResultsTitle": "No requested quotes match your filters",
+        "noResultsDescription": "Try adjusting or clearing your search and filters."
+      },
+      "toolbar": {
+        "searchPlaceholder": "Search PR ref or requisition no.",
+        "status": "Status",
+        "vessel": "Vessel",
+        "category": "Category",
+        "date": "Date",
+        "all": "All",
+        "any": "Any",
+        "nSelected": "{count} selected",
+        "submit": "Submit",
+        "clear": "Clear",
+        "removeFilter": "Remove {label} filter",
+        "dateOptions": {
+          "last1Month": "Last 1 month",
+          "last3Months": "Last 3 months",
+          "last6Months": "Last 6 months",
+          "custom": "Custom date",
+          "startDate": "Start date",
+          "endDate": "End date"
+        }
+      },
+      "pager": {
+        "showing": "Showing {from}–{to} of {total}",
+        "rowsPerPage": "Rows per page",
+        "previous": "Previous page",
+        "next": "Next page"
+      }
     }
   },
   "vendorQuote": {
@@ -506,6 +637,10 @@
     "alreadySubmittedDescription": "A quotation has already been submitted using this link.",
     "expiredDescription": "This link has expired. Contact the purchase officer for a new one.",
     "storesForm": {
+      "pdfHeader": {
+        "companyName": "MYSEA SHIPPING",
+        "documentTitle": "REQUEST FOR QUOTATION — STORE"
+      },
       "rfqDetails": {
         "title": "RFQ Details",
         "vesselName": "Vessel Name",
@@ -536,15 +671,16 @@
           "slNo": "S.No.",
           "requestedDescription": "Requested Item Description",
           "impaCode": "IMPA/ISSA Code",
-          "approvedQty": "Approved Qty",
+          "approvedQty": "Qty",
           "uom": "UOM",
           "photos": "Photos",
           "offeredDescription": "Offered Item Description",
           "offeredImpaCode": "Offered IMPA/ISSA Code",
           "unitPrice": "Unit Price",
           "totalPrice": "Total Price",
-          "deliveryLeadTime": "Delivery Lead Time",
-          "remarks": "Remarks"
+          "deliveryLeadTime": "Delivery Lead Time (In Days)",
+          "remarks": "Remarks",
+          "vendorPhotos": "Attach Photos"
         },
         "noPhotos": "No photos",
         "viewPhoto": "View photo",
@@ -568,6 +704,174 @@
         "vendorNameRequired": "Vendor / Company name is required",
         "vendorEmailInvalid": "Enter a valid email address",
         "unitPriceInvalid": "Enter a valid amount",
+        "deliveryLeadTimeInvalid": "Enter a whole number of days",
+        "quotationValidityRequired": "Quotation validity is required",
+        "paymentTermsRequired": "Payment terms are required",
+        "deliveryTermsRequired": "Delivery terms are required",
+        "remarksNotesRequired": "Remarks / notes are required"
+      }
+    },
+    "sparesForm": {
+      "pdfHeader": {
+        "companyName": "MYSEA SHIPPING",
+        "documentTitle": "REQUEST FOR QUOTATION — SPARES"
+      },
+      "rfqDetails": {
+        "title": "RFQ Details",
+        "vesselName": "Vessel Name",
+        "imoNo": "IMO No.",
+        "dateOfIssue": "Date of Issue",
+        "requisitionNo": "Requisition No. (PR No.)",
+        "portOfDelivery": "Port / Place of Delivery",
+        "requiredDate": "Required Date",
+        "requestedCurrency": "Requested Currency",
+        "quotationNo": "Quotation No.",
+        "quotationNoPlaceholder": "e.g. Q-2045",
+        "refNo": "Ref. No.",
+        "refNoPlaceholder": "e.g. REF-2045"
+      },
+      "vendorDetails": {
+        "title": "Vendor Details",
+        "vendorName": "Vendor / Company Name",
+        "vendorNamePlaceholder": "e.g. Anchor Marine Supplies",
+        "contactPerson": "Contact Person",
+        "contactNo": "Contact No.",
+        "email": "Email ID",
+        "otherDetails": "Other Details",
+        "optional": "optional"
+      },
+      "equipmentDetails": {
+        "title": "Equipment Details",
+        "nameOfEquipment": "Name of Equipment",
+        "type": "Type",
+        "make": "Make",
+        "serialNo": "Sr. No.",
+        "model": "Model",
+        "specifications": "Specifications",
+        "otherDetails": "Any Other Details"
+      },
+      "itemDetails": {
+        "title": "Item Details",
+        "columns": {
+          "slNo": "S.No.",
+          "requestedDescription": "Requested Item Description",
+          "partNo": "Requested Part No.",
+          "offeredDescription": "Offered Item Description",
+          "offeredPartNo": "Offered Part No.",
+          "itemType": "Item Type (Genuine OEM / Equivalent / Recon.)",
+          "qty": "Qty",
+          "uom": "UOM",
+          "photos": "Photos",
+          "unitPrice": "Unit Price",
+          "totalPrice": "Total Price",
+          "deliveryLeadTime": "Delivery Lead Time (In Days)",
+          "remarks": "Remarks",
+          "vendorPhotos": "Supporting Photos"
+        },
+        "noPhotos": "No photos",
+        "viewPhoto": "View photo",
+        "viewPhotoStack": "View {count} photos",
+        "grandTotal": "Grand Total"
+      },
+      "quotationSummary": {
+        "title": "Quotation Summary & Terms",
+        "totalQuotedAmount": "Total Quoted Amount",
+        "quotationValidity": "Quotation Validity",
+        "quotationValidityPlaceholder": "e.g. 30 days from quotation date",
+        "paymentTerms": "Payment Terms",
+        "paymentTermsPlaceholder": "e.g. 30 days net",
+        "deliveryTerms": "Delivery Terms (Incoterm)",
+        "deliveryTermsPlaceholder": "e.g. FOB Singapore",
+        "remarksNotes": "Remarks / Notes"
+      },
+      "submit": "Submit Quotation",
+      "submitting": "Submitting…",
+      "errors": {
+        "vendorNameRequired": "Vendor / Company name is required",
+        "vendorEmailInvalid": "Enter a valid email address",
+        "unitPriceInvalid": "Enter a valid amount",
+        "deliveryLeadTimeInvalid": "Enter a whole number of days",
+        "quotationValidityRequired": "Quotation validity is required",
+        "paymentTermsRequired": "Payment terms are required",
+        "deliveryTermsRequired": "Delivery terms are required",
+        "remarksNotesRequired": "Remarks / notes are required"
+      }
+    },
+    "serviceForm": {
+      "pdfHeader": {
+        "companyName": "MYSEA SHIPPING",
+        "documentTitle": "REQUEST FOR QUOTATION — SERVICES"
+      },
+      "rfqDetails": {
+        "title": "RFQ Details",
+        "vesselName": "Vessel Name",
+        "imoNo": "IMO No.",
+        "dateOfIssue": "Date of Issue",
+        "requisitionNo": "Requisition No. (PR No.)",
+        "portOfDelivery": "Port / Place of Service",
+        "requiredDate": "Required Date",
+        "requestedCurrency": "Requested Currency",
+        "quotationNo": "Quotation No.",
+        "quotationNoPlaceholder": "e.g. Q-2045",
+        "refNo": "Ref. No.",
+        "refNoPlaceholder": "e.g. REF-2045"
+      },
+      "vendorDetails": {
+        "title": "Vendor Details",
+        "vendorName": "Vendor / Company Name",
+        "vendorNamePlaceholder": "e.g. Anchor Marine Supplies",
+        "contactPerson": "Contact Person",
+        "contactNo": "Contact No.",
+        "email": "Email ID",
+        "otherDetails": "Other Details",
+        "optional": "optional"
+      },
+      "equipmentDetails": {
+        "title": "Equipment Details",
+        "nameOfEquipment": "Name of Equipment",
+        "type": "Type",
+        "make": "Make",
+        "serialNo": "Sr. No.",
+        "model": "Model",
+        "specifications": "Specifications",
+        "otherDetails": "Any Other Details"
+      },
+      "itemDetails": {
+        "title": "Item Details",
+        "columns": {
+          "slNo": "S.No.",
+          "description": "Scope of Work / Service Description",
+          "photos": "Photos",
+          "estimatedDuration": "Estimated Duration (In Days)",
+          "sparesConsumablesIncluded": "Spares/Consumables Included (Y/N)",
+          "unitPrice": "Unit Price / Lump Sum",
+          "totalPrice": "Total Price",
+          "remarks": "Remarks",
+          "vendorPhotos": "Supporting Photos"
+        },
+        "noPhotos": "No photos",
+        "viewPhoto": "View photo",
+        "viewPhotoStack": "View {count} photos",
+        "grandTotal": "Grand Total"
+      },
+      "quotationSummary": {
+        "title": "Quotation Summary & Terms",
+        "totalQuotedAmount": "Total Quoted Amount",
+        "quotationValidity": "Quotation Validity",
+        "quotationValidityPlaceholder": "e.g. 30 days from quotation date",
+        "paymentTerms": "Payment Terms",
+        "paymentTermsPlaceholder": "e.g. 30 days net",
+        "deliveryTerms": "Delivery Terms (Incoterm)",
+        "deliveryTermsPlaceholder": "e.g. FOB Singapore",
+        "remarksNotes": "Remarks / Notes"
+      },
+      "submit": "Submit Quotation",
+      "submitting": "Submitting…",
+      "errors": {
+        "vendorNameRequired": "Vendor / Company name is required",
+        "vendorEmailInvalid": "Enter a valid email address",
+        "unitPriceInvalid": "Enter a valid amount",
+        "estimatedDurationInvalid": "Enter a whole number of days",
         "quotationValidityRequired": "Quotation validity is required",
         "paymentTermsRequired": "Payment terms are required",
         "deliveryTermsRequired": "Delivery terms are required",

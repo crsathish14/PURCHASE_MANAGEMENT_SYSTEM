@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 
 import en from "@/locales/en.json";
+import { PR_CATEGORY } from "@/lib/constants/purchase-requisition";
+import { getRfqQuoteDetailsByToken } from "@/lib/data/rfq-quote";
 import { createClient } from "@/lib/supabase/server";
-import { submitStoresVendorQuoteSchema } from "@/lib/validation/vendor-quote";
+import {
+  submitServiceVendorQuoteSchema,
+  submitSparesVendorQuoteSchema,
+  submitStoresVendorQuoteSchema,
+} from "@/lib/validation/vendor-quote";
 
 const t = en.vendorQuote;
 
@@ -16,6 +22,26 @@ const t = en.vendorQuote;
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
 
+  // Fetched first so the right category's schema can be picked (Stores,
+  // Spares, and Service each have a genuinely different item shape) — this
+  // also means an invalid/expired/already-submitted link now cleanly 409s
+  // here regardless of payload shape, rather than sometimes surfacing a
+  // generic 400 from a failed schema parse first. submit_rfq_quotation's own
+  // atomic `update ... where submitted_at is null` remains the sole
+  // authoritative concurrency/single-submission gate either way — this is
+  // an advisory/UX-only early check, not a replacement for it.
+  const detail = await getRfqQuoteDetailsByToken(token);
+  if (!detail || detail.isExpired || detail.submittedAt) {
+    return NextResponse.json({ error: { message: t.linkInvalid } }, { status: 409 });
+  }
+
+  const schema =
+    detail.category === PR_CATEGORY.SPARES
+      ? submitSparesVendorQuoteSchema
+      : detail.category === PR_CATEGORY.SERVICE
+        ? submitServiceVendorQuoteSchema
+        : submitStoresVendorQuoteSchema;
+
   let body: unknown;
   try {
     body = await request.json();
@@ -23,7 +49,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     return NextResponse.json({ error: { message: t.submitError } }, { status: 400 });
   }
 
-  const parsed = submitStoresVendorQuoteSchema.safeParse(body);
+  const parsed = schema.safeParse(body);
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     return NextResponse.json({ error: { message: firstIssue?.message ?? t.submitError } }, { status: 400 });

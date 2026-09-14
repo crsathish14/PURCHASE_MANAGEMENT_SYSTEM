@@ -87,6 +87,7 @@ export function PoRequestsView({
   const [deleteTarget, setDeleteTarget] = useState<PrListRow | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [exportingId, setExportingId] = useState<string | null>(null);
   const [issueRfqTarget, setIssueRfqTarget] = useState<PrListRow | null>(null);
 
   const [rows, setRows] = useState(initialRows);
@@ -355,6 +356,42 @@ export function PoRequestsView({
     }
   }
 
+  // A plain <a href>/window.location.href download gives the browser no
+  // event to hook a loading indicator off of — this route can take a couple
+  // seconds (loads the .xlsm template, fills it, re-serializes it), so a
+  // fetch+blob download is used instead purely to have a promise to show
+  // exportingId's spinner against; the actual file save still happens via a
+  // real <a download> click; same as any other blob-download implementation.
+  async function handleExport(row: PrListRow) {
+    setExportingId(row.id);
+    try {
+      const response = await fetch(`/api/purchase-requisitions/${row.id}/export`);
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        toast.error(payload?.error?.message ?? t.table.exportError);
+        return;
+      }
+
+      const disposition = response.headers.get("Content-Disposition") ?? "";
+      const filenameMatch = disposition.match(/filename="([^"]+)"/);
+      const filename = filenameMatch?.[1] ?? `${row.prNumber}-export.xlsx`;
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error(t.table.exportError);
+    } finally {
+      setExportingId(null);
+    }
+  }
+
   function handleRfqIssued() {
     fetchList({ page, pageSize, ...appliedParams });
   }
@@ -517,6 +554,8 @@ export function PoRequestsView({
             onDuplicate={handleDuplicate}
             duplicatingId={duplicatingId}
             onIssueRfqRequested={setIssueRfqTarget}
+            onExport={handleExport}
+            exportingId={exportingId}
           />
           <PrPager
             page={page}
