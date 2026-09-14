@@ -525,6 +525,7 @@
         "copied": "Copied",
         "reissue": "Reissue",
         "award": "Award",
+        "exportPdf": "Export PDF",
         "awardedBadge": "Awarded",
         "loadError": "Couldn't load RFQ links.",
         "compareLoadError": "Couldn't load the selected quotes. Try again.",
@@ -534,6 +535,8 @@
         "awardConflictError": "This requisition can no longer be awarded.",
         "awardInvalidLinkError": "This vendor's quote could not be awarded. Refresh and try again.",
         "awardError": "Couldn't award this requisition. Please try again.",
+        "exportPdfError": "Couldn't export this quote as a PDF. Try again.",
+        "exportPdfNotFoundError": "This vendor's quote could not be found. It may have been reissued.",
         "awardDialog": {
           "title": "Award this vendor?",
           "message": "Award {prNumber} to {vendorName}? This marks their quote as the winning quote and changes the requisition status to Awarded. This cannot be undone.",
@@ -634,6 +637,10 @@
     "alreadySubmittedDescription": "A quotation has already been submitted using this link.",
     "expiredDescription": "This link has expired. Contact the purchase officer for a new one.",
     "storesForm": {
+      "pdfHeader": {
+        "companyName": "MYSEA SHIPPING",
+        "documentTitle": "REQUEST FOR QUOTATION — STORE"
+      },
       "rfqDetails": {
         "title": "RFQ Details",
         "vesselName": "Vessel Name",
@@ -705,6 +712,10 @@
       }
     },
     "sparesForm": {
+      "pdfHeader": {
+        "companyName": "MYSEA SHIPPING",
+        "documentTitle": "REQUEST FOR QUOTATION — SPARES"
+      },
       "rfqDetails": {
         "title": "RFQ Details",
         "vesselName": "Vessel Name",
@@ -787,6 +798,10 @@
       }
     },
     "serviceForm": {
+      "pdfHeader": {
+        "companyName": "MYSEA SHIPPING",
+        "documentTitle": "REQUEST FOR QUOTATION — SERVICES"
+      },
       "rfqDetails": {
         "title": "RFQ Details",
         "vesselName": "Vessel Name",

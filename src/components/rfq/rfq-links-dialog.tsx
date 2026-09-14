@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Download } from "lucide-react";
 
 import { Badge, Button, Checkbox, Dialog, type BadgeTone } from "@/components/atoms";
 import en from "@/locales/en.json";
@@ -9,6 +9,7 @@ import { MAX_COMPARE_SELECTION, RFQ_LINK_STATUS, type RfqLinkStatus } from "@/li
 import type { RfqLinkRow } from "@/lib/data/rfq-links";
 import type { QuoteComparisonData } from "@/lib/data/rfq-quote-comparison";
 import { formatCurrencyUsd } from "@/lib/format-currency";
+import { buildRfqQuotePdfFilename } from "@/lib/rfq-quote-pdf/filename";
 import { toast } from "@/store/toast-store";
 import { AwardConfirmDialog } from "./award-confirm-dialog";
 import { CompareQuotesModal } from "./compare-quotes-modal";
@@ -64,6 +65,7 @@ export function RfqLinksDialog({
   const [compareRequestedCount, setCompareRequestedCount] = useState(0);
   const [awardTarget, setAwardTarget] = useState<{ id: string; vendorName: string } | null>(null);
   const [awarding, setAwarding] = useState(false);
+  const [exportingId, setExportingId] = useState<string | null>(null);
 
   // Only one vendor can ever be awarded per requisition — once true, every
   // row's Award button disappears (nothing left to award) and every row's
@@ -150,6 +152,39 @@ export function RfqLinksDialog({
     } catch {
       // Clipboard access can be denied by the browser — the link is still
       // visible/selectable in its own row either way.
+    }
+  }
+
+  // Same fetch -> blob -> synthetic <a download> click pattern
+  // po-requests-view.tsx's own handleExport already uses for the Excel
+  // export — no toast.success, the download itself is the success signal.
+  async function handleExportPdf(row: RfqLinkRow) {
+    setExportingId(row.id);
+    try {
+      const response = await fetch(`/api/purchase-requisitions/${requisitionId}/rfq-links/${row.id}/export`);
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        toast.error(payload?.error?.message ?? t.exportPdfError);
+        return;
+      }
+
+      const disposition = response.headers.get("Content-Disposition") ?? "";
+      const filenameMatch = disposition.match(/filename="([^"]+)"/);
+      const filename = filenameMatch?.[1] ?? buildRfqQuotePdfFilename(prNumber, row.vendorName);
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error(t.exportPdfError);
+    } finally {
+      setExportingId(null);
     }
   }
 
@@ -254,6 +289,18 @@ export function RfqLinksDialog({
                       {row.status !== RFQ_LINK_STATUS.PENDING && !anyAwarded ? (
                         <Button type="button" variant="secondary" size="sm" onClick={() => handleReissueClick(row)}>
                           {t.reissue}
+                        </Button>
+                      ) : null}
+                      {row.status === RFQ_LINK_STATUS.QUOTE_RECEIVED ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          loading={exportingId === row.id}
+                          onClick={() => handleExportPdf(row)}
+                        >
+                          <Download size={13} strokeWidth={2} />
+                          {t.exportPdf}
                         </Button>
                       ) : null}
                     </div>

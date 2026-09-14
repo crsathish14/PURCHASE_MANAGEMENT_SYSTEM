@@ -981,6 +981,74 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
     `onPageChange` already uses), passed as both `onReissued` and `onAwarded` to `RfqLinksDialog` —
     both actions need the identical two-part refresh, so there's no reason for two near-duplicate
     handlers.
+- **Export received vendor quote as PDF.** A per-row **Export PDF** action in `rfq-links-dialog.tsx`
+  (`row.status === RFQ_LINK_STATUS.QUOTE_RECEIVED` only, deliberately independent of `anyAwarded` — it
+  keeps working on every received-quote row, winner and losers alike, even after Award/Reissue both
+  disappear post-award), downloading that one vendor's quote as a PDF styled after the original vendor
+  quote Word form (`MYSEA SHIPPING` / "REQUEST FOR QUOTATION — STORE|SPARES|SERVICES"), images always
+  excluded. First PDF-generation feature in this app — `@react-pdf/renderer` is a new dependency
+  (server-side `renderToBuffer` in a Route Handler, same "backend builds the file, frontend
+  fetches+downloads" shape §16's Excel export already established; no headless browser). Reuses
+  `getRfqQuoteComparison()` as-is (called with a single-element `linkIds` array, `vendors[0]` taken) —
+  no new data-layer function, RPC, or migration.
+  - **New route**, `src/app/api/purchase-requisitions/[id]/rfq-links/[linkId]/export/route.tsx` — note
+    the `.tsx` extension, required since it constructs `@react-pdf/renderer` JSX inline
+    (`renderToBuffer(<PdfDocument .../>)`); every other Route Handler in this repo is a plain `.ts`
+    file. Auth/error-envelope shape matches `rfq-links/compare/route.ts` exactly
+    (`requireApiActiveUser()` first line, `{error:{message}}`/404/500). `vendors[0]` missing (a link
+    reissued away since the row was rendered, or a stale/bad id) is its own clean 404, not an
+    index-into-undefined crash. Category dispatch is a `Record<PrCategory, ...>` map, same pattern
+    `export/route.ts` already uses — but lenient-default-to-Stores on an unrecognized/null category,
+    matching `compare-quotes-modal.tsx`'s own existing behavior for this same nullable field, not the
+    stricter `isPrCategory` 400-guard the unrelated Excel export route uses.
+  - **New module**, `src/lib/rfq-quote-pdf/` — `styles.ts` (react-pdf `StyleSheet.create()` tokens,
+    pulled from `globals.css`'s light-mode `@theme` only; Times-Roman for headings/Helvetica for body,
+    the closest built-in-standard-font pairing to this app's own serif/sans-serif split — bold text
+    must reference the bold family directly, e.g. `"Helvetica-Bold"`, since a standard font doesn't
+    synthesize bold from a `fontWeight` style), `sections.tsx` (shared `PdfHeader`/`RfqDetailsSection`/
+    `VendorDetailsSection`/`EquipmentDetailsSection`/`QuotationSummarySection`/`GrandTotalRow`, plus the
+    `RfqQuotePdfPrContext` type every category's Document component shares — deliberately including all
+    7 `equipment_*` fields even for Stores, which just never renders them, so the route's
+    `Record<PrCategory, typeof StoresQuotePdf>` dispatch map typechecks cleanly), and one thin
+    `Document`/`Page` file per category (`stores-quote-pdf.tsx`/`spares-quote-pdf.tsx`/
+    `service-quote-pdf.tsx`) with its own Item Details table — same "shared sections, non-shared item
+    table" split §17's own comparison cards already established, for the same reason (the column sets
+    differ too much to force into one generic table). The shared `rfq-details-section.tsx`/
+    `equipment-details-section.tsx`/etc. components under `src/components/vendor-quote/` could **not**
+    be reused directly — they render real HTML via react-hook-form generics, and `@react-pdf/renderer`
+    only renders its own `Document`/`Page`/`View`/`Text` primitives, never DOM; what's reused is each
+    section's exact field breakdown and copy (`en.vendorQuote.storesForm`/`sparesForm`/`serviceForm`),
+    not the JSX. Portrait A4 throughout, even for Spares' ~12-column item table (the tightest case) —
+    fixed percentage-width columns, text wraps by default inside a `<Text>` rather than truncating, and
+    each table row has `wrap={false}` so a row is never split mid-row across a page break (verified
+    directly against a 30-line-item Spares render spanning 4 pages). No repeated table header past page
+    1 is an accepted v1 simplification (react-pdf's `fixed` prop is for absolutely-positioned content,
+    not a natural repeating header).
+  - **Header copy** lives as a new `pdfHeader: {companyName, documentTitle}` key inside each of
+    `storesForm`/`sparesForm`/`serviceForm` in `en.json` (`"MYSEA SHIPPING"` duplicated 3x rather than
+    hoisted — deliberate, since §6 requires no hardcoded strings in JSX and each category's PDF template
+    only ever imports its own one namespace). The Word forms' own fill-in instruction line ("Please
+    complete all applicable fields...") is omitted — it's guidance for a *blank* form, and this PDF
+    represents an already-completed quote. Store's document title, `"REQUEST FOR QUOTATION — STORE"`
+    (singular), has no source Word doc to verify against (only Service's and Spares' were provided) —
+    built instead from the already-shipped `StoresQuoteComparisonCard`'s own field list/copy (itself
+    already proven to match the real Store paper form) plus this app's own existing "Store" (not
+    "Stores") copy convention, e.g. `poRequests.createDialog.downloadStoreTemplate`.
+  - **Filename**: `RFQ-{prNumber}-{vendorName}-Quote.pdf`, built by
+    `src/lib/rfq-quote-pdf/filename.ts`'s `buildRfqQuotePdfFilename()`, which calls a new generic
+    `sanitizeFilenameSegment()` in `src/lib/format.ts` (alongside the existing `getInitials` — no
+    filename sanitizer existed anywhere in the repo before this; the one other filename this app builds,
+    `${prNumber}-export.xlsx`, never needed one since `prNumber` is filename-safe by construction, but a
+    vendor's own free-text name isn't). Strips characters invalid in Windows filenames, collapses
+    whitespace to `_`, trims stray leading/trailing `.`/`_`. Called from both the route (`Content-
+    Disposition` header) and `rfq-links-dialog.tsx`'s own fallback filename (if header-parsing ever
+    fails) — one shared function so the two ends can't drift apart, unlike the Excel export's two
+    independently-hand-typed filename templates.
+  - **No images anywhere in this PDF, by construction, not by filtering** — the shared/per-category PDF
+    components simply never import `Image` from `@react-pdf/renderer` or read `attachments`/
+    `vendorPhotos` off a line item at all (both are on `QuoteComparisonLineItem`, both are always
+    skipped), rather than fetching photos and then hiding them. A repo-wide `grep` for `Image` inside
+    `src/lib/rfq-quote-pdf/` should always return nothing.
 
 ## 19. Keeping this file current
 
