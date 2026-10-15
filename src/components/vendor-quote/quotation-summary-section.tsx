@@ -13,6 +13,7 @@ export type QuotationSummarySectionCopy = {
   deliveryTerms: string;
   deliveryTermsPlaceholder: string;
   remarksNotes: string;
+  optional: string;
 };
 
 type QuotationSummarySectionFields = {
@@ -86,7 +87,7 @@ export function QuotationSummarySection<TFieldValues extends QuotationSummarySec
         </div>
         <div className="col-span-2">
           <Label htmlFor="quote-remarks-notes" error={!!errors.remarksNotes}>
-            {t.remarksNotes}
+            {t.remarksNotes} <span className="font-normal text-slate-lt">{t.optional}</span>
           </Label>
           <Textarea
             id="quote-remarks-notes"

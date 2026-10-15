@@ -105,16 +105,13 @@ export function SparesQuoteForm({ token, detail }: SparesQuoteFormProps) {
     defaultValues,
   });
 
-  const [vendorName, quotationValidity, paymentTerms, deliveryTerms, remarksNotes] = watch([
+  const [vendorName, quotationValidity, paymentTerms, deliveryTerms] = watch([
     "vendorName",
     "quotationValidity",
     "paymentTerms",
     "deliveryTerms",
-    "remarksNotes",
   ]);
-  const requiredFieldsFilled = Boolean(
-    vendorName && quotationValidity && paymentTerms && deliveryTerms && remarksNotes,
-  );
+  const requiredFieldsFilled = Boolean(vendorName && quotationValidity && paymentTerms && deliveryTerms);
   const hasErrors = Object.keys(errors).length > 0;
 
   // Deliberately NOT useMemo — same reasoning as stores-quote-form.tsx:
@@ -220,7 +217,11 @@ export function SparesQuoteForm({ token, detail }: SparesQuoteFormProps) {
                     <Input disabled value={displayValue(findColumnValue(item.columns, PART_NO_LABEL))} />
                   </td>
                   <td className={cellClass}>
-                    <Input type="text" {...register(`items.${index}.offeredDescription`)} />
+                    <Input
+                      type="text"
+                      error={errors.items?.[index]?.offeredDescription?.message}
+                      {...register(`items.${index}.offeredDescription`)}
+                    />
                   </td>
                   <td className={cellClass}>
                     <Input type="text" {...register(`items.${index}.offeredPartNo`)} />

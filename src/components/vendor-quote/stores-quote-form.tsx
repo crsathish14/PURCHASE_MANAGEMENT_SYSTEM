@@ -107,16 +107,13 @@ export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
     defaultValues,
   });
 
-  const [vendorName, quotationValidity, paymentTerms, deliveryTerms, remarksNotes] = watch([
+  const [vendorName, quotationValidity, paymentTerms, deliveryTerms] = watch([
     "vendorName",
     "quotationValidity",
     "paymentTerms",
     "deliveryTerms",
-    "remarksNotes",
   ]);
-  const requiredFieldsFilled = Boolean(
-    vendorName && quotationValidity && paymentTerms && deliveryTerms && remarksNotes,
-  );
+  const requiredFieldsFilled = Boolean(vendorName && quotationValidity && paymentTerms && deliveryTerms);
   const hasErrors = Object.keys(errors).length > 0;
 
   // Deliberately NOT useMemo: react-hook-form's watch("items") does not
@@ -238,7 +235,11 @@ export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
                     <ItemPhotos attachments={item.attachments} t={t.itemDetails} />
                   </td>
                   <td className={cellClass}>
-                    <Input type="text" {...register(`items.${index}.offeredDescription`)} />
+                    <Input
+                      type="text"
+                      error={errors.items?.[index]?.offeredDescription?.message}
+                      {...register(`items.${index}.offeredDescription`)}
+                    />
                   </td>
                   <td className={cellClass}>
                     <Input type="text" {...register(`items.${index}.offeredImpaCode`)} />
