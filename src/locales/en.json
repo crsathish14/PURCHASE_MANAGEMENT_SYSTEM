@@ -152,6 +152,67 @@
       "title": "Dashboard",
       "subtitle": "Feature work starts from here — this area will show live KPIs once the procurement modules are built."
     },
+    "purchaseOrders": {
+      "title": "Purchase Orders",
+      "subtitle": "Review awarded vendor quotes and amounts for each purchase requisition.",
+      "searchPlaceholder": "Search PR ref, vendor, or quote ref",
+      "columns": {
+        "prRef": "PR Ref",
+        "vessel": "Vessel",
+        "vendor": "Vendor",
+        "quoteRef": "Quote Ref",
+        "total": "Quote Total",
+        "quoteDate": "Quote Date",
+        "status": "Status"
+      },
+      "statusLabels": {
+        "pending_po": "Pending PO"
+      },
+      "toolbar": {
+        "searchPlaceholder": "Search PR ref, vendor, or quote ref",
+        "status": "Status",
+        "vessel": "Vessel",
+        "category": "Category",
+        "date": "Submission date",
+        "all": "All",
+        "any": "Any",
+        "nSelected": "{count} selected",
+        "submit": "Submit",
+        "clear": "Clear",
+        "removeFilter": "Remove {label} filter",
+        "dateOptions": {
+          "last1Month": "Last 1 month",
+          "last3Months": "Last 3 months",
+          "last6Months": "Last 6 months",
+          "custom": "Custom date",
+          "startDate": "Start date",
+          "endDate": "End date"
+        }
+      },
+      "empty": "No awarded quotes yet.",
+      "noResults": "No awarded quotes match your search and filters.",
+      "loadError": "Couldn't load purchase orders.",
+      "detailLoadError": "Couldn't load this awarded quote.",
+      "viewQuoteFor": "View awarded quote for {prNumber}",
+      "quoteDetailTitle": "Purchase Order",
+      "neededPoQty": "Needed PO Qty",
+      "neededPoQtyFor": "Needed PO Qty for {item}",
+      "purchaseOrderTotal": "Purchase Order Total",
+      "sameAsQuoteQty": "Needed PO qty is same as the qty",
+      "invalidQuantity": "Enter a valid quantity of 0 or more.",
+      "saveDraft": "Save",
+      "issuePo": "Issue PO",
+      "draftSaved": "Purchase Order draft saved.",
+      "draftSaveError": "Couldn't save this Purchase Order draft.",
+      "invalidDraft": "Enter a valid non-negative quantity for every item.",
+      "draftNotFound": "Awarded quote not found.",
+      "draftConflict": "A draft can only be saved for an awarded quote.",
+      "showing": "Showing {from}–{to} of {total}",
+      "rowsPerPage": "Rows per page",
+      "previous": "Previous page",
+      "next": "Next page",
+      "pageOf": "Page {page} of {total}"
+    },
     "teamAccess": {
       "title": "Team & access",
       "subtitle": "Manage who can sign in to Vessel PMS and what they can do.",

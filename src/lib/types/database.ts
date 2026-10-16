@@ -585,6 +585,76 @@ export type Database = {
           },
         ];
       };
+      purchase_order_drafts: {
+        Row: {
+          id: string;
+          requisition_id: string;
+          quotation_id: string;
+          same_as_quote_qty: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          requisition_id: string;
+          quotation_id: string;
+          same_as_quote_qty?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          quotation_id?: string;
+          same_as_quote_qty?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_drafts_requisition_id_fkey";
+            columns: ["requisition_id"];
+            isOneToOne: true;
+            referencedRelation: "purchase_requisitions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_order_drafts_quotation_id_fkey";
+            columns: ["quotation_id"];
+            isOneToOne: true;
+            referencedRelation: "purchase_requisition_rfq_quotations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      purchase_order_draft_items: {
+        Row: {
+          id: string;
+          draft_id: string;
+          quotation_item_id: string;
+          needed_po_qty: number;
+        };
+        Insert: {
+          id?: string;
+          draft_id: string;
+          quotation_item_id: string;
+          needed_po_qty: number;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_draft_items_draft_id_fkey";
+            columns: ["draft_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_order_drafts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_order_draft_items_quotation_item_id_fkey";
+            columns: ["quotation_item_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_requisition_rfq_quotation_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       pr_requisition_list: {
@@ -680,6 +750,10 @@ export type Database = {
       award_purchase_requisition: {
         Args: { p_id: string; p_rfq_link_id: string };
         Returns: { id: string; status: PrStatus; awarded_rfq_link_id: string }[];
+      };
+      save_purchase_order_draft: {
+        Args: { p_requisition_id: string; p_items: Json; p_same_as_quote_qty: boolean };
+        Returns: string;
       };
       duplicate_purchase_requisition: {
         Args: { p_id: string };
@@ -821,6 +895,30 @@ export type Database = {
           quote_count: number;
           derived_status: string;
           first_issued_at: string;
+          total_count: number;
+        }[];
+      };
+      search_purchase_orders: {
+        Args: {
+          p_search: string | null;
+          p_statuses: string[] | null;
+          p_vessels: string[] | null;
+          p_categories: string[] | null;
+          p_date_preset: string | null;
+          p_start_date: string | null;
+          p_end_date: string | null;
+          p_page: number;
+          p_page_size: number;
+        };
+        Returns: {
+          id: string;
+          pr_number: string;
+          vessel_label: string | null;
+          vendor_name: string;
+          quote_reference: string | null;
+          total_quoted_amount: number;
+          quote_submitted_at: string;
+          status: string;
           total_count: number;
         }[];
       };

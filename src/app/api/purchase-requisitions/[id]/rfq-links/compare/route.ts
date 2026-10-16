@@ -19,12 +19,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const { searchParams } = new URL(request.url);
   // Server-side clamp to MAX_COMPARE_SELECTION — the client's own checkbox
   // cap is a UX nicety, not something this route trusts on its own.
-  const linkIds = (searchParams.get("linkIds") ?? "")
+  // Omitting linkIds uses getRfqQuoteComparison's awarded-quote default.
+  const requestedLinkIds = searchParams.get("linkIds");
+  const linkIds = (requestedLinkIds ?? "")
     .split(",")
     .filter(Boolean)
     .slice(0, MAX_COMPARE_SELECTION);
 
-  if (linkIds.length === 0) {
+  if (requestedLinkIds !== null && linkIds.length === 0) {
     return NextResponse.json({ error: { message: t.compareLoadError } }, { status: 400 });
   }
 
@@ -32,6 +34,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const data = await getRfqQuoteComparison(id, linkIds);
     if (!data) {
       return NextResponse.json({ error: { message: "Requisition not found." } }, { status: 404 });
+    }
+    if (requestedLinkIds === null && data.vendors.length === 0) {
+      return NextResponse.json({ error: { message: t.compareLoadError } }, { status: 404 });
     }
     return NextResponse.json({ data });
   } catch (error) {

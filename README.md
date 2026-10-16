@@ -1,10 +1,10 @@
 # Purchase Management System
 
-Internal purchase management app (vendors, RFQs, purchase orders, invoices, delivery notes) for a
-shipping/vessel operation, built on Next.js and Supabase. Auth (login, self-serve request-access
-with admin approval, admin-invite, forced password reset), route-gating, and the Team & Access
-admin page are built; the procurement features themselves (RFQ, PO, invoices, etc.) are not yet —
-see "What's not built yet" below.
+Internal purchase management app for a shipping/vessel operation, built on Next.js and Supabase.
+Implemented workflows include authentication and team access, vessel management, purchase
+requisitions, Excel requisition templates and import, and vendor RFQs with quote submission,
+comparison, award, and PDF export. Purchase order, delivery note, and invoice workflows are not yet
+implemented.
 
 ## Tech stack
 
@@ -105,8 +105,8 @@ See [`plans/development.md`](plans/development.md) for the project's conventions
 tokens, component library, Supabase setup, constants, API routes, environment variables) and
 [`AGENTS.md`](AGENTS.md) for the Next.js version-specific gotchas this repo runs into.
 
-## What's not built yet
+## Current scope
 
-No purchase-request/RFQ/PO/delivery/invoice/vendor/vessel features exist yet — only auth, route
-gating, and the Team & Access admin page. Storage has no upload UI yet (bucket is configured only).
-Google OAuth is configured server-side-ready but not wired into the login form (§3 above).
+Purchase orders, delivery notes, and invoices are not implemented yet. Google OAuth is not wired into
+the login form. For current architecture, feature behavior, and development conventions, see
+[plans/development.md](plans/development.md).

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Send, X } from "lucide-react";
 
@@ -8,6 +8,7 @@ import { Button } from "@/components/atoms";
 import en from "@/locales/en.json";
 import { PR_CATEGORY } from "@/lib/constants/purchase-requisition";
 import type { QuoteComparisonData } from "@/lib/data/rfq-quote-comparison";
+import type { PurchaseOrderQuantityEditor } from "@/components/purchase-orders/purchase-order-quantity-editor";
 import { ServiceQuoteComparisonCard } from "./service-quote-comparison-card";
 import { SparesQuoteComparisonCard } from "./spares-quote-comparison-card";
 import { StoresQuoteComparisonCard } from "./stores-quote-comparison-card";
@@ -35,6 +36,9 @@ export type CompareQuotesModalProps = {
   onClose: () => void;
   data: QuoteComparisonData | null;
   requestedCount: number;
+  title?: string;
+  footer?: ReactNode;
+  purchaseOrderEditor?: PurchaseOrderQuantityEditor;
   // Opens rfq-links-dialog.tsx's own award confirm dialog on top of this
   // modal — awarding itself isn't handled here, this is purely presentational
   // (see that file for why: it owns the one shared confirm dialog + submit
@@ -43,7 +47,16 @@ export type CompareQuotesModalProps = {
   onAwardClick: (vendor: { linkId: string; vendorName: string }) => void;
 };
 
-export function CompareQuotesModal({ open, onClose, data, requestedCount, onAwardClick }: CompareQuotesModalProps) {
+export function CompareQuotesModal({
+  open,
+  onClose,
+  data,
+  requestedCount,
+  title = t.pageTitle,
+  footer,
+  purchaseOrderEditor,
+  onAwardClick,
+}: CompareQuotesModalProps) {
   useEffect(() => {
     if (!open) return;
 
@@ -95,7 +108,7 @@ export function CompareQuotesModal({ open, onClose, data, requestedCount, onAwar
       >
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-line px-6 py-4">
           <div>
-            <h2 className="font-display text-lg font-semibold text-ink">{t.pageTitle}</h2>
+            <h2 className="font-display text-lg font-semibold text-ink">{title}</h2>
             {data ? (
               <p className="mt-0.5 text-[12.5px] text-slate">
                 {t.subtitle
@@ -139,6 +152,11 @@ export function CompareQuotesModal({ open, onClose, data, requestedCount, onAwar
                       isAwarded={vendor.linkId === data?.awardedLinkId}
                       canAward={!data?.awardedLinkId}
                       onAward={() => onAwardClick({ linkId: vendor.linkId, vendorName: vendor.vendorName })}
+                      purchaseOrderEditor={
+                        data?.category === PR_CATEGORY.STORES || data?.category === PR_CATEGORY.SPARES
+                          ? purchaseOrderEditor
+                          : undefined
+                      }
                     />
                   ))}
                 </div>
@@ -146,6 +164,7 @@ export function CompareQuotesModal({ open, onClose, data, requestedCount, onAwar
             </div>
           )}
         </div>
+        {footer ? <footer className="flex shrink-0 justify-end gap-2 border-t border-line px-6 py-4">{footer}</footer> : null}
       </div>
     </div>,
     document.body,

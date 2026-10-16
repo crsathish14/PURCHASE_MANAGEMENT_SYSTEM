@@ -12,9 +12,12 @@ import { DateRangeFilter, presetLabel } from "./date-range-filter";
 
 const t = en.staff.requestedQuote.toolbar;
 
+export type RfqToolbarLabels = typeof t;
+
 const APPLIED_CHIP_CLASS = "inline-flex items-center gap-1.5 rounded-[5px] px-2.5 py-1 text-[12px] font-bold";
 
 export type RfqToolbarProps = {
+  labels?: RfqToolbarLabels;
   statusOptions: FilterOption[];
   vesselOptions: FilterOption[];
   categoryOptions: FilterOption[];
@@ -50,6 +53,7 @@ type ChipCategory = "status" | "vessel" | "category" | "date";
 // page's own en.json namespace — see that file for the full rationale on the
 // staged/applied ownership split this mirrors.
 export function RfqToolbar({
+  labels = t,
   statusOptions,
   vesselOptions,
   categoryOptions,
@@ -85,8 +89,10 @@ export function RfqToolbar({
     onSearchSettledRef.current(debouncedSearch);
   }, [debouncedSearch]);
 
+  const copy = labels;
+
   function nSelectedLabel(count: number) {
-    return t.nSelected.replace("{count}", String(count));
+    return copy.nSelected.replace("{count}", String(count));
   }
 
   function toggleDraft(category: ChipCategory, value: string) {
@@ -124,7 +130,7 @@ export function RfqToolbar({
           {
             category: "date" as const,
             value: draftDatePreset,
-            label: presetLabel(draftDatePreset),
+            label: presetLabel(draftDatePreset, copy.dateOptions),
             applied:
               appliedDatePreset === draftDatePreset &&
               (draftDatePreset !== DATE_PRESET.CUSTOM ||
@@ -150,40 +156,41 @@ export function RfqToolbar({
             type="text"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            placeholder={t.searchPlaceholder}
+            placeholder={copy.searchPlaceholder}
             startAdornment={<SearchIcon />}
             className="py-2 text-[13px]"
           />
         </div>
 
         <FilterMultiselect
-          label={t.status}
+          label={copy.status}
           options={statusOptions}
           selected={draftStatuses}
           onChange={setDraftStatuses}
-          allLabel={t.all}
+          allLabel={copy.all}
           nSelectedLabel={nSelectedLabel}
         />
         <FilterMultiselect
-          label={t.vessel}
+          label={copy.vessel}
           options={vesselOptions}
           selected={draftVessels}
           onChange={setDraftVessels}
-          allLabel={t.all}
+          allLabel={copy.all}
           nSelectedLabel={nSelectedLabel}
         />
         <FilterMultiselect
-          label={t.category}
+          label={copy.category}
           options={categoryOptions}
           selected={draftCategories}
           onChange={setDraftCategories}
-          allLabel={t.all}
+          allLabel={copy.all}
           nSelectedLabel={nSelectedLabel}
         />
 
         <DateRangeFilter
-          label={t.date}
-          allLabel={t.any}
+          label={copy.date}
+          allLabel={copy.any}
+          dateOptions={copy.dateOptions}
           value={{ preset: draftDatePreset, startDate: draftStartDate, endDate: draftEndDate }}
           onChange={(next) => {
             setDraftDatePreset(next.preset);
@@ -209,7 +216,7 @@ export function RfqToolbar({
           }
         >
           {submitting ? <Spinner size="sm" /> : null}
-          {t.submit}
+          {copy.submit}
         </button>
         <button
           type="button"
@@ -226,7 +233,7 @@ export function RfqToolbar({
             onClear();
           }}
         >
-          {t.clear}
+          {copy.clear}
         </button>
       </div>
 
@@ -240,7 +247,7 @@ export function RfqToolbar({
               {chip.label}
               <button
                 type="button"
-                aria-label={t.removeFilter.replace("{label}", chip.label)}
+                aria-label={copy.removeFilter.replace("{label}", chip.label)}
                 onClick={() => toggleDraft(chip.category, chip.value)}
                 className="opacity-70 hover:opacity-100"
               >

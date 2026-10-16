@@ -7,6 +7,7 @@ import { DATE_PRESET, type DatePreset } from "@/lib/constants/purchase-requisiti
 import en from "@/locales/en.json";
 
 const t = en.staff.requestedQuote.toolbar;
+type DateOptionLabels = typeof t.dateOptions;
 
 const PRESET_OPTIONS: Array<Exclude<DatePreset, "custom">> = [
   DATE_PRESET.LAST_1_MONTH,
@@ -14,16 +15,16 @@ const PRESET_OPTIONS: Array<Exclude<DatePreset, "custom">> = [
   DATE_PRESET.LAST_6_MONTHS,
 ];
 
-export function presetLabel(preset: DatePreset): string {
+export function presetLabel(preset: DatePreset, labels: DateOptionLabels = t.dateOptions): string {
   switch (preset) {
     case DATE_PRESET.LAST_1_MONTH:
-      return t.dateOptions.last1Month;
+      return labels.last1Month;
     case DATE_PRESET.LAST_3_MONTHS:
-      return t.dateOptions.last3Months;
+      return labels.last3Months;
     case DATE_PRESET.LAST_6_MONTHS:
-      return t.dateOptions.last6Months;
+      return labels.last6Months;
     case DATE_PRESET.CUSTOM:
-      return t.dateOptions.custom;
+      return labels.custom;
   }
 }
 
@@ -40,6 +41,7 @@ export type DateFilterValue = {
 export type DateRangeFilterProps = {
   label: string;
   allLabel: string;
+  dateOptions?: DateOptionLabels;
   value: DateFilterValue;
   onChange: (next: DateFilterValue) => void;
 };
@@ -50,7 +52,7 @@ export type DateRangeFilterProps = {
 // `closeOnContentClick`'s single flag can't express. The trigger/chip label
 // always reads "Custom date" for a custom range, never the picked dates
 // themselves, per an explicit product decision.
-export function DateRangeFilter({ label, allLabel, value, onChange }: DateRangeFilterProps) {
+export function DateRangeFilter({ label, allLabel, dateOptions = t.dateOptions, value, onChange }: DateRangeFilterProps) {
   const [open, setOpen] = useState(false);
   const [showCustom, setShowCustom] = useState(value.preset === DATE_PRESET.CUSTOM);
   const [draftStart, setDraftStart] = useState(value.startDate ?? "");
@@ -88,7 +90,7 @@ export function DateRangeFilter({ label, allLabel, value, onChange }: DateRangeF
             active ? "border-transparent bg-harbor-50 font-bold text-harbor" : "border-line bg-paper text-ink",
           ].join(" ")}
         >
-          {label}: {value.preset ? presetLabel(value.preset) : allLabel}
+          {label}: {value.preset ? presetLabel(value.preset, dateOptions) : allLabel}
           <ChevronIcon />
         </button>
       }
@@ -96,15 +98,15 @@ export function DateRangeFilter({ label, allLabel, value, onChange }: DateRangeF
       <div className="py-1">
         {PRESET_OPTIONS.map((preset) => (
           <MenuItem key={preset} onClick={() => selectPreset(preset)}>
-            {presetLabel(preset)}
+            {presetLabel(preset, dateOptions)}
           </MenuItem>
         ))}
-        <MenuItem onClick={() => setShowCustom(true)}>{t.dateOptions.custom}</MenuItem>
+        <MenuItem onClick={() => setShowCustom(true)}>{dateOptions.custom}</MenuItem>
 
         {showCustom ? (
           <div className="space-y-2 border-t border-line px-3.5 py-2.5">
             <label className="block text-[11px] font-semibold text-slate-lt">
-              {t.dateOptions.startDate}
+              {dateOptions.startDate}
               <Input
                 type="date"
                 value={draftStart}
@@ -114,7 +116,7 @@ export function DateRangeFilter({ label, allLabel, value, onChange }: DateRangeF
               />
             </label>
             <label className="block text-[11px] font-semibold text-slate-lt">
-              {t.dateOptions.endDate}
+              {dateOptions.endDate}
               <Input
                 type="date"
                 value={draftEnd}

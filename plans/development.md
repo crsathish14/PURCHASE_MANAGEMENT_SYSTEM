@@ -107,6 +107,11 @@ These files hold every value that would otherwise be a magic string:
   upload feature (e.g. PO documents) adds its own sibling prefix constant here, not a new bucket or a
   new table shape.
 
+- `src/lib/constants/purchase-order.ts` — `PURCHASE_ORDER_STATUS` (`PENDING_PO`), the page-level
+  status shown for awarded quotes while formal PO issuance is pending. This is distinct from the
+  requisition's terminal `PR_STATUS.AWARDED` value; saved PO drafts still display `PENDING_PO` because
+  issuing the PO is not implemented yet.
+
 ## 8. Client state (Zustand)
 
 `src/store/theme-store.ts` and `src/store/toast-store.ts` are the reference pattern for any new
@@ -828,9 +833,9 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
     the modal reopened later in the same session). `getRfqQuoteComparison()` simply returns fewer
     `vendors` than requested `linkIds` rather than erroring; `CompareQuotesModal` shows an amber
     partial-selection notice if some are missing, or a full empty state if none resolved — never a crash.
-  - Scope is view-only for this pass, per an explicit decision when asked: no "award/choose vendor →
-    create Purchase Order" action yet (that's a separate, larger, not-yet-planned feature) — matches the
-    already-established "nothing happens yet" state of the Compare CTA before this change.
+  - Scope is view/award-only for this modal: its award action changes the requisition state but does
+    not create a PO draft. Draft quantity editing and saving live in the Purchase Orders page (§19);
+    formal PO issuance remains a separate workflow.
   - **Extended to Spares/Service** (see §17's own "Extending to Spares and Service" bullet for the
     full picture): `CompareQuotesModal` no longer hardcodes `StoresQuoteComparisonCard` — it picks
     one of `StoresQuoteComparisonCard`/`SparesQuoteComparisonCard`/`ServiceQuoteComparisonCard` once
@@ -950,7 +955,7 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
     `z-30` anyway).
   - Scope: this does **not** create a Purchase Order record — matches the already-documented decision
     (above) that Compare Quotes itself shipped view-only, with "award → create PO" left as a separate,
-    not-yet-planned feature. Award here is exactly: pick a winner, lock out further RFQ activity on
+    follow-up workflow. Award here is exactly: pick a winner, lock out further RFQ activity on
     this requisition, flip its status.
   - **Reversed, by later product decision: the Requested Quote list's own status column now DOES show
     "Awarded."** The original reasoning above (`REQUESTED_QUOTE_STATUS`/`pr_rfq_progress` must never
@@ -1050,7 +1055,33 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
     skipped), rather than fetching photos and then hiding them. A repo-wide `grep` for `Image` inside
     `src/lib/rfq-quote-pdf/` should always return nothing.
 
-## 19. Keeping this file current
+## 19. Purchase Orders (awarded quote and saved draft)
+
+The Purchase Orders page currently lists the selected vendor quote for each awarded requisition; it
+stores a PO draft when staff saves from the quote detail modal. The list fields remain PR reference,
+vessel, vendor, quote reference, quoted total, and quote submission date, plus the page-level `Pending
+PO` status (`PURCHASE_ORDER_STATUS.PENDING_PO`). Drafts are stored in `purchase_order_drafts` and
+`purchase_order_draft_items`; the status is still derived by `search_purchase_orders`, and `Issue PO`
+is disabled until a formal PO issuance workflow is implemented.
+
+For Stores and Spares, the detail modal lets staff edit a needed PO quantity per quote line. The
+“Needed PO qty is same as the qty” checkbox copies the awarded quote quantities into those fields;
+editing any one field clears it. Saving persists the checkbox state and needed quantities. Line and
+modal totals recalculate from each quote's unit price and needed quantity. Service has no quantity
+field, so its draft saves without draft item rows.
+
+Search, filters, and pagination are server-side: `/api/purchase-orders` calls
+`getPurchaseOrders()`/`search_purchase_orders`, which searches PR reference, vendor, and quote
+reference and filters status, vessel, category, and quote submission date before paging; it returns
+the page plus `count(*) over()` total. The client reuses Requested Quote's staged filter controls and
+sends the current search/filter/page state to the API; it does not filter or slice result rows.
+Selecting a row fetches the awarded quote and any saved draft through the existing RFQ quote
+comparison API, then opens the same comparison view with only the winning vendor's quote card. Saving
+uses `PUT /api/purchase-orders/[id]/draft`, authenticated by `requireApiActiveUser()` and persisted
+through the `save_purchase_order_draft` security-definer RPC. The RPC verifies the requisition is
+awarded and quantities belong to its awarded quote; same-as-quote values are copied server-side.
+
+## 20. Keeping this file current
 
 This file is auto-loaded into every session via `CLAUDE.md`'s `@plans/development.md` import — it's
 only useful if it matches what the code actually does. Update the relevant section **in the same
