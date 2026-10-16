@@ -86,16 +86,13 @@ export function ServiceQuoteForm({ token, detail }: ServiceQuoteFormProps) {
     defaultValues,
   });
 
-  const [vendorName, quotationValidity, paymentTerms, deliveryTerms, remarksNotes] = watch([
+  const [vendorName, quotationValidity, paymentTerms, deliveryTerms] = watch([
     "vendorName",
     "quotationValidity",
     "paymentTerms",
     "deliveryTerms",
-    "remarksNotes",
   ]);
-  const requiredFieldsFilled = Boolean(
-    vendorName && quotationValidity && paymentTerms && deliveryTerms && remarksNotes,
-  );
+  const requiredFieldsFilled = Boolean(vendorName && quotationValidity && paymentTerms && deliveryTerms);
   const hasErrors = Object.keys(errors).length > 0;
 
   // Deliberately NOT useMemo — see parseUnitPrice's own comment above.

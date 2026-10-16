@@ -639,7 +639,7 @@
     "storesForm": {
       "pdfHeader": {
         "companyName": "MYSEA SHIPPING",
-        "documentTitle": "REQUEST FOR QUOTATION — STORE"
+        "documentTitle": "STORE QUOTATION"
       },
       "rfqDetails": {
         "title": "RFQ Details",
@@ -696,25 +696,26 @@
         "paymentTermsPlaceholder": "e.g. 30 days net",
         "deliveryTerms": "Delivery Terms (Incoterm)",
         "deliveryTermsPlaceholder": "e.g. FOB Singapore",
-        "remarksNotes": "Remarks / Notes"
+        "remarksNotes": "Remarks / Notes",
+        "optional": "optional"
       },
       "submit": "Submit Quotation",
       "submitting": "Submitting…",
       "errors": {
         "vendorNameRequired": "Vendor / Company name is required",
         "vendorEmailInvalid": "Enter a valid email address",
+        "offeredDescriptionRequired": "Offered item description is required",
         "unitPriceInvalid": "Enter a valid amount",
         "deliveryLeadTimeInvalid": "Enter a whole number of days",
         "quotationValidityRequired": "Quotation validity is required",
         "paymentTermsRequired": "Payment terms are required",
-        "deliveryTermsRequired": "Delivery terms are required",
-        "remarksNotesRequired": "Remarks / notes are required"
+        "deliveryTermsRequired": "Delivery terms are required"
       }
     },
     "sparesForm": {
       "pdfHeader": {
         "companyName": "MYSEA SHIPPING",
-        "documentTitle": "REQUEST FOR QUOTATION — SPARES"
+        "documentTitle": "SPARE QUOTATION"
       },
       "rfqDetails": {
         "title": "RFQ Details",
@@ -782,25 +783,26 @@
         "paymentTermsPlaceholder": "e.g. 30 days net",
         "deliveryTerms": "Delivery Terms (Incoterm)",
         "deliveryTermsPlaceholder": "e.g. FOB Singapore",
-        "remarksNotes": "Remarks / Notes"
+        "remarksNotes": "Remarks / Notes",
+        "optional": "optional"
       },
       "submit": "Submit Quotation",
       "submitting": "Submitting…",
       "errors": {
         "vendorNameRequired": "Vendor / Company name is required",
         "vendorEmailInvalid": "Enter a valid email address",
+        "offeredDescriptionRequired": "Offered item description is required",
         "unitPriceInvalid": "Enter a valid amount",
         "deliveryLeadTimeInvalid": "Enter a whole number of days",
         "quotationValidityRequired": "Quotation validity is required",
         "paymentTermsRequired": "Payment terms are required",
-        "deliveryTermsRequired": "Delivery terms are required",
-        "remarksNotesRequired": "Remarks / notes are required"
+        "deliveryTermsRequired": "Delivery terms are required"
       }
     },
     "serviceForm": {
       "pdfHeader": {
         "companyName": "MYSEA SHIPPING",
-        "documentTitle": "REQUEST FOR QUOTATION — SERVICES"
+        "documentTitle": "SERVICE QUOTATION"
       },
       "rfqDetails": {
         "title": "RFQ Details",
@@ -863,7 +865,8 @@
         "paymentTermsPlaceholder": "e.g. 30 days net",
         "deliveryTerms": "Delivery Terms (Incoterm)",
         "deliveryTermsPlaceholder": "e.g. FOB Singapore",
-        "remarksNotes": "Remarks / Notes"
+        "remarksNotes": "Remarks / Notes",
+        "optional": "optional"
       },
       "submit": "Submit Quotation",
       "submitting": "Submitting…",
@@ -874,8 +877,7 @@
         "estimatedDurationInvalid": "Enter a whole number of days",
         "quotationValidityRequired": "Quotation validity is required",
         "paymentTermsRequired": "Payment terms are required",
-        "deliveryTermsRequired": "Delivery terms are required",
-        "remarksNotesRequired": "Remarks / notes are required"
+        "deliveryTermsRequired": "Delivery terms are required"
       }
     }
   }
