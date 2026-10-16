@@ -112,6 +112,37 @@ export type Database = {
         };
         Relationships: [];
       };
+      vendors: {
+        Row: {
+          id: string;
+          name: string;
+          pic: string;
+          address: string;
+          mail: string[];
+          contact: string[];
+          gst: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          pic?: string;
+          address?: string;
+          mail?: string[];
+          contact?: string[];
+          gst?: string;
+          created_at?: string;
+        };
+        Update: {
+          name?: string;
+          pic?: string;
+          address?: string;
+          mail?: string[];
+          contact?: string[];
+          gst?: string;
+        };
+        Relationships: [];
+      };
       purchase_requisitions: {
         Row: {
           id: string;

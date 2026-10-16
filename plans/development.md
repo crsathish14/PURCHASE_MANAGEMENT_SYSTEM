@@ -46,7 +46,10 @@ automatic — no `dark:` variants needed. Canonical source: `Design-docs/design-
 - `src/components/<feature>/` — everything else, grouped by feature area: `auth/` (login,
   request-access, change-password forms + shared icons), `staff/` (sidebar, topbar, shell,
   nav-items), `team-access/` (the Team & Access page's view/table/member-dialog — the latter
-  handles both inviting a person and resetting a person's password via a `mode` prop).
+  handles both inviting a person and resetting a person's password via a `mode` prop), and
+  `vendors/` (the vendor directory/settings view, table, and shared add/edit dialog).
+- Settings pages share `src/components/settings/subnav.tsx`; keep its links in sync with the
+  admin-only Team & Access, Vessel, and Vendor pages.
 - `src/app/[lang]/**` holds **only** pages and layouts — no component logic lives there. If a new
   component isn't a page or layout, it goes in `atoms/` (small, reusable, no feature-specific
   logic) or a feature folder (everything else), never inline in the route file.
@@ -84,6 +87,9 @@ These files hold every value that would otherwise be a magic string:
   — both `LineItemsField` (manual create/edit) and the import-template parser (§16) import it, so
   they can't drift apart. `APPROVED_QTY` is office-only (filled in during review, never sourced from
   the import template) but is still part of this set, since the column must exist either way. It's
+  manually editable in Create/Edit Requisition; the frontend-only “Approved Qty is same as Qty”
+  checkbox copies each row's Required Qty into Approved Qty and keeps them synced until Approved Qty
+  is manually edited. This adds no payload or database field. It's
   also the one preset column `LineItemsField`'s header row never shows an "X" remove button for
   (`line-items-field.tsx`'s `isApprovedQty` check, matched by key **or** label — a saved-and-reloaded
   preset column comes back with its real DB uuid as `key`, not the literal preset string, so the label
