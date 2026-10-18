@@ -422,6 +422,7 @@ export type Database = {
         Row: {
           id: string;
           requisition_id: string;
+          vendor_id: string | null;
           vendor_name: string;
           vendor_email: string;
           access_token: string;
@@ -434,6 +435,7 @@ export type Database = {
         Insert: {
           id?: string;
           requisition_id: string;
+          vendor_id?: string | null;
           vendor_name: string;
           vendor_email: string;
           access_token: string;
@@ -443,6 +445,7 @@ export type Database = {
           created_by: string;
         };
         Update: {
+          vendor_id?: string | null;
           vendor_name?: string;
           vendor_email?: string;
           message?: string;
@@ -462,6 +465,13 @@ export type Database = {
             columns: ["created_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_requisition_rfq_links_vendor_id_fkey";
+            columns: ["vendor_id"];
+            isOneToOne: false;
+            referencedRelation: "vendors";
             referencedColumns: ["id"];
           },
         ];
@@ -686,6 +696,79 @@ export type Database = {
           },
         ];
       };
+      purchase_order_issuances: {
+        Row: {
+          id: string;
+          requisition_id: string;
+          quotation_id: string;
+          access_token: string;
+          vendor_name: string;
+          vendor_email: string;
+          message: string;
+          issued_at: string;
+        };
+        Insert: {
+          id?: string;
+          requisition_id: string;
+          quotation_id: string;
+          access_token?: string;
+          vendor_name: string;
+          vendor_email: string;
+          message: string;
+          issued_at?: string;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_issuances_requisition_id_fkey";
+            columns: ["requisition_id"];
+            isOneToOne: true;
+            referencedRelation: "purchase_requisitions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_order_issuances_quotation_id_fkey";
+            columns: ["quotation_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_requisition_rfq_quotations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      purchase_order_issuance_items: {
+        Row: {
+          id: string;
+          issuance_id: string;
+          description: string;
+          part_no: string | null;
+          uom: string | null;
+          quantity: number | null;
+          unit_price: number | null;
+          total_price: number;
+          sort_order: number;
+        };
+        Insert: {
+          id?: string;
+          issuance_id: string;
+          description: string;
+          part_no?: string | null;
+          uom?: string | null;
+          quantity?: number | null;
+          unit_price?: number | null;
+          total_price: number;
+          sort_order?: number;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_issuance_items_issuance_id_fkey";
+            columns: ["issuance_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_order_issuances";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       pr_requisition_list: {
@@ -704,6 +787,7 @@ export type Database = {
           vessel_value: string | null;
           category_value: string | null;
           requisition_number: string | null;
+          pr_title: string | null;
         };
         Relationships: [];
       };
@@ -786,6 +870,28 @@ export type Database = {
         Args: { p_requisition_id: string; p_items: Json; p_same_as_quote_qty: boolean };
         Returns: string;
       };
+      issue_purchase_order: {
+        Args: { p_requisition_id: string; p_items: Json; p_same_as_quote_qty: boolean; p_message: string };
+        Returns: string;
+      };
+      get_purchase_order_issue_token: {
+        Args: { p_requisition_id: string };
+        Returns: string;
+      };
+      get_purchase_order_by_token: {
+        Args: { p_token: string };
+        Returns: {
+          requisition_id: string;
+          pr_number: string;
+          vessel_label: string | null;
+          category: string | null;
+          vendor_name: string;
+          vendor_email: string;
+          message: string;
+          issued_at: string;
+          items: Json;
+        }[];
+      };
       duplicate_purchase_requisition: {
         Args: { p_id: string };
         Returns: { id: string; pr_number: string; line_item_id_map: Json }[];
@@ -822,13 +928,14 @@ export type Database = {
           item_count: number;
           requester_name: string | null;
           requisition_number: string | null;
+          pr_title: string | null;
           total_count: number;
         }[];
       };
       issue_rfq_link: {
         Args: {
           p_requisition_id: string;
-          p_vendor_name: string;
+          p_vendor_id: string;
           p_vendor_email: string;
           p_expires_at: string;
           p_message: string;
@@ -838,7 +945,7 @@ export type Database = {
       reissue_rfq_link: {
         Args: {
           p_link_id: string;
-          p_vendor_name: string;
+          p_vendor_id: string;
           p_vendor_email: string;
           p_expires_at: string;
           p_message: string;
@@ -920,6 +1027,7 @@ export type Database = {
           id: string;
           pr_number: string;
           requisition_number: string | null;
+          pr_title: string | null;
           vessel_label: string | null;
           category_label: string | null;
           vendor_count: number;
@@ -944,6 +1052,8 @@ export type Database = {
         Returns: {
           id: string;
           pr_number: string;
+          requisition_number: string | null;
+          pr_title: string | null;
           vessel_label: string | null;
           vendor_name: string;
           quote_reference: string | null;

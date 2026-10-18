@@ -18,10 +18,12 @@ import {
 import { RfqPager } from "@/components/rfq/rfq-pager";
 import { RfqToolbar } from "@/components/rfq/rfq-toolbar";
 import { CompareQuotesModal } from "@/components/rfq/compare-quotes-modal";
+import { IssuePurchaseOrderDialog } from "@/components/purchase-orders/issue-purchase-order-dialog";
 
 const t = en.staff.purchaseOrders;
 const STATUS_TONE: Record<PurchaseOrderStatus, BadgeTone> = {
   [PURCHASE_ORDER_STATUS.PENDING_PO]: "amber",
+  [PURCHASE_ORDER_STATUS.PO_ISSUED]: "moss",
 };
 const STATUS_OPTIONS = Object.values(PURCHASE_ORDER_STATUS).map((value) => ({
   value,
@@ -63,6 +65,9 @@ export function PurchaseOrdersView({
   const [sameAsQuoteQty, setSameAsQuoteQty] = useState(true);
   const [validationAttempted, setValidationAttempted] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
+  const [issueDialogOpen, setIssueDialogOpen] = useState(false);
+  const [issuedLink, setIssuedLink] = useState<string | null>(null);
+  const [issuedRequisitionIds, setIssuedRequisitionIds] = useState<Set<string>>(() => new Set());
 
   const [appliedSearch, setAppliedSearch] = useState("");
   const [appliedStatuses, setAppliedStatuses] = useState<string[]>([]);
@@ -173,6 +178,7 @@ export function PurchaseOrdersView({
 
   async function handleRowSelect(row: PurchaseOrderListRow) {
     setDetailLoadingId(row.id);
+    setIssuedLink(null);
     try {
       const response = await fetch(`/api/purchase-requisitions/${row.id}/rfq-links/compare`);
       const payload = await response.json();
@@ -183,6 +189,20 @@ export function PurchaseOrdersView({
       }
 
       const detail = payload.data as QuoteComparisonData;
+      if (row.status === PURCHASE_ORDER_STATUS.PO_ISSUED) {
+        try {
+          const issuedLinkResponse = await fetch(`/api/purchase-orders/${row.id}/issue`);
+          const issuedLinkPayload = await issuedLinkResponse.json();
+          if (!issuedLinkResponse.ok) {
+            toast.error(issuedLinkPayload?.error?.message ?? t.issuedLinkLoadError);
+          } else {
+            setIssuedLink(issuedLinkPayload.data.link as string);
+          }
+        } catch {
+          toast.error(t.issuedLinkLoadError);
+        }
+      }
+
       const awardedVendor = detail.vendors[0];
       setNeededPoQuantities(
         Object.fromEntries(
@@ -204,6 +224,20 @@ export function PurchaseOrdersView({
     }
   }
 
+  async function handleCopyIssuedLink() {
+    if (!issuedLink) {
+      toast.error(t.issuedLinkLoadError);
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(issuedLink);
+      toast.success(t.linkCopied);
+    } catch {
+      toast.error(t.linkCopyError);
+    }
+  }
+
   function handleSameAsQuoteQtyChange(checked: boolean) {
     setSameAsQuoteQty(checked);
     if (checked && quoteDetail?.vendors[0]) {
@@ -222,7 +256,8 @@ export function PurchaseOrdersView({
 
   async function handleSaveDraft() {
     const vendor = quoteDetail?.vendors[0];
-    if (!quoteDetail || !vendor) return;
+    const row = rows.find((item) => item.id === quoteDetail?.requisitionId);
+    if (!quoteDetail || !vendor || row?.status === PURCHASE_ORDER_STATUS.PO_ISSUED) return;
 
     const hasQuantityFields =
       quoteDetail.category === PR_CATEGORY.STORES || quoteDetail.category === PR_CATEGORY.SPARES;
@@ -288,11 +323,16 @@ export function PurchaseOrdersView({
 
   const hasQuantityFields =
     quoteDetail?.category === PR_CATEGORY.STORES || quoteDetail?.category === PR_CATEGORY.SPARES;
+  const selectedRow = rows.find((row) => row.id === quoteDetail?.requisitionId);
+  const isIssued =
+    Boolean(quoteDetail && issuedRequisitionIds.has(quoteDetail.requisitionId)) ||
+    selectedRow?.status === PURCHASE_ORDER_STATUS.PO_ISSUED;
   const purchaseOrderEditor: PurchaseOrderQuantityEditor | undefined = hasQuantityFields
     ? {
         quantities: neededPoQuantities,
         sameAsQuoteQty,
         validationAttempted,
+        disabled: isIssued,
         onSameAsQuoteQtyChange: handleSameAsQuoteQtyChange,
         onQuantityChange: handleNeededPoQtyChange,
       }
@@ -332,10 +372,12 @@ export function PurchaseOrdersView({
 
         <div className={loading ? "opacity-60" : undefined}>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-205 text-left text-[13px]">
+            <table className="w-full min-w-260 text-left text-[13px]">
               <thead>
                 <tr className="border-b border-line text-[11px] font-bold tracking-wide text-slate-lt uppercase">
                   <th className="px-4 py-3">{t.columns.prRef}</th>
+                  <th className="px-4 py-3">{t.columns.requisitionNumber}</th>
+                  <th className="px-4 py-3">{t.columns.title}</th>
                   <th className="px-4 py-3">{t.columns.vessel}</th>
                   <th className="px-4 py-3">{t.columns.vendor}</th>
                   <th className="px-4 py-3">{t.columns.quoteRef}</th>
@@ -347,7 +389,7 @@ export function PurchaseOrdersView({
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-lt">
+                    <td colSpan={9} className="px-4 py-10 text-center text-sm text-slate-lt">
                       {total === 0 && !hasActiveFilters ? t.empty : t.noResults}
                     </td>
                   </tr>
@@ -371,6 +413,8 @@ export function PurchaseOrdersView({
                       }`}
                     >
                       <td className="whitespace-nowrap px-4 py-3 font-mono text-ink">{row.prNumber}</td>
+                      <td className="whitespace-nowrap px-4 py-3 font-mono text-ink">{row.requisitionNumber ?? "—"}</td>
+                      <td className="px-4 py-3 text-ink">{row.title ?? "—"}</td>
                       <td className="px-4 py-3 text-ink">{row.vesselLabel ?? "—"}</td>
                       <td className="px-4 py-3 font-semibold text-ink">{row.vendorName}</td>
                       <td className="px-4 py-3 font-mono text-slate">{row.quoteReference ?? "—"}</td>
@@ -414,18 +458,51 @@ export function PurchaseOrdersView({
         purchaseOrderEditor={purchaseOrderEditor}
         footer={
           quoteDetail ? (
-            <>
-              <Button type="button" onClick={() => void handleSaveDraft()} loading={savingDraft}>
-                {t.saveDraft}
-              </Button>
-              <Button type="button" variant="secondary" disabled>
-                {t.issuePo}
-              </Button>
-            </>
+            isIssued ? (
+              <>
+                <Button type="button" onClick={() => void handleCopyIssuedLink()} disabled={!issuedLink}>
+                  {t.copyUrl}
+                </Button>
+                <Button type="button" variant="secondary" disabled>
+                  {t.download}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button type="button" onClick={() => void handleSaveDraft()} loading={savingDraft}>
+                  {t.saveDraft}
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => setIssueDialogOpen(true)}>
+                  {t.issuePo}
+                </Button>
+              </>
+            )
           ) : null
         }
         onAwardClick={() => undefined}
       />
+      {issueDialogOpen && quoteDetail?.vendors[0] ? (
+        <IssuePurchaseOrderDialog
+          open={issueDialogOpen}
+          onClose={() => setIssueDialogOpen(false)}
+          requisitionId={quoteDetail.requisitionId}
+          prNumber={quoteDetail.prNumber}
+          category={quoteDetail.category}
+          vendor={quoteDetail.vendors[0]}
+          quantities={neededPoQuantities}
+          sameAsQuoteQty={sameAsQuoteQty}
+          onIssued={(link) => {
+            setIssuedLink(link);
+            setIssuedRequisitionIds((current) => new Set(current).add(quoteDetail.requisitionId));
+            setRows((current) =>
+              current.map((row) =>
+                row.id === quoteDetail.requisitionId ? { ...row, status: PURCHASE_ORDER_STATUS.PO_ISSUED } : row,
+              ),
+            );
+            void fetchList({ page, pageSize, ...appliedParams });
+          }}
+        />
+      ) : null}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, Copy } from "lucide-react";
 
-import { Button, Dialog, Input, Label, Textarea } from "@/components/atoms";
+import { Button, Dialog, Input, Label, Select, Textarea } from "@/components/atoms";
 import en from "@/locales/en.json";
 import type { Vendor } from "@/lib/data/vendors";
 import { todayDateString } from "@/lib/validation/purchase-requisition";
@@ -15,7 +15,7 @@ import { toast } from "@/store/toast-store";
 const t = en.staff.poRequests.issueRfqDialog;
 
 const DEFAULT_VALUES: IssueRfqLinkInput = {
-  vendorName: "",
+  vendorId: "",
   vendorEmail: "",
   expiresAt: "",
   message: t.messageDefault,
@@ -57,7 +57,6 @@ export function IssueRfqDialog({ open, onClose, requisitionId, prNumber, onIssue
   const [expiresAtDate, setExpiresAtDate] = useState("");
   const [expiresAtTime, setExpiresAtTime] = useState("");
   const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [vendorLookupStatus, setVendorLookupStatus] = useState<"idle" | "loading" | "error">("idle");
 
   const {
@@ -100,13 +99,16 @@ export function IssueRfqDialog({ open, onClose, requisitionId, prNumber, onIssue
     };
   }, [open]);
 
-  const [vendorName, vendorEmail, expiresAt, message] = watch([
-    "vendorName",
+  const [vendorId, vendorEmail, expiresAt, message] = watch([
+    "vendorId",
     "vendorEmail",
     "expiresAt",
     "message",
   ]);
-  const requiredFieldsFilled = Boolean(vendorName && vendorEmail && expiresAt && message);
+  const selectedVendor = vendors.find((vendor) => vendor.id === vendorId) ?? null;
+  const requiredFieldsFilled = Boolean(
+    selectedVendor && vendorEmail && selectedVendor.mail.includes(vendorEmail) && expiresAt && message,
+  );
   const hasErrors = Object.keys(errors).length > 0;
 
   function updateExpiresAtDate(date: string) {
@@ -126,7 +128,6 @@ export function IssueRfqDialog({ open, onClose, requisitionId, prNumber, onIssue
     setCopied(null);
     setExpiresAtDate("");
     setExpiresAtTime("");
-    setSelectedVendor(null);
     reset(DEFAULT_VALUES);
   }
 
@@ -254,34 +255,30 @@ export function IssueRfqDialog({ open, onClose, requisitionId, prNumber, onIssue
 
       <form id="issue-rfq-link-form" onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="mb-4">
-          <Label htmlFor="rfq-vendor-name" error={!!errors.vendorName}>
+          <Label htmlFor="rfq-vendor-id" error={!!errors.vendorId}>
             {t.vendorName}
           </Label>
-          <Input
-            id="rfq-vendor-name"
-            type="text"
-            placeholder={t.vendorNamePlaceholder}
-            list="rfq-vendor-name-options"
-            error={errors.vendorName?.message}
-            {...register("vendorName", {
-              onChange: (event) => {
-                const match = vendors.find((vendor) => vendor.name === event.target.value) ?? null;
-                setSelectedVendor(match);
-                if (match) setValue("vendorEmail", "", { shouldDirty: true });
-              },
+          <Select
+            id="rfq-vendor-id"
+            error={errors.vendorId?.message}
+            disabled={vendorLookupStatus !== "idle" || vendors.length === 0}
+            {...register("vendorId", {
+              onChange: () => setValue("vendorEmail", "", { shouldDirty: true, shouldValidate: true }),
             })}
-          />
-          {vendors.length > 0 ? (
-            <datalist id="rfq-vendor-name-options">
-              {vendors.map((vendor) => (
-                <option key={vendor.id} value={vendor.name} />
-              ))}
-            </datalist>
-          ) : null}
+          >
+            <option value="">{t.vendorNamePlaceholder}</option>
+            {vendors.map((vendor) => (
+              <option key={vendor.id} value={vendor.id}>
+                {vendor.name}
+              </option>
+            ))}
+          </Select>
           {vendorLookupStatus === "loading" ? (
             <p className="mt-1 text-[11px] text-slate-lt">{t.vendorListLoading}</p>
           ) : vendorLookupStatus === "error" ? (
             <p className="mt-1 text-[11px] text-slate-lt">{t.vendorListError}</p>
+          ) : vendors.length === 0 ? (
+            <p className="mt-1 text-[11px] text-slate-lt">{t.noVendors}</p>
           ) : null}
         </div>
 
@@ -289,20 +286,21 @@ export function IssueRfqDialog({ open, onClose, requisitionId, prNumber, onIssue
           <Label htmlFor="rfq-vendor-email" error={!!errors.vendorEmail}>
             {t.vendorEmail}
           </Label>
-          <Input
+          <Select
             id="rfq-vendor-email"
-            type="email"
-            placeholder={t.vendorEmailPlaceholder}
-            list={selectedVendor?.mail.length ? "rfq-vendor-email-options" : undefined}
             error={errors.vendorEmail?.message}
+            disabled={!selectedVendor || selectedVendor.mail.length === 0}
             {...register("vendorEmail")}
-          />
-          {selectedVendor?.mail.length ? (
-            <datalist id="rfq-vendor-email-options">
-              {selectedVendor.mail.map((email, index) => (
-                <option key={`${selectedVendor.id}-mail-${index}`} value={email} />
-              ))}
-            </datalist>
+          >
+            <option value="">{selectedVendor ? t.vendorEmailPlaceholder : t.selectVendorFirst}</option>
+            {selectedVendor?.mail.map((email, index) => (
+              <option key={`${selectedVendor.id}-mail-${index}`} value={email}>
+                {email}
+              </option>
+            ))}
+          </Select>
+          {selectedVendor?.mail.length === 0 ? (
+            <p className="mt-1 text-[11px] text-rust">{t.vendorHasNoEmails}</p>
           ) : null}
           <p className="mt-1 text-[11px] text-slate-lt">{t.vendorSelectionHint}</p>
         </div>

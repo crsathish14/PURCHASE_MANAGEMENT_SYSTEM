@@ -76,6 +76,9 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const { data, error } = await supabase.from("vendors").delete().eq("id", id).select("id").maybeSingle();
 
   if (error) {
+    if (error.code === "23503") {
+      return NextResponse.json({ error: { message: t.removeLinkedError } }, { status: 409 });
+    }
     console.error("[api/vendors/[id]:DELETE]", error);
     return NextResponse.json({ error: { message: t.removeError } }, { status: 500 });
   }

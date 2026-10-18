@@ -4,6 +4,7 @@ export type PurchaseOrderQuantityEditor = {
   quantities: Record<string, string>;
   sameAsQuoteQty: boolean;
   validationAttempted: boolean;
+  disabled?: boolean;
   onSameAsQuoteQtyChange: (checked: boolean) => void;
   onQuantityChange: (quotationItemId: string, value: string) => void;
 };

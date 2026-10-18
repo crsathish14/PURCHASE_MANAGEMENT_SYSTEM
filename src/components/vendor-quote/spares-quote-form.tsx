@@ -242,6 +242,7 @@ export function SparesQuoteForm({ token, detail }: SparesQuoteFormProps) {
                     <Input
                       type="text"
                       inputMode="decimal"
+                      required
                       error={errors.items?.[index]?.unitPrice?.message}
                       {...register(`items.${index}.unitPrice`)}
                     />

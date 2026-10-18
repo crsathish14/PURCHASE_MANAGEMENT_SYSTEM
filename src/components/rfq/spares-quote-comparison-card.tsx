@@ -166,6 +166,7 @@ export function SparesQuoteComparisonCard({
             <Checkbox
               id={`po-qty-same-${vendor.quotationId}`}
               checked={purchaseOrderEditor.sameAsQuoteQty}
+              disabled={purchaseOrderEditor.disabled}
               onChange={(event) => purchaseOrderEditor.onSameAsQuoteQtyChange(event.target.checked)}
             />
             <label htmlFor={`po-qty-same-${vendor.quotationId}`} className="text-xs font-semibold text-ink">
@@ -221,6 +222,7 @@ export function SparesQuoteComparisonCard({
                         min="0"
                         step="any"
                         required
+                        disabled={purchaseOrderEditor.disabled}
                         value={getNeededPoQty(purchaseOrderEditor, item)}
                         aria-label={tPo.neededPoQtyFor.replace("{item}", item.requestedDescription)}
                         error={

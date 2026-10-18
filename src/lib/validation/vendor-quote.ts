@@ -4,16 +4,10 @@ import en from "@/locales/en.json";
 
 const t = en.vendorQuote.storesForm.errors;
 
-// unitPrice/offeredImpaCode/deliveryLeadTime/remarks are all optional — a
-// vendor can leave a line item unpriced (see plans/development.md, "no
-// minimum-priced-item requirement"). offeredDescription is the one item field
-// that IS required (product decision) — a vendor must say what they're
-// actually offering against each requested line, even if they leave it
-// unpriced. unitPrice stays a plain string (the raw input value) rather than
-// z.number() since an empty string is exactly how "not priced" is
-// represented on the wire; the backend RPC re-derives/recalculates every
-// total from this and the PR's own Approved Qty regardless of what's sent
-// here.
+// Stores and Spares require a price for every line item. The remaining
+// optional item fields may still be left blank. unitPrice stays a plain
+// string (the raw input value) rather than z.number(), and the RPC re-derives
+// every total from it and the requisition's own Approved Qty.
 // A vendor-uploaded photo already uploaded to Storage via
 // /api/quote/[token]/photos/sign + uploadToSignedUrl — this object is just
 // the metadata the final submit persists, never raw file bytes.
@@ -30,9 +24,10 @@ export const vendorQuoteItemSchema = z.object({
   offeredImpaCode: z.string(),
   // Any number of decimal places — no rounding/truncation to 2dp, per the
   // confirmed spec (some vendors quote in fractional-cent unit prices).
-  unitPrice: z.string().refine((value) => value === "" || /^\d+(\.\d+)?$/.test(value), {
-    error: t.unitPriceInvalid,
-  }),
+  unitPrice: z
+    .string()
+    .min(1, { error: t.unitPriceRequired })
+    .regex(/^\d+(\.\d+)?$/, { error: t.unitPriceInvalid }),
   // Whole days only — matches the new "(In Days)" column header.
   deliveryLeadTime: z.string().refine((value) => value === "" || /^\d+$/.test(value), {
     error: t.deliveryLeadTimeInvalid,
@@ -78,9 +73,10 @@ export const sparesVendorQuoteItemSchema = z.object({
   offeredDescription: z.string().min(1, { error: tSpares.offeredDescriptionRequired }),
   offeredPartNo: z.string(),
   itemType: z.string(),
-  unitPrice: z.string().refine((value) => value === "" || /^\d+(\.\d+)?$/.test(value), {
-    error: tSpares.unitPriceInvalid,
-  }),
+  unitPrice: z
+    .string()
+    .min(1, { error: tSpares.unitPriceRequired })
+    .regex(/^\d+(\.\d+)?$/, { error: tSpares.unitPriceInvalid }),
   deliveryLeadTime: z.string().refine((value) => value === "" || /^\d+$/.test(value), {
     error: tSpares.deliveryLeadTimeInvalid,
   }),

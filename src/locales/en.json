@@ -158,6 +158,8 @@
       "searchPlaceholder": "Search PR ref, vendor, or quote ref",
       "columns": {
         "prRef": "PR Ref",
+        "requisitionNumber": "Requisition No.",
+        "title": "Title",
         "vessel": "Vessel",
         "vendor": "Vendor",
         "quoteRef": "Quote Ref",
@@ -166,7 +168,8 @@
         "status": "Status"
       },
       "statusLabels": {
-        "pending_po": "Pending PO"
+        "pending_po": "Pending PO",
+        "po_issued": "PO Issued"
       },
       "toolbar": {
         "searchPlaceholder": "Search PR ref, vendor, or quote ref",
@@ -202,11 +205,38 @@
       "invalidQuantity": "Enter a valid quantity of 0 or more.",
       "saveDraft": "Save",
       "issuePo": "Issue PO",
+      "poIssued": "PO Issued",
       "draftSaved": "Purchase Order draft saved.",
       "draftSaveError": "Couldn't save this Purchase Order draft.",
       "invalidDraft": "Enter a valid non-negative quantity for every item.",
       "draftNotFound": "Awarded quote not found.",
-      "draftConflict": "A draft can only be saved for an awarded quote.",
+      "draftConflict": "A draft can only be saved for an awarded requisition that has not issued a PO.",
+      "issueError": "Couldn't create the Purchase Order link.",
+      "issuedLinkLoadError": "Couldn't load the issued Purchase Order link.",
+      "issuedLinkNotFound": "The issued Purchase Order link wasn't found.",
+      "linkCopied": "Purchase Order link copied.",
+      "linkCopyError": "Couldn't copy the Purchase Order link.",
+      "copyUrl": "Copy URL",
+      "download": "Download",
+      "alreadyIssued": "A Purchase Order has already been issued for this requisition.",
+      "vendorEmailMissing": "The awarded quote has no vendor email address.",
+      "issueDialog": {
+        "title": "Issue Purchase Order",
+        "description": "Review the recipient and message before creating a permanent vendor link.",
+        "vendorName": "Vendor name",
+        "vendorEmail": "Vendor email",
+        "message": "Message",
+        "messageTemplate": "Dear {vendorName},\n\nPlease review the Purchase Order for {prNumber} using the link below. The form shows the agreed quantities and pricing.\n\nRegards,\nPurchase Department",
+        "createLink": "Create link",
+        "creatingLink": "Creating link…",
+        "cancel": "Cancel",
+        "resultTitle": "Purchase Order link created",
+        "resultDescription": "Copy the link and message to share the Purchase Order with the vendor. This link does not expire.",
+        "link": "Vendor link",
+        "copy": "Copy",
+        "copied": "Copied",
+        "done": "Done"
+      },
       "showing": "Showing {from}–{to} of {total}",
       "rowsPerPage": "Rows per page",
       "previous": "Previous page",
@@ -392,7 +422,8 @@
       "removeConfirm": "Remove vendor",
       "removeSubmitting": "Removing…",
       "removeSuccess": "Vendor removed.",
-      "removeError": "Couldn't remove this vendor. Try again."
+      "removeError": "Couldn't remove this vendor. Try again.",
+      "removeLinkedError": "This vendor is linked to an RFQ and cannot be removed."
     },
     "poRequests": {
       "title": "Purchase Requisition",
@@ -502,12 +533,16 @@
         "title": "Issue RFQ",
         "description": "Generate a unique quotation link for one vendor. Nothing is emailed automatically — you'll copy and send this yourself.",
         "vendorName": "Vendor name",
-        "vendorNamePlaceholder": "Type or select a vendor name",
+        "vendorNamePlaceholder": "Select a saved vendor",
         "vendorEmail": "Vendor email",
-        "vendorEmailPlaceholder": "Type or select a vendor email",
-        "vendorSelectionHint": "Select a saved vendor to see its email addresses. Both fields remain editable.",
+        "vendorEmailPlaceholder": "Select an email address",
+        "vendorSelectionHint": "Vendor details come from the saved vendor record. Choose an email address saved for that vendor.",
         "vendorListLoading": "Loading vendors…",
-        "vendorListError": "Couldn't load saved vendors. You can still enter the details manually.",
+        "vendorListError": "Couldn't load saved vendors. Try again before creating the link.",
+        "noVendors": "No saved vendors are available. Add a vendor in Settings first.",
+        "selectVendorFirst": "Select a vendor first",
+        "vendorHasNoEmails": "This vendor has no saved email addresses. Update the vendor in Settings first.",
+        "vendorSelectionInvalid": "The selected vendor or email is no longer available. Refresh the vendor details and try again.",
         "expiresAt": "Link expires on",
         "expiresAtDateLabel": "Expiry date",
         "expiresAtTimeLabel": "Expiry time",
@@ -528,7 +563,7 @@
         "copied": "Copied",
         "done": "Done",
         "errors": {
-          "vendorNameRequired": "Vendor name is required",
+          "vendorRequired": "Select a saved vendor",
           "vendorEmailRequired": "Vendor email is required",
           "vendorEmailInvalid": "Enter a valid email address",
           "expiresAtRequired": "Choose an expiry date and time",
@@ -543,14 +578,12 @@
           "vessel": "Vessel",
           "department": "Dept.",
           "category": "Category",
-          "description": "Item Count",
+          "title": "Title",
           "priority": "Priority",
           "requester": "Created By",
           "date": "Date",
           "status": "Status"
         },
-        "itemCountSingular": "{count} item",
-        "itemCountPlural": "{count} items",
         "statusLabels": {
           "pending_rfq": "Pending RFQ",
           "rfq_issued": "RFQ Issued",
@@ -681,6 +714,8 @@
           "submitting": "Reissuing…",
           "reissueError": "Couldn't reissue this RFQ link. Try again.",
           "reissueConflictError": "This RFQ link can no longer be reissued.",
+          "reissueDuplicateVendorError": "This vendor already has another RFQ link for this requisition.",
+          "vendorSelectionMismatch": "This RFQ link is tied to a different vendor. Reissue it for the same saved vendor.",
           "resultTitle": "New RFQ link ready"
         },
         "reissueWarningDialog": {
@@ -705,6 +740,7 @@
         "columns": {
           "ref": "PR Ref",
           "requisitionNumber": "Requisition No.",
+          "title": "Title",
           "vessel": "Vessel",
           "category": "Category",
           "quotes": "Quotes",
@@ -835,6 +871,7 @@
         "vendorNameRequired": "Vendor / Company name is required",
         "vendorEmailInvalid": "Enter a valid email address",
         "offeredDescriptionRequired": "Offered item description is required",
+        "unitPriceRequired": "Unit Price is required for every line item",
         "unitPriceInvalid": "Enter a valid amount",
         "deliveryLeadTimeInvalid": "Enter a whole number of days",
         "quotationValidityRequired": "Quotation validity is required",
@@ -922,6 +959,7 @@
         "vendorNameRequired": "Vendor / Company name is required",
         "vendorEmailInvalid": "Enter a valid email address",
         "offeredDescriptionRequired": "Offered item description is required",
+        "unitPriceRequired": "Unit Price is required for every line item",
         "unitPriceInvalid": "Enter a valid amount",
         "deliveryLeadTimeInvalid": "Enter a whole number of days",
         "quotationValidityRequired": "Quotation validity is required",
@@ -1010,5 +1048,27 @@
         "deliveryTermsRequired": "Delivery terms are required"
       }
     }
+  },
+  "vendorPurchaseOrder": {
+    "title": "Purchase Order",
+    "subtitle": "Review the quantities and prices for this order.",
+    "invalidTitle": "Purchase Order link unavailable",
+    "invalidDescription": "This link is invalid or the Purchase Order is no longer available.",
+    "prNumber": "PR reference",
+    "vendor": "Vendor",
+    "vendorEmail": "Email",
+    "vessel": "Vessel",
+    "issuedAt": "Issued",
+    "message": "Message",
+    "itemsTitle": "Order details",
+    "description": "Description",
+    "partNo": "Part No.",
+    "uom": "UOM",
+    "quantity": "Quantity",
+    "unitPrice": "Unit price",
+    "lineTotal": "Line total",
+    "grandTotal": "Purchase Order total",
+    "download": "Download",
+    "submit": "Submit PO"
   }
 }

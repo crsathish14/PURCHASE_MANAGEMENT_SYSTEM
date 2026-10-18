@@ -113,10 +113,9 @@ These files hold every value that would otherwise be a magic string:
   upload feature (e.g. PO documents) adds its own sibling prefix constant here, not a new bucket or a
   new table shape.
 
-- `src/lib/constants/purchase-order.ts` — `PURCHASE_ORDER_STATUS` (`PENDING_PO`), the page-level
-  status shown for awarded quotes while formal PO issuance is pending. This is distinct from the
-  requisition's terminal `PR_STATUS.AWARDED` value; saved PO drafts still display `PENDING_PO` because
-  issuing the PO is not implemented yet.
+- `src/lib/constants/purchase-order.ts` — `PURCHASE_ORDER_STATUS` (`PENDING_PO`, `PO_ISSUED`), the
+  page-level status for an awarded quote before and after the vendor PO link is created. This is
+  distinct from the requisition's terminal `PR_STATUS.AWARDED` value.
 
 ## 8. Client state (Zustand)
 
@@ -563,21 +562,23 @@ this feature — everything below is additive, sitting alongside it.
   recomputing after the first render. `stores-quote-form.tsx`'s row-total/grand-total calculation
   is deliberately a plain (unmemoized) computation for exactly this reason.
 - **Delivery Lead Time is digits-only** (`vendorQuoteItemSchema.deliveryLeadTime` in
-  `src/lib/validation/vendor-quote.ts`, `/^\d+$/`, same optional-if-empty shape every other item field
-  already has) and its column header reads "Delivery Lead Time (In Days)" — product decision, since the
-  field is always a whole number of days. **Approved Qty's vendor-facing header was separately renamed
-  to "Qty"** — display-only, `en.vendorQuote.storesForm.itemDetails.columns.approvedQty`, NOT
-  `presetColumnsCopy.approvedQty` (`en.staff.poRequests.createDialog.columns.approvedQty`), which stays
+  `src/lib/validation/vendor-quote.ts`, `/^\d+$/`, and optional-if-empty like the other optional
+  Stores/Spares item fields) and its column header reads "Delivery Lead Time (In Days)" — product
+  decision, since the field is always a whole number of days. **Approved Qty's vendor-facing header
+  was separately renamed to "Qty"** — display-only,
+  `en.vendorQuote.storesForm.itemDetails.columns.approvedQty`, NOT `presetColumnsCopy.approvedQty`
+  (`en.staff.poRequests.createDialog.columns.approvedQty`), which stays
   `"Approved Qty"` unchanged since `stores-quote-form.tsx`'s own `APPROVED_QTY_LABEL` uses that exact
   string to look up the line item's value by label match against the DB-stored column — renaming it
   would have silently broken that lookup. Both `stores-quote-comparison-card.tsx` (§18) and the vendor
   form read the same renamed header key, so both updated from one locale edit.
 - **Unit Price accepts any number of decimal places** (`vendorQuoteItemSchema.unitPrice`,
   `/^\d+(\.\d+)?$/` — was `/^\d+(\.\d{1,2})?$/`, a 2dp cap) — product decision, some vendors quote
-  fractional-cent unit prices. Note this is purely an input-acceptance change: `total_price`/
-  `unit_price` are still stored as `numeric(14,2)` (`purchase_requisition_rfq_quotation_items`), so a
-  more-than-2dp value is still rounded at the DB boundary — only the *validation* was ever rejecting
-  it outright before this change.
+  fractional-cent unit prices. It is required on every Stores and Spares line item, enforced by both
+  the shared client/API schema and a database trigger; Service's Lump Sum remains optional.
+  Fractional-cent acceptance affects input validation only: `total_price`/`unit_price` are still stored
+  as `numeric(14,2)` (`purchase_requisition_rfq_quotation_items`), so a more-than-2dp value is rounded
+  at the DB boundary.
 - **Vendor-attached photos per line item** — a new column, `t.itemDetails.columns.vendorPhotos`
   ("Attach Photos"), after Remarks in `stores-quote-form.tsx`'s item table, genuinely distinct from the
   existing read-only Photos column (the office's own reference photos for that item, untouched). Backed
@@ -691,6 +692,14 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
   a warning — fetch-on-mount-via-effect has no precedent anywhere else in this codebase, and the
   fetch-before-open pattern already established for `CreateRequisitionDialog` sidesteps the rule
   entirely by triggering the fetch from an event handler instead.
+- **Issue RFQ vendor identity** (`src/components/purchase-requisition/issue-rfq-dialog.tsx`) — staff
+  select a saved vendor by `vendors.id`; the displayed vendor name is sourced from that row, and the
+  email control only offers addresses in that vendor's saved `mail` array. The request sends the
+  vendor id and selected email, and the RPC rechecks that the email belongs to the id before writing
+  `purchase_requisition_rfq_links.vendor_id` plus name/email snapshots. Existing links are backfilled
+  only when their exact saved name/email pair uniquely identifies one vendor; an unmatched legacy
+  link remains nullable and asks for a saved vendor selection on reissue. The vendor foreign key
+  restricts removal of a vendor already referenced by an RFQ.
 - **Reissue** (`reissue_rfq_link`, `20260911040000_reissue_rfq_link_rpc.sql`, corrected by
   `20260911050000_fix_reissue_rfq_link_ambiguous_id.sql`) — one atomic RPC, not two separate
   actions: expires the vendor's current link (`expires_at = now()`, only ever moving it earlier) and
@@ -708,9 +717,8 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
   `20260911030000_pr_rfq_progress_distinct_vendors.sql`, `create or replace view`, column
   names/types unchanged so nothing downstream needed to change) — necessary once reissue can create a
   second link row for the same vendor, or "X of Y" would inflate by one on every reissue. Grouping is
-  by `vendor_email` (not `vendor_name`, which can vary run to run for the same real vendor — confirmed
-  against live data where this had already silently happened before this fix: one PR's `vendor_count`
-  dropped from 9 raw link rows to 2 real distinct vendors once corrected). `first_issued_at` stays
+  by `vendor_id` where available, with email as the fallback for unmatched historical links
+  (`vendor_name` can vary run to run for the same real vendor). `first_issued_at` stays
   correct across a reissue for a subtler reason: expiring a link only changes `expires_at`, never
   `created_at`, so `min(created_at)` across a vendor's old-and-new links is still the true first-ever
   invite date. A reissue changes none of `pr_rfq_progress`'s output for its PR — same `vendor_email`
@@ -873,9 +881,13 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
   value," which also naturally covers the (shouldn't-happen-but-defensive) case of the column being
   entirely absent from a line item.
 - **Requisition No. is its own table column**, no longer stacked as a smaller secondary line under the
-  PR ref — in both `pr-table.tsx` (`t.columns.requisitionNumber`) and `rfq-table.tsx`
-  (`t.table.columns.requisitionNumber`). Same `row.requisitionNumber` data both tables already had; this
-  was a display-only layout change (each cell simply moved into its own `<th>`/`<td>`, `"—"` when null).
+  PR ref — in `pr-table.tsx` (`t.columns.requisitionNumber`) and `rfq-table.tsx`
+  (`t.table.columns.requisitionNumber`); Purchase Orders also displays it alongside PR Ref.
+- **All three staff list tables show the PR Title.** Migration
+  `20261017020000_add_pr_title_to_list_rpcs.sql` appends `pr_title` to `pr_requisition_list` and the
+  Purchase Requisition, Requested Quote, and Purchase Order search RPCs return it for each row. The
+  Purchase Requisition table uses this column in place of Item Count; count copy and rendering are
+  removed from that UI. Purchase Orders continues to show PR Ref as well as Requisition No.
 - **Requested Quote table gained a Category column** (`rfq-table.tsx`, `t.table.columns.category`,
   positioned right after Vessel — same relative placement `pr-table.tsx`'s own Category column
   already uses) — previously called out as a deferred/optional enhancement when the Spares/Service
@@ -1061,14 +1073,15 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
     skipped), rather than fetching photos and then hiding them. A repo-wide `grep` for `Image` inside
     `src/lib/rfq-quote-pdf/` should always return nothing.
 
-## 19. Purchase Orders (awarded quote and saved draft)
+## 19. Purchase Orders (awarded quote, saved draft, and issued vendor link)
 
-The Purchase Orders page currently lists the selected vendor quote for each awarded requisition; it
-stores a PO draft when staff saves from the quote detail modal. The list fields remain PR reference,
-vessel, vendor, quote reference, quoted total, and quote submission date, plus the page-level `Pending
-PO` status (`PURCHASE_ORDER_STATUS.PENDING_PO`). Drafts are stored in `purchase_order_drafts` and
-`purchase_order_draft_items`; the status is still derived by `search_purchase_orders`, and `Issue PO`
-is disabled until a formal PO issuance workflow is implemented.
+The Purchase Orders page lists the selected vendor quote for each awarded requisition; staff can save
+a PO draft and issue one permanent token link from the quote detail modal. The list fields are PR
+reference, requisition number, PR title, vessel, vendor, quote reference, quoted total, and quote
+submission date, plus a page-level status (`PURCHASE_ORDER_STATUS.PENDING_PO` or `PO_ISSUED`).
+`search_purchase_orders` derives that status from whether `purchase_order_issuances` contains the
+requisition. Drafts remain in
+`purchase_order_drafts` and `purchase_order_draft_items`.
 
 For Stores and Spares, the detail modal lets staff edit a needed PO quantity per quote line. The
 “Needed PO qty is same as the qty” checkbox copies the awarded quote quantities into those fields;
@@ -1084,8 +1097,22 @@ sends the current search/filter/page state to the API; it does not filter or sli
 Selecting a row fetches the awarded quote and any saved draft through the existing RFQ quote
 comparison API, then opens the same comparison view with only the winning vendor's quote card. Saving
 uses `PUT /api/purchase-orders/[id]/draft`, authenticated by `requireApiActiveUser()` and persisted
-through the `save_purchase_order_draft` security-definer RPC. The RPC verifies the requisition is
-awarded and quantities belong to its awarded quote; same-as-quote values are copied server-side.
+through the `save_purchase_order_draft` security-definer RPC. Issuing uses
+`POST /api/purchase-orders/[id]/issue`, also authenticated by `requireApiActiveUser()`; the
+`issue_purchase_order` RPC validates and saves the current draft quantities, snapshots its awarded
+quote's prices and line descriptions into `purchase_order_issuances` plus
+`purchase_order_issuance_items`, and returns a unique token. One issuance is allowed per requisition.
+An update trigger on `purchase_order_drafts` prevents the saved quantities from changing afterward.
+There is no expiry or submission state: the token remains valid and opens the read-only vendor PO
+page at `/[lang]/purchase-order/[token]`. Its public lookup uses the `get_purchase_order_by_token`
+security-definer RPC; the saved snapshot ensures the vendor sees the exact quantities and recalculated
+line totals that staff issued. The issue dialog pre-fills the awarded vendor name/email and an editable
+message template; it returns a copyable link and message for staff to share (the app does not send
+email). After issue, quantity edits and draft saves are disabled for that row, and the detail modal
+replaces Save/Issue with Copy URL and a disabled Download action. Staff retrieve the saved URL through
+the authenticated `get_purchase_order_issue_token` RPC, which keeps the token unavailable through
+direct table reads. The vendor page displays disabled Submit PO and Download actions until those
+workflows are implemented.
 
 ## 20. Keeping this file current
 
