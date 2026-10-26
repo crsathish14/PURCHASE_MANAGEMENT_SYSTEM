@@ -5,5 +5,5 @@ import { sanitizeFilenameSegment } from "@/lib/format";
 // the Excel export's two independently-hand-typed filename templates
 // technically could.
 export function buildRfqQuotePdfFilename(prNumber: string, vendorName: string): string {
-  return `RFQ-${sanitizeFilenameSegment(prNumber)}-${sanitizeFilenameSegment(vendorName)}-Quote.pdf`;
+  return `${sanitizeFilenameSegment(prNumber)}-RFQ-${sanitizeFilenameSegment(vendorName)}.pdf`;
 }

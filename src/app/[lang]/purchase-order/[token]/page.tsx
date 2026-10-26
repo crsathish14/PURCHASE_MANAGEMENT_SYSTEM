@@ -11,5 +11,5 @@ export const metadata: Metadata = {
 export default async function VendorPurchaseOrderPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const detail = await getPurchaseOrderByToken(token);
-  return <PurchaseOrderForm detail={detail} />;
+  return <PurchaseOrderForm detail={detail} token={token} />;
 }

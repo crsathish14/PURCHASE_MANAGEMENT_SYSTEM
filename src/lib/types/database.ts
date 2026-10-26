@@ -99,16 +99,25 @@ export type Database = {
           id: string;
           name: string;
           imo_no: string;
+          master_owners: string;
+          company_name: string;
+          address: string;
           created_at: string;
         };
         Insert: {
           id?: string;
           name: string;
           imo_no: string;
+          master_owners?: string;
+          company_name?: string;
+          address?: string;
         };
         Update: {
           name?: string;
           imo_no?: string;
+          master_owners?: string;
+          company_name?: string;
+          address?: string;
         };
         Relationships: [];
       };
@@ -705,7 +714,12 @@ export type Database = {
           vendor_name: string;
           vendor_email: string;
           message: string;
+          invoice_to_company_name: string;
+          invoice_to_address: string;
           issued_at: string;
+          proforma_invoice_path: string | null;
+          proforma_invoice_file_name: string | null;
+          proforma_received_at: string | null;
         };
         Insert: {
           id?: string;
@@ -715,7 +729,12 @@ export type Database = {
           vendor_name: string;
           vendor_email: string;
           message: string;
+          invoice_to_company_name?: string;
+          invoice_to_address?: string;
           issued_at?: string;
+          proforma_invoice_path?: string | null;
+          proforma_invoice_file_name?: string | null;
+          proforma_received_at?: string | null;
         };
         Update: never;
         Relationships: [
@@ -804,8 +823,22 @@ export type Database = {
     };
     Functions: {
       add_vessel: {
-        Args: { p_name: string; p_imo_no: string };
-        Returns: { id: string; name: string; imo_no: string; created_at: string }[];
+        Args: {
+          p_name: string;
+          p_imo_no: string;
+          p_master_owners: string;
+          p_company_name: string;
+          p_address: string;
+        };
+        Returns: {
+          id: string;
+          name: string;
+          imo_no: string;
+          master_owners: string;
+          company_name: string;
+          address: string;
+          created_at: string;
+        }[];
       };
       create_purchase_requisition: {
         Args: {
@@ -871,12 +904,23 @@ export type Database = {
         Returns: string;
       };
       issue_purchase_order: {
-        Args: { p_requisition_id: string; p_items: Json; p_same_as_quote_qty: boolean; p_message: string };
+        Args: {
+          p_requisition_id: string;
+          p_items: Json;
+          p_same_as_quote_qty: boolean;
+          p_message: string;
+          p_invoice_to_company_name: string;
+          p_invoice_to_address: string;
+        };
         Returns: string;
       };
       get_purchase_order_issue_token: {
         Args: { p_requisition_id: string };
         Returns: string;
+      };
+      submit_purchase_order_proforma: {
+        Args: { p_token: string; p_storage_path: string; p_file_name: string };
+        Returns: boolean;
       };
       get_purchase_order_by_token: {
         Args: { p_token: string };
@@ -888,6 +932,40 @@ export type Database = {
           vendor_name: string;
           vendor_email: string;
           message: string;
+          issued_at: string;
+          items: Json;
+        }[];
+      };
+      get_purchase_order_for_export: {
+        Args: { p_requisition_id: string };
+        Returns: {
+          requisition_id: string;
+          vendor_name: string;
+          vendor_email: string;
+          invoice_to_company_name: string;
+          invoice_to_address: string;
+          issued_at: string;
+          items: Json;
+        }[];
+      };
+      get_purchase_order_pdf_by_token: {
+        Args: { p_token: string };
+        Returns: {
+          requisition_id: string;
+          pr_number: string;
+          requisition_title: string | null;
+          category: string;
+          vessel_name: string | null;
+          vessel_imo_no: string | null;
+          vessel_master_owners: string | null;
+          issued_vendor_name: string;
+          issued_vendor_email: string;
+          vendor_contact_person: string | null;
+          quotation_no: string | null;
+          ref_no: string | null;
+          payment_terms: string;
+          invoice_to_company_name: string;
+          invoice_to_address: string;
           issued_at: string;
           items: Json;
         }[];

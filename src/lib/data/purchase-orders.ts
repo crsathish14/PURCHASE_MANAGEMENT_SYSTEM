@@ -59,11 +59,15 @@ export async function issuePurchaseOrder({
   items,
   sameAsQuoteQty,
   message,
+  invoiceCompanyName,
+  invoiceAddress,
 }: {
   requisitionId: string;
   items: PurchaseOrderDraftItemInput[];
   sameAsQuoteQty: boolean;
   message: string;
+  invoiceCompanyName: string;
+  invoiceAddress: string;
 }): Promise<string> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("issue_purchase_order", {
@@ -74,6 +78,8 @@ export async function issuePurchaseOrder({
     })),
     p_same_as_quote_qty: sameAsQuoteQty,
     p_message: message,
+    p_invoice_to_company_name: invoiceCompanyName,
+    p_invoice_to_address: invoiceAddress,
   });
 
   if (error) throw error;
@@ -111,6 +117,38 @@ export type PurchaseOrderVendorDetail = {
   items: PurchaseOrderVendorItem[];
 };
 
+export type PurchaseOrderPdfTokenItem = {
+  description: string;
+  impaCode: string | null;
+  partNo: string | null;
+  quantity: number | null;
+  unit: string | null;
+  unitPrice: number | null;
+  totalPrice: number;
+  leadTime: string | null;
+  remarks: string | null;
+};
+
+export type PurchaseOrderPdfTokenDetail = {
+  requisitionId: string;
+  prNumber: string;
+  requisitionTitle: string | null;
+  category: string;
+  vesselName: string | null;
+  vesselImoNo: string | null;
+  vesselMasterOwners: string | null;
+  issuedVendorName: string;
+  issuedVendorEmail: string;
+  vendorContactPerson: string | null;
+  quotationNo: string | null;
+  refNo: string | null;
+  paymentTerms: string;
+  invoiceCompanyName: string;
+  invoiceAddress: string;
+  issuedAt: string;
+  items: PurchaseOrderPdfTokenItem[];
+};
+
 export async function getPurchaseOrderByToken(token: string): Promise<PurchaseOrderVendorDetail | null> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("get_purchase_order_by_token", { p_token: token }).maybeSingle();
@@ -127,6 +165,70 @@ export async function getPurchaseOrderByToken(token: string): Promise<PurchaseOr
     vendorName: data.vendor_name,
     vendorEmail: data.vendor_email,
     message: data.message,
+    issuedAt: data.issued_at,
+    items: rawItems.map((item) => item as PurchaseOrderVendorItem),
+  };
+}
+
+export async function getPurchaseOrderPdfByToken(token: string): Promise<PurchaseOrderPdfTokenDetail | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .rpc("get_purchase_order_pdf_by_token", { p_token: token })
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  const rawItems = Array.isArray(data.items) ? (data.items as Json[]) : [];
+  return {
+    requisitionId: data.requisition_id,
+    prNumber: data.pr_number,
+    requisitionTitle: data.requisition_title,
+    category: data.category,
+    vesselName: data.vessel_name,
+    vesselImoNo: data.vessel_imo_no,
+    vesselMasterOwners: data.vessel_master_owners,
+    issuedVendorName: data.issued_vendor_name,
+    issuedVendorEmail: data.issued_vendor_email,
+    vendorContactPerson: data.vendor_contact_person,
+    quotationNo: data.quotation_no,
+    refNo: data.ref_no,
+    paymentTerms: data.payment_terms,
+    invoiceCompanyName: data.invoice_to_company_name,
+    invoiceAddress: data.invoice_to_address,
+    issuedAt: data.issued_at,
+    items: rawItems.map((item) => item as unknown as PurchaseOrderPdfTokenItem),
+  };
+}
+
+export type PurchaseOrderExportSnapshot = {
+  requisitionId: string;
+  vendorName: string;
+  vendorEmail: string;
+  invoiceCompanyName: string;
+  invoiceAddress: string;
+  issuedAt: string;
+  items: PurchaseOrderVendorItem[];
+};
+
+export async function getPurchaseOrderForExport(
+  requisitionId: string,
+): Promise<PurchaseOrderExportSnapshot | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .rpc("get_purchase_order_for_export", { p_requisition_id: requisitionId })
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  const rawItems = Array.isArray(data.items) ? (data.items as Json[]) : [];
+  return {
+    requisitionId: data.requisition_id,
+    vendorName: data.vendor_name,
+    vendorEmail: data.vendor_email,
+    invoiceCompanyName: data.invoice_to_company_name,
+    invoiceAddress: data.invoice_to_address,
     issuedAt: data.issued_at,
     items: rawItems.map((item) => item as PurchaseOrderVendorItem),
   };

@@ -10,6 +10,7 @@ import type { PrDropdownField } from "@/lib/data/purchase-requisition";
 import type { PurchaseOrderListRow } from "@/lib/data/purchase-orders";
 import type { QuoteComparisonData } from "@/lib/data/rfq-quote-comparison";
 import { formatCurrencyUsd } from "@/lib/format-currency";
+import { buildPurchaseOrderPdfFilename } from "@/lib/purchase-order-pdf/filename";
 import { toast } from "@/store/toast-store";
 import {
   isValidNeededPoQty,
@@ -24,12 +25,17 @@ const t = en.staff.purchaseOrders;
 const STATUS_TONE: Record<PurchaseOrderStatus, BadgeTone> = {
   [PURCHASE_ORDER_STATUS.PENDING_PO]: "amber",
   [PURCHASE_ORDER_STATUS.PO_ISSUED]: "moss",
+  [PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED]: "teal",
 };
 const STATUS_OPTIONS = Object.values(PURCHASE_ORDER_STATUS).map((value) => ({
   value,
   label: t.statusLabels[value],
 }));
 const dateFormatter = new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" });
+
+function isIssuedStatus(status: PurchaseOrderStatus | undefined): boolean {
+  return status === PURCHASE_ORDER_STATUS.PO_ISSUED || status === PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED;
+}
 
 type ListParams = {
   page: number;
@@ -65,6 +71,7 @@ export function PurchaseOrdersView({
   const [sameAsQuoteQty, setSameAsQuoteQty] = useState(true);
   const [validationAttempted, setValidationAttempted] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
+  const [downloadingPoPdf, setDownloadingPoPdf] = useState(false);
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
   const [issuedLink, setIssuedLink] = useState<string | null>(null);
   const [issuedRequisitionIds, setIssuedRequisitionIds] = useState<Set<string>>(() => new Set());
@@ -257,7 +264,7 @@ export function PurchaseOrdersView({
   async function handleSaveDraft() {
     const vendor = quoteDetail?.vendors[0];
     const row = rows.find((item) => item.id === quoteDetail?.requisitionId);
-    if (!quoteDetail || !vendor || row?.status === PURCHASE_ORDER_STATUS.PO_ISSUED) return;
+    if (!quoteDetail || !vendor || isIssuedStatus(row?.status)) return;
 
     const hasQuantityFields =
       quoteDetail.category === PR_CATEGORY.STORES || quoteDetail.category === PR_CATEGORY.SPARES;
@@ -321,12 +328,44 @@ export function PurchaseOrdersView({
     }
   }
 
+  async function handleDownloadPurchaseOrderPdf() {
+    if (!quoteDetail) return;
+
+    setDownloadingPoPdf(true);
+    try {
+      const response = await fetch(`/api/purchase-orders/${quoteDetail.requisitionId}/export`);
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        toast.error(payload?.error?.message ?? t.downloadPdfError);
+        return;
+      }
+
+      const disposition = response.headers.get("Content-Disposition") ?? "";
+      const filenameMatch = disposition.match(/filename="([^"]+)"/);
+      const filename = filenameMatch?.[1] ?? buildPurchaseOrderPdfFilename(quoteDetail.prNumber);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error(t.downloadPdfError);
+    } finally {
+      setDownloadingPoPdf(false);
+    }
+  }
+
   const hasQuantityFields =
     quoteDetail?.category === PR_CATEGORY.STORES || quoteDetail?.category === PR_CATEGORY.SPARES;
   const selectedRow = rows.find((row) => row.id === quoteDetail?.requisitionId);
   const isIssued =
     Boolean(quoteDetail && issuedRequisitionIds.has(quoteDetail.requisitionId)) ||
-    selectedRow?.status === PURCHASE_ORDER_STATUS.PO_ISSUED;
+    isIssuedStatus(selectedRow?.status);
+  const proformaReceived = selectedRow?.status === PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED;
   const purchaseOrderEditor: PurchaseOrderQuantityEditor | undefined = hasQuantityFields
     ? {
         quantities: neededPoQuantities,
@@ -425,7 +464,22 @@ export function PurchaseOrdersView({
                         {dateFormatter.format(new Date(row.quoteSubmittedAt))}
                       </td>
                       <td className="px-4 py-3">
-                        <Badge tone={STATUS_TONE[row.status]}>{t.statusLabels[row.status]}</Badge>
+                        <div className="flex items-center gap-2 whitespace-nowrap">
+                          <Badge tone={STATUS_TONE[row.status]}>{t.statusLabels[row.status]}</Badge>
+                          {row.status === PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED ? (
+                            <a
+                              href={`/api/purchase-orders/${row.id}/proforma`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(event) => event.stopPropagation()}
+                              onKeyDown={(event) => event.stopPropagation()}
+                              aria-label={`${t.viewProforma} ${row.prNumber}`}
+                              className="rounded-md border border-line bg-paper px-2.5 py-1.5 text-xs font-bold text-harbor transition-colors hover:bg-mist focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-harbor"
+                            >
+                              {t.viewProforma}
+                            </a>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -460,10 +514,18 @@ export function PurchaseOrdersView({
           quoteDetail ? (
             isIssued ? (
               <>
-                <Button type="button" onClick={() => void handleCopyIssuedLink()} disabled={!issuedLink}>
-                  {t.copyUrl}
-                </Button>
-                <Button type="button" variant="secondary" disabled>
+                {!proformaReceived ? (
+                  <Button type="button" onClick={() => void handleCopyIssuedLink()} disabled={!issuedLink}>
+                    {t.copyUrl}
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={downloadingPoPdf}
+                  loading={downloadingPoPdf}
+                  onClick={() => void handleDownloadPurchaseOrderPdf()}
+                >
                   {t.download}
                 </Button>
               </>
@@ -488,6 +550,11 @@ export function PurchaseOrdersView({
           requisitionId={quoteDetail.requisitionId}
           prNumber={quoteDetail.prNumber}
           category={quoteDetail.category}
+          vesselName={quoteDetail.vesselLabel}
+          vesselImoNo={quoteDetail.vesselImoNo}
+          vesselMasterOwners={quoteDetail.vesselMasterOwners}
+          vesselCompanyName={quoteDetail.vesselCompanyName}
+          vesselAddress={quoteDetail.vesselAddress}
           vendor={quoteDetail.vendors[0]}
           quantities={neededPoQuantities}
           sameAsQuoteQty={sameAsQuoteQty}

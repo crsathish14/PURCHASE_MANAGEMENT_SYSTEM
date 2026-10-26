@@ -84,10 +84,14 @@ export type QuoteComparisonData = {
   // after creation — see create_purchase_requisition's own guard), shared by
   // every vendor quoted against it — so this lives here, not per-vendor.
   category: string | null;
+  title: string | null;
   prNumber: string;
   requisitionNumber: string | null;
   vesselLabel: string | null;
   vesselImoNo: string | null;
+  vesselMasterOwners: string | null;
+  vesselCompanyName: string | null;
+  vesselAddress: string | null;
   requisitionDate: string | null;
   requiredPort: string | null;
   requiredDate: string | null;
@@ -138,7 +142,7 @@ export async function getRfqQuoteComparison(
       .from("purchase_requisitions")
       .select(
         `
-        requisition_date, required_port, requested_by, awarded_rfq_link_id,
+        title, requisition_date, required_port, requested_by, awarded_rfq_link_id,
         equipment_name, equipment_type, equipment_make, equipment_serial_no,
         equipment_model, equipment_specifications, equipment_other_details
         `,
@@ -161,14 +165,20 @@ export async function getRfqQuoteComparison(
   // done as a plain query here instead of embedded SQL since this is a
   // one-off staff read, not a security-definer RPC.
   let vesselImoNo: string | null = null;
+  let vesselMasterOwners: string | null = null;
+  let vesselCompanyName: string | null = null;
+  let vesselAddress: string | null = null;
   if (listRow.vessel_label) {
     const { data: vesselRow, error: vesselError } = await supabase
       .from("vessels")
-      .select("imo_no")
+      .select("imo_no, master_owners, company_name, address")
       .eq("name", listRow.vessel_label)
       .maybeSingle();
     if (vesselError) throw vesselError;
     vesselImoNo = vesselRow?.imo_no ?? null;
+    vesselMasterOwners = vesselRow?.master_owners ?? null;
+    vesselCompanyName = vesselRow?.company_name ?? null;
+    vesselAddress = vesselRow?.address ?? null;
   }
 
   const { data: quotationRows, error: quotationsError } =
@@ -371,10 +381,14 @@ export async function getRfqQuoteComparison(
   return {
     requisitionId,
     category: listRow.category_value,
+    title: prRow.title,
     prNumber: listRow.pr_number,
     requisitionNumber: listRow.requisition_number,
     vesselLabel: listRow.vessel_label,
     vesselImoNo,
+    vesselMasterOwners,
+    vesselCompanyName,
+    vesselAddress,
     requisitionDate: prRow.requisition_date,
     requiredPort: prRow.required_port,
     requiredDate: prRow.requested_by,

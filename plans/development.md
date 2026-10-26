@@ -46,8 +46,9 @@ automatic — no `dark:` variants needed. Canonical source: `Design-docs/design-
 - `src/components/<feature>/` — everything else, grouped by feature area: `auth/` (login,
   request-access, change-password forms + shared icons), `staff/` (sidebar, topbar, shell,
   nav-items), `team-access/` (the Team & Access page's view/table/member-dialog — the latter
-  handles both inviting a person and resetting a person's password via a `mode` prop), and
-  `vendors/` (the vendor directory/settings view, table, and shared add/edit dialog).
+  handles both inviting a person and resetting a person's password via a `mode` prop), `vendors/`
+  (the vendor directory/settings view, table, and shared add/edit dialog), and `vessels/` (the vessel
+  directory's card list and add/edit details dialog).
 - Settings pages share `src/components/settings/subnav.tsx`; keep its links in sync with the
   admin-only Team & Access, Vessel, and Vendor pages.
 - `src/app/[lang]/**` holds **only** pages and layouts — no component logic lives there. If a new
@@ -113,9 +114,10 @@ These files hold every value that would otherwise be a magic string:
   upload feature (e.g. PO documents) adds its own sibling prefix constant here, not a new bucket or a
   new table shape.
 
-- `src/lib/constants/purchase-order.ts` — `PURCHASE_ORDER_STATUS` (`PENDING_PO`, `PO_ISSUED`), the
-  page-level status for an awarded quote before and after the vendor PO link is created. This is
-  distinct from the requisition's terminal `PR_STATUS.AWARDED` value.
+- `src/lib/constants/purchase-order.ts` — `PURCHASE_ORDER_STATUS` (`PENDING_PO`, `PO_ISSUED`,
+  `PROFORMA_RECEIVED`), the page-level status for an awarded quote before issuance, after issuance,
+  and after the vendor submits a proforma invoice. This is distinct from the requisition's terminal
+  `PR_STATUS.AWARDED` value.
 
 ## 8. Client state (Zustand)
 
@@ -149,6 +151,10 @@ for loading, Client Component + `unstable_retry` for error).
 - Schema lives in `supabase/migrations/*.sql` — `profiles` table (`admin`/`officer` roles,
   `pending`/`active`/`disabled` status, `must_change_password` flag), RLS (select-own + admin-all,
   admin-update, no client-side self-update/insert/delete), a `storage.attachments` bucket policy.
+- Vessel master data lives in `public.vessels`. Its name remains synchronized with the generic
+  `pr_dropdown_field_options` vessel option through the `add_vessel()` RPC; the settings card edits
+  only master/owners, company name, and address so existing requisitions keep their vessel value.
+  Address text is stored and rendered with its entered line breaks and spacing.
 - **File/image uploads** go through one shared pattern: a private Storage bucket (`attachments`,
   with `storage.buckets.file_size_limit`/`allowed_mime_types` set per-feature — see
   `20260823190000_storage_attachments_policies.sql`), `storage.objects` RLS policies scoped to
@@ -1047,17 +1053,16 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
     directly against a 30-line-item Spares render spanning 4 pages). No repeated table header past page
     1 is an accepted v1 simplification (react-pdf's `fixed` prop is for absolutely-positioned content,
     not a natural repeating header).
-  - **Header copy** lives as a new `pdfHeader: {companyName, documentTitle}` key inside each of
-    `storesForm`/`sparesForm`/`serviceForm` in `en.json` (`"MYSEA SHIPPING"` duplicated 3x rather than
-    hoisted — deliberate, since §6 requires no hardcoded strings in JSX and each category's PDF template
-    only ever imports its own one namespace). The Word forms' own fill-in instruction line ("Please
+  - **Header copy** keeps each category's `documentTitle` in its own `pdfHeader` namespace. The company
+    name is shared from `en.common.companyName` so a future company-name change is made once for every
+    PDF. The Word forms' own fill-in instruction line ("Please
     complete all applicable fields...") is omitted — it's guidance for a *blank* form, and this PDF
     represents an already-completed quote. Store's document title, `"REQUEST FOR QUOTATION — STORE"`
     (singular), has no source Word doc to verify against (only Service's and Spares' were provided) —
     built instead from the already-shipped `StoresQuoteComparisonCard`'s own field list/copy (itself
     already proven to match the real Store paper form) plus this app's own existing "Store" (not
     "Stores") copy convention, e.g. `poRequests.createDialog.downloadStoreTemplate`.
-  - **Filename**: `RFQ-{prNumber}-{vendorName}-Quote.pdf`, built by
+  - **Filename**: `{prNumber}-RFQ-{vendorName}.pdf`, built by
     `src/lib/rfq-quote-pdf/filename.ts`'s `buildRfqQuotePdfFilename()`, which calls a new generic
     `sanitizeFilenameSegment()` in `src/lib/format.ts` (alongside the existing `getInitials` — no
     filename sanitizer existed anywhere in the repo before this; the one other filename this app builds,
@@ -1078,9 +1083,9 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
 The Purchase Orders page lists the selected vendor quote for each awarded requisition; staff can save
 a PO draft and issue one permanent token link from the quote detail modal. The list fields are PR
 reference, requisition number, PR title, vessel, vendor, quote reference, quoted total, and quote
-submission date, plus a page-level status (`PURCHASE_ORDER_STATUS.PENDING_PO` or `PO_ISSUED`).
-`search_purchase_orders` derives that status from whether `purchase_order_issuances` contains the
-requisition. Drafts remain in
+submission date, plus a page-level status (`PENDING_PO`, `PO_ISSUED`, or `PROFORMA_RECEIVED`).
+`search_purchase_orders` derives it from whether `purchase_order_issuances` exists and whether its
+`proforma_received_at` is set. Drafts remain in
 `purchase_order_drafts` and `purchase_order_draft_items`.
 
 For Stores and Spares, the detail modal lets staff edit a needed PO quantity per quote line. The
@@ -1103,16 +1108,47 @@ through the `save_purchase_order_draft` security-definer RPC. Issuing uses
 quote's prices and line descriptions into `purchase_order_issuances` plus
 `purchase_order_issuance_items`, and returns a unique token. One issuance is allowed per requisition.
 An update trigger on `purchase_order_drafts` prevents the saved quantities from changing afterward.
-There is no expiry or submission state: the token remains valid and opens the read-only vendor PO
-page at `/[lang]/purchase-order/[token]`. Its public lookup uses the `get_purchase_order_by_token`
-security-definer RPC; the saved snapshot ensures the vendor sees the exact quantities and recalculated
-line totals that staff issued. The issue dialog pre-fills the awarded vendor name/email and an editable
-message template; it returns a copyable link and message for staff to share (the app does not send
-email). After issue, quantity edits and draft saves are disabled for that row, and the detail modal
-replaces Save/Issue with Copy URL and a disabled Download action. Staff retrieve the saved URL through
-the authenticated `get_purchase_order_issue_token` RPC, which keeps the token unavailable through
-direct table reads. The vendor page displays disabled Submit PO and Download actions until those
-workflows are implemented.
+The token opens the read-only vendor PO page at `/[lang]/purchase-order/[token]`. Its public lookup
+uses the `get_purchase_order_by_token` security-definer RPC; the saved snapshot ensures the vendor
+sees the exact quantities and recalculated line totals that staff issued. The issue dialog pre-fills
+the awarded vendor name/email and an editable message template; it returns a copyable link and message
+for staff to share (the app does not send email). After issue, quantity edits and draft saves are
+disabled for that row, and the detail modal replaces Save/Issue with Copy URL and Download; the
+category-specific Purchase Order PDF is available for Stores, Spares, and Service.
+Staff retrieve the saved URL through the authenticated `get_purchase_order_issue_token` RPC, which
+keeps the token unavailable through direct table reads.
+
+The vendor uploads one PDF proforma invoice (up to the shared bucket's 5 MB limit) through
+`/api/purchase-order/[token]/proforma/sign`, which revalidates the token before minting a signed upload
+URL. The vendor page's Download button uses `GET /api/purchase-order/[token]/export` to download the
+same category-specific PO PDF as staff. Its token-only `get_purchase_order_pdf_by_token` RPC returns
+only the fields needed for the PDF while the token is valid, for Stores, Spares, and Service. The
+submit route verifies the token-scoped Storage object and PDF header, then calls the
+`submit_purchase_order_proforma` RPC. That RPC atomically saves the Storage path, original filename,
+and `proforma_received_at`; future token lookups and staff token retrieval return no link. On success,
+the vendor is routed to `/[lang]/purchase-order/thank-you`. The Purchase Orders list then shows
+`PROFORMA_RECEIVED` with a “View Proforma” action beside the status. The action opens the PDF
+in a new tab through `GET /api/purchase-orders/[id]/proforma`, which requires an active staff
+session and streams the private Storage file inline with a filename of
+`{prNumber}-proforma-invoice.pdf`.
+
+The issued PO PDFs are served by `GET /api/purchase-orders/[id]/export`, authenticated with
+`requireApiActiveUser()`. They combine the awarded quote's supplier terms and line-level lead time and
+remarks with the immutable issuance snapshot's quantities, prices, and issue date. The category-specific
+item tables show IMPA Code for Stores, Part / Plate No. for Spares, and Description of Service for
+Service. Service quantity is absent from the app's data model and renders as a dash. The A4 landscape
+PDFs use the Mysea Shipping logo from `public/mysea-shipping-logo.jpeg`, the shared company name in
+`en.common.companyName`, a PO number placeholder, a dynamic page count, and the Invoice To block plus
+invoicing and other instructions from the category reference forms. Invoice Dispatch To is omitted. Before issue,
+the modal shows vessel name, IMO, and the vessel API's `masterOwners` recipient text; it pre-fills
+editable Invoice To company and address fields from that same record (falling back to
+`en.common.companyName` for an empty company).
+The issue RPC snapshots those values with the PO link; the authenticated export RPC reads that snapshot
+even after the vendor submits a proforma invoice. The PDF uses the vessel API's `masterOwners` value
+after the `TO MASTER AND OWNERS OF` label, plus the vessel IMO.
+Rev. No. and Code No. are not shown, and line-item Lead Time is centered. The quote form has no separate
+supplier address field, so the PDF leaves Supplier Address as a placeholder.
+The download filename is `{prNumber}-Purchase-Order.pdf`.
 
 ## 20. Keeping this file current
 

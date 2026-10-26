@@ -14,6 +14,7 @@ export const ROUTES = {
   RFQ_LIST: `/${defaultLocale}/rfq-list`,
   PURCHASE_ORDERS: `/${defaultLocale}/purchase-orders`,
   PURCHASE_ORDER_FORM: `/${defaultLocale}/purchase-order`,
+  PURCHASE_ORDER_THANK_YOU: `/${defaultLocale}/purchase-order/thank-you`,
   INVOICE_LOG: `/${defaultLocale}/invoice-log`,
   DELIVERY_NOTES: `/${defaultLocale}/delivery-notes`,
   VENDORS: `/${defaultLocale}/vendors`,

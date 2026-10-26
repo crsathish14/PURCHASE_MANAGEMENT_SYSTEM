@@ -17,6 +17,8 @@ const issueSchema = z.object({
     }),
   ),
   message: z.string().trim().min(1).max(10000),
+  invoiceCompanyName: z.string().trim().min(1).max(200),
+  invoiceAddress: z.string().max(2000),
 });
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -51,7 +53,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const parsed = issueSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: { message: t.invalidDraft } }, { status: 400 });
+    return NextResponse.json({ error: { message: t.invalidIssueDetails } }, { status: 400 });
   }
 
   try {
@@ -60,6 +62,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       items: parsed.data.items,
       sameAsQuoteQty: parsed.data.sameAsQuoteQty,
       message: parsed.data.message,
+      invoiceCompanyName: parsed.data.invoiceCompanyName,
+      invoiceAddress: parsed.data.invoiceAddress,
     });
     const link = `${env.NEXT_PUBLIC_SITE_URL}${purchaseOrderFormPath(token)}`;
     return NextResponse.json({
@@ -77,7 +81,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: { message: t.alreadyIssued } }, { status: 409 });
     }
     if (["23514", "22P02"].includes(code ?? "")) {
-      return NextResponse.json({ error: { message: t.invalidDraft } }, { status: 400 });
+      return NextResponse.json({ error: { message: t.invalidIssueDetails } }, { status: 400 });
     }
 
     console.error("[api/purchase-orders/[id]/issue:POST]", error);

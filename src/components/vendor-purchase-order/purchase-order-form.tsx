@@ -1,5 +1,5 @@
 import en from "@/locales/en.json";
-import { Button } from "@/components/atoms";
+import { ProformaInvoiceSubmission } from "@/components/vendor-purchase-order/proforma-invoice-submission";
 import type { PurchaseOrderVendorDetail } from "@/lib/data/purchase-orders";
 import { formatCurrencyUsd } from "@/lib/format-currency";
 
@@ -12,7 +12,7 @@ function displayValue(value: string | null): string {
   return value?.trim() || "—";
 }
 
-export function PurchaseOrderForm({ detail }: { detail: PurchaseOrderVendorDetail | null }) {
+export function PurchaseOrderForm({ detail, token }: { detail: PurchaseOrderVendorDetail | null; token: string }) {
   if (!detail) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-mist px-5 py-10">
@@ -112,14 +112,7 @@ export function PurchaseOrderForm({ detail }: { detail: PurchaseOrderVendorDetai
             </div>
           </section>
 
-          <div className="flex justify-end gap-2.5">
-            <Button type="button" variant="secondary" disabled>
-              {t.download}
-            </Button>
-            <Button type="button" disabled>
-              {t.submit}
-            </Button>
-          </div>
+          <ProformaInvoiceSubmission token={token} />
         </div>
       </main>
     </div>

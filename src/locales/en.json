@@ -1,6 +1,7 @@
 {
   "common": {
     "appName": "Purchase Management System",
+    "companyName": "MYSEA SHIPPING",
     "imagePreview": {
       "close": "Close preview",
       "previous": "Previous photo",
@@ -147,7 +148,7 @@
       "logout": "Log out",
       "menu": "Open menu"
     },
-    "footer": "Fleet Procurement Co. · v1.0",
+    "footer": "MYSEA SHIPPING · v1.0",
     "dashboard": {
       "title": "Dashboard",
       "subtitle": "Feature work starts from here — this area will show live KPIs once the procurement modules are built."
@@ -169,7 +170,8 @@
       },
       "statusLabels": {
         "pending_po": "Pending PO",
-        "po_issued": "PO Issued"
+        "po_issued": "PO Issued",
+        "proforma_received": "Proforma Received"
       },
       "toolbar": {
         "searchPlaceholder": "Search PR ref, vendor, or quote ref",
@@ -209,11 +211,19 @@
       "draftSaved": "Purchase Order draft saved.",
       "draftSaveError": "Couldn't save this Purchase Order draft.",
       "invalidDraft": "Enter a valid non-negative quantity for every item.",
+      "invalidIssueDetails": "Check the company name, address, message, and quantities before issuing this Purchase Order.",
       "draftNotFound": "Awarded quote not found.",
       "draftConflict": "A draft can only be saved for an awarded requisition that has not issued a PO.",
       "issueError": "Couldn't create the Purchase Order link.",
       "issuedLinkLoadError": "Couldn't load the issued Purchase Order link.",
       "issuedLinkNotFound": "The issued Purchase Order link wasn't found.",
+      "viewProforma": "View Proforma",
+      "proformaViewError": "Couldn't open this proforma invoice. Try again.",
+      "proformaViewNotFound": "The submitted proforma invoice wasn't found.",
+      "downloadPdfError": "Couldn't download this Purchase Order PDF.",
+      "downloadPdfNotFound": "The issued Purchase Order could not be found.",
+      "downloadPdfNotIssued": "Issue this Purchase Order before downloading its PDF.",
+      "downloadPdfUnsupportedCategory": "Purchase Order PDF download is not available for this category.",
       "linkCopied": "Purchase Order link copied.",
       "linkCopyError": "Couldn't copy the Purchase Order link.",
       "copyUrl": "Copy URL",
@@ -223,6 +233,15 @@
       "issueDialog": {
         "title": "Issue Purchase Order",
         "description": "Review the recipient and message before creating a permanent vendor link.",
+        "purchaseOrderTo": "Purchase Order to",
+        "vesselName": "Vessel name",
+        "imoNumber": "IMO number",
+        "masterAndOwnersOf": "TO MASTER AND OWNERS OF",
+        "invoiceCompanyName": "Company name",
+        "invoiceCompanyNamePlaceholder": "Enter company name",
+        "invoiceCompanyNameRequired": "Enter a company name to issue this Purchase Order.",
+        "invoiceAddress": "Address",
+        "invoiceAddressPlaceholder": "Enter address",
         "vendorName": "Vendor name",
         "vendorEmail": "Vendor email",
         "message": "Message",
@@ -336,23 +355,33 @@
       "breadcrumbSettings": "Settings",
       "breadcrumbCurrent": "Vessel",
       "addVessel": "Add vessel",
-      "columns": {
-        "name": "Name",
-        "imoNo": "IMO No"
-      },
       "empty": "No vessels yet.",
+      "emptyValue": "Not provided",
+      "editDetails": "Edit details",
       "loadError": "Couldn't load vessels.",
       "addFormTitle": "Add vessel",
       "addFormDescription": "It becomes available in the Create Requisition vessel dropdown immediately.",
+      "editFormTitle": "Edit vessel details",
+      "editFormDescription": "Update the master, owners, company, and address details for this vessel.",
       "name": "Vessel name",
       "namePlaceholder": "e.g. MV Aster",
       "imoNo": "IMO No",
       "imoNoPlaceholder": "e.g. 9876543",
+      "masterOwners": "Master and owners",
+      "masterOwnersPlaceholder": "Enter the master and owners",
+      "companyName": "Company name",
+      "companyNamePlaceholder": "Enter the company name",
+      "address": "Address",
+      "addressPlaceholder": "Enter the address, using line breaks as needed",
       "addSubmit": "Add vessel",
       "addSubmitting": "Adding…",
       "addCancel": "Cancel",
       "addSuccess": "Vessel added.",
       "addError": "Couldn't add this vessel. Try again.",
+      "updateSubmit": "Save details",
+      "updateSubmitting": "Saving…",
+      "updateSuccess": "Vessel details saved.",
+      "updateError": "Couldn't save these vessel details. Try again.",
       "addErrors": {
         "nameRequired": "Vessel name is required",
         "imoNoRequired": "IMO No is required",
@@ -804,7 +833,6 @@
     "expiredDescription": "This link has expired. Contact the purchase officer for a new one.",
     "storesForm": {
       "pdfHeader": {
-        "companyName": "MYSEA SHIPPING",
         "documentTitle": "STORE QUOTATION"
       },
       "rfqDetails": {
@@ -881,7 +909,6 @@
     },
     "sparesForm": {
       "pdfHeader": {
-        "companyName": "MYSEA SHIPPING",
         "documentTitle": "SPARE QUOTATION"
       },
       "rfqDetails": {
@@ -969,7 +996,6 @@
     },
     "serviceForm": {
       "pdfHeader": {
-        "companyName": "MYSEA SHIPPING",
         "documentTitle": "SERVICE QUOTATION"
       },
       "rfqDetails": {
@@ -1051,7 +1077,7 @@
   },
   "vendorPurchaseOrder": {
     "title": "Purchase Order",
-    "subtitle": "Review the quantities and prices for this order.",
+    "subtitle": "Review the quantities and prices for this order, then submit your proforma invoice.",
     "invalidTitle": "Purchase Order link unavailable",
     "invalidDescription": "This link is invalid or the Purchase Order is no longer available.",
     "prNumber": "PR reference",
@@ -1069,6 +1095,105 @@
     "lineTotal": "Line total",
     "grandTotal": "Purchase Order total",
     "download": "Download",
-    "submit": "Submit PO"
+    "proformaTitle": "Proforma invoice",
+    "proformaDescription": "Upload one PDF file. The maximum file size is 5 MB.",
+    "dropPdf": "Drag and drop one PDF here",
+    "choosePdf": "Choose PDF",
+    "uploadingPdf": "Uploading PDF...",
+    "deletePdf": "Delete proforma invoice",
+    "deletingPdf": "Deleting proforma invoice...",
+    "deleteError": "Could not delete the PDF. Try again.",
+    "downloadingPdf": "Downloading Purchase Order...",
+    "downloadPdfError": "Could not download the Purchase Order PDF. Try again.",
+    "pdfOnlyError": "Choose a PDF file.",
+    "pdfSizeError": "The PDF must be 5 MB or smaller.",
+    "invalidPdfError": "This file does not appear to be a valid PDF.",
+    "uploadError": "Could not upload the PDF. Try again.",
+    "uploadRequired": "Upload a proforma invoice before submitting.",
+    "submitError": "Could not submit the proforma invoice. Try again.",
+    "linkExpired": "This Purchase Order link has expired or is no longer available.",
+    "thankYouTitle": "Thank you",
+    "thankYouDescription": "Your proforma invoice has been submitted successfully.",
+    "thankYouLinkExpired": "This Purchase Order link can no longer be used.",
+    "submit": "Submit Proforma Invoice"
+  },
+  "purchaseOrderPdf": {
+    "documentTitle": "LETTER OF PURCHASE ORDER",
+    "formNumber": "FORM NO. FO/P/013",
+    "poNumber": "PO No.",
+    "date": "Date",
+    "page": "Page {page} of {total}",
+    "placeholder": "________________",
+    "supplierDetails": "Supplier Details",
+    "supplierName": "Supplier Name",
+    "picName": "PIC Name",
+    "supplierAddress": "Supplier Address",
+    "emailAddress": "Email Address",
+    "orderDetails": "Purchase Order Details",
+    "supplierReference": "Supplier Ref. No.",
+    "poDate": "PO Date",
+    "totalAmount": "Total Amount",
+    "vessel": "Vessel",
+    "imoNumber": "IMO No.",
+    "currency": "Currency",
+    "ourRequestNumber": "Our Req. No.",
+    "paymentTerms": "Payment Terms",
+    "deliveryTime": "Delivery Time",
+    "poDescription": "PO Description",
+    "poDescriptionFallback": "Purchase Order",
+    "categories": {
+      "stores": {
+        "itemsTitle": "Stores Ordered",
+        "description": "Description of Stores"
+      },
+      "spares": {
+        "itemsTitle": "Spares Ordered",
+        "description": "Description of Spares"
+      },
+      "service": {
+        "itemsTitle": "Services Ordered",
+        "description": "Description of Service"
+      }
+    },
+    "columns": {
+      "slNo": "S. No.",
+      "impaCode": "IMPA Code",
+      "partNo": "Part / Plate No.",
+      "quantity": "Qty",
+      "unit": "Unit",
+      "unitPrice": "Unit Price",
+      "lineTotal": "Total Amount",
+      "leadTime": "Lead Time",
+      "remarks": "Remarks"
+    },
+    "grandTotal": "Purchase Order Total",
+    "invoiceToTitle": "Invoice To:",
+    "masterAndOwnersOf": "TO MASTER AND OWNERS OF {masterOwners}",
+    "invoiceCompanyName": "Company name",
+    "invoiceAddress": "Address",
+    "invoicingInstructionsTitle": "Invoicing Instructions",
+    "invoicingInstructions": [
+      "Attach a copy of this PO to the invoice. Include the ship's captain's signed, stamped, and dated acknowledgement in the delivery note.",
+      "Include complete bank account and remittance details, including the SWIFT code, on the invoice to support timely remittance.",
+      "Supply superior-quality items as quoted to IMPA marine standards, supported by the manufacturer's guarantee.",
+      "All items are subject to approval and acceptance by the ship's master.",
+      "Include the asbestos-free certificate with the invoice.",
+      "Invoice only to the address indicated in the invoicing details.",
+      "Attach a copy of this PO and the goods delivery receipt to the invoice."
+    ],
+    "otherInstructionsTitle": "Other Instructions",
+    "otherInstructions": [
+      "Our company supports environmentally safe, biodegradable products. We encourage reduce, reuse, minimise, and recycle. Packaging materials must be environmentally sound and recyclable.",
+      "The vessel will return packing crates, delivery containers, and dunnage to you. Please collect them after delivery for reuse or recycling.",
+      "Where applicable, include the MSDS or test certificate with the goods supplied.",
+      "General-use detergents and soaps must be phosphate-free.",
+      "Attach manufacturer or class-approved certificates for applicable items to the delivery note.",
+      "Do not supply asbestos or asbestos-based material.",
+      "Subcontracted services are entirely at the vendor's risk.",
+      "The vendor is fully liable for any loss to the vessel, owners, or managers resulting from a subcontractor's negligence or wilful misconduct.",
+      "Provide class or maker certificates for lifting equipment, including wires, ropes, slings, shackles, chain blocks, and eyebolts.",
+      "Minimise additional costs. Endeavour to supply during normal working hours and avoid overtime.",
+      "As agents only for and on behalf of: {companyName}."
+    ]
   }
 }
