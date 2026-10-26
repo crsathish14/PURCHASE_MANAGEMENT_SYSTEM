@@ -328,6 +328,7 @@ export function RfqLinksDialog({
         onClose={() => setReissueTarget(null)}
         requisitionId={requisitionId}
         linkId={reissueTarget?.id ?? ""}
+        vendorId={reissueTarget?.vendorId ?? null}
         vendorName={reissueTarget?.vendorName ?? ""}
         vendorEmail={reissueTarget?.vendorEmail ?? ""}
         onReissued={() => {

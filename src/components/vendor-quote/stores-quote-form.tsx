@@ -248,6 +248,7 @@ export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
                     <Input
                       type="text"
                       inputMode="decimal"
+                      required
                       error={errors.items?.[index]?.unitPrice?.message}
                       {...register(`items.${index}.unitPrice`)}
                     />

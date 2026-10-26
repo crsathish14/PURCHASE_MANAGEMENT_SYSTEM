@@ -36,6 +36,7 @@ export async function getRfqLinkByToken(token: string): Promise<RfqLinkLookup | 
 
 export type RfqLinkRow = {
   id: string;
+  vendorId: string | null;
   vendorName: string;
   vendorEmail: string;
   issuedAt: string;
@@ -75,7 +76,7 @@ export async function getRfqLinksForRequisition(requisitionId: string): Promise<
   ] = await Promise.all([
     supabase
       .from("purchase_requisition_rfq_links")
-      .select("id, vendor_name, vendor_email, access_token, expires_at, submitted_at, created_at")
+      .select("id, vendor_id, vendor_name, vendor_email, access_token, expires_at, submitted_at, created_at")
       .eq("requisition_id", requisitionId)
       .order("created_at", { ascending: true }),
     supabase
@@ -144,6 +145,7 @@ export async function getRfqLinksForRequisition(requisitionId: string): Promise<
 
     return {
       id: row.id,
+      vendorId: row.vendor_id,
       vendorName: row.vendor_name,
       vendorEmail: row.vendor_email,
       issuedAt: row.created_at,

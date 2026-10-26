@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, Copy } from "lucide-react";
 
-import { Button, Dialog, Input, Label, Textarea } from "@/components/atoms";
+import { Button, Dialog, Input, Label, Select, Textarea } from "@/components/atoms";
 import en from "@/locales/en.json";
+import type { Vendor } from "@/lib/data/vendors";
 import { todayDateString } from "@/lib/validation/purchase-requisition";
 import { issueRfqLinkSchema, type IssueRfqLinkInput } from "@/lib/validation/rfq-link";
 import { toast } from "@/store/toast-store";
@@ -36,6 +37,7 @@ export type ReissueRfqDialogProps = {
   onClose: () => void;
   requisitionId: string;
   linkId: string;
+  vendorId: string | null;
   vendorName: string;
   vendorEmail: string;
   onReissued: () => void;
@@ -51,6 +53,7 @@ export function ReissueRfqDialog({
   onClose,
   requisitionId,
   linkId,
+  vendorId,
   vendorName,
   vendorEmail,
   onReissued,
@@ -60,6 +63,8 @@ export function ReissueRfqDialog({
   const [copied, setCopied] = useState<"link" | "message" | null>(null);
   const [expiresAtDate, setExpiresAtDate] = useState("");
   const [expiresAtTime, setExpiresAtTime] = useState("");
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [vendorLookupStatus, setVendorLookupStatus] = useState<"idle" | "loading" | "error">("idle");
 
   const {
     register,
@@ -71,16 +76,58 @@ export function ReissueRfqDialog({
   } = useForm<IssueRfqLinkInput>({
     resolver: zodResolver(issueRfqLinkSchema),
     mode: "onBlur",
-    defaultValues: { vendorName, vendorEmail, expiresAt: "", message: issueT.messageDefault },
+    defaultValues: { vendorId: vendorId ?? "", vendorEmail, expiresAt: "", message: issueT.messageDefault },
   });
 
-  const [watchedVendorName, watchedVendorEmail, expiresAt, message] = watch([
-    "vendorName",
+  useEffect(() => {
+    if (!open) return;
+
+    let active = true;
+    async function loadVendors() {
+      setVendorLookupStatus("loading");
+      try {
+        const response = await fetch("/api/vendors");
+        const payload = (await response.json()) as { data?: Vendor[] };
+        if (!response.ok) throw new Error("Vendor lookup failed");
+
+        if (active) {
+          const savedVendors = Array.isArray(payload.data) ? payload.data : [];
+          setVendors(savedVendors);
+          setVendorLookupStatus("idle");
+
+          if (vendorId) {
+            const savedVendor = savedVendors.find((vendor) => vendor.id === vendorId);
+            if (savedVendor && !savedVendor.mail.includes(vendorEmail)) {
+              setValue("vendorEmail", "", { shouldValidate: true });
+            }
+          }
+        }
+      } catch {
+        if (active) setVendorLookupStatus("error");
+      }
+    }
+
+    void loadVendors();
+    return () => {
+      active = false;
+    };
+  }, [open, vendorEmail, vendorId, setValue]);
+
+  const [selectedVendorId, watchedVendorEmail, expiresAt, message] = watch([
+    "vendorId",
     "vendorEmail",
     "expiresAt",
     "message",
   ]);
-  const requiredFieldsFilled = Boolean(watchedVendorName && watchedVendorEmail && expiresAt && message);
+  const selectedVendor = vendors.find((vendor) => vendor.id === selectedVendorId) ?? null;
+  const displayedVendorName = selectedVendor?.name ?? vendorName;
+  const requiredFieldsFilled = Boolean(
+    selectedVendor &&
+      watchedVendorEmail &&
+      selectedVendor.mail.includes(watchedVendorEmail) &&
+      expiresAt &&
+      message,
+  );
   const hasErrors = Object.keys(errors).length > 0;
 
   function updateExpiresAtDate(date: string) {
@@ -100,7 +147,7 @@ export function ReissueRfqDialog({
     setCopied(null);
     setExpiresAtDate("");
     setExpiresAtTime("");
-    reset({ vendorName, vendorEmail, expiresAt: "", message: issueT.messageDefault });
+    reset({ vendorId: vendorId ?? "", vendorEmail, expiresAt: "", message: issueT.messageDefault });
   }
 
   async function copyToClipboard(value: string, which: "link" | "message") {
@@ -191,7 +238,7 @@ export function ReissueRfqDialog({
     <Dialog
       open={open}
       onClose={close}
-      title={`${t.title} — ${vendorName}`}
+      title={`${t.title} — ${displayedVendorName}`}
       footer={
         <div className="flex justify-end gap-2.5">
           <Button type="button" variant="secondary" onClick={close}>
@@ -213,29 +260,61 @@ export function ReissueRfqDialog({
 
       <form id="reissue-rfq-link-form" onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="mb-4">
-          <Label htmlFor="reissue-vendor-name" error={!!errors.vendorName}>
+          <Label htmlFor="reissue-vendor-id" error={!!errors.vendorId}>
             {issueT.vendorName}
           </Label>
-          <Input
-            id="reissue-vendor-name"
-            type="text"
-            placeholder={issueT.vendorNamePlaceholder}
-            error={errors.vendorName?.message}
-            {...register("vendorName")}
-          />
+          {vendorId ? (
+            <>
+              <Input id="reissue-vendor-id" readOnly value={displayedVendorName} />
+              <input type="hidden" {...register("vendorId")} />
+            </>
+          ) : (
+            <Select
+              id="reissue-vendor-id"
+              error={errors.vendorId?.message}
+              disabled={vendorLookupStatus !== "idle" || vendors.length === 0}
+              {...register("vendorId", {
+                onChange: () => setValue("vendorEmail", "", { shouldDirty: true, shouldValidate: true }),
+              })}
+            >
+              <option value="">{issueT.vendorNamePlaceholder}</option>
+              {vendors.map((vendor) => (
+                <option key={vendor.id} value={vendor.id}>
+                  {vendor.name}
+                </option>
+              ))}
+            </Select>
+          )}
+          {vendorLookupStatus === "loading" ? (
+            <p className="mt-1 text-[11px] text-slate-lt">{issueT.vendorListLoading}</p>
+          ) : vendorLookupStatus === "error" ? (
+            <p className="mt-1 text-[11px] text-slate-lt">{issueT.vendorListError}</p>
+          ) : !vendorId && vendors.length === 0 ? (
+            <p className="mt-1 text-[11px] text-slate-lt">{issueT.noVendors}</p>
+          ) : null}
         </div>
 
         <div className="mb-4">
           <Label htmlFor="reissue-vendor-email" error={!!errors.vendorEmail}>
             {issueT.vendorEmail}
           </Label>
-          <Input
+          <Select
             id="reissue-vendor-email"
-            type="email"
-            placeholder={issueT.vendorEmailPlaceholder}
             error={errors.vendorEmail?.message}
+            disabled={!selectedVendor || selectedVendor.mail.length === 0}
             {...register("vendorEmail")}
-          />
+          >
+            <option value="">{selectedVendor ? issueT.vendorEmailPlaceholder : issueT.selectVendorFirst}</option>
+            {selectedVendor?.mail.map((email, index) => (
+              <option key={`${selectedVendor.id}-mail-${index}`} value={email}>
+                {email}
+              </option>
+            ))}
+          </Select>
+          {selectedVendor?.mail.length === 0 ? (
+            <p className="mt-1 text-[11px] text-rust">{issueT.vendorHasNoEmails}</p>
+          ) : null}
+          <p className="mt-1 text-[11px] text-slate-lt">{issueT.vendorSelectionHint}</p>
         </div>
 
         <div className="mb-4">

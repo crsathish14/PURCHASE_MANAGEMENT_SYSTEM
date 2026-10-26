@@ -6,6 +6,7 @@ export type RequestedQuoteListRow = {
   id: string;
   prNumber: string;
   requisitionNumber: string | null;
+  title: string | null;
   vesselLabel: string | null;
   categoryLabel: string | null;
   vendorCount: number;
@@ -64,6 +65,7 @@ export async function getRequestedQuotes({
     id: row.id,
     prNumber: row.pr_number,
     requisitionNumber: row.requisition_number,
+    title: row.pr_title,
     vesselLabel: row.vessel_label,
     categoryLabel: row.category_label,
     vendorCount: row.vendor_count,

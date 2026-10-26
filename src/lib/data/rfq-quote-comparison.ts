@@ -37,7 +37,9 @@ type VendorPhotoRow = Pick<
 >;
 
 export type QuoteComparisonLineItem = {
+  quotationItemId: string;
   lineItemId: string;
+  neededPoQty: string | null;
   requestedDescription: string;
   requestedImpaCode: string | null;
   requestedPartNo: string | null;
@@ -82,10 +84,14 @@ export type QuoteComparisonData = {
   // after creation — see create_purchase_requisition's own guard), shared by
   // every vendor quoted against it — so this lives here, not per-vendor.
   category: string | null;
+  title: string | null;
   prNumber: string;
   requisitionNumber: string | null;
   vesselLabel: string | null;
   vesselImoNo: string | null;
+  vesselMasterOwners: string | null;
+  vesselCompanyName: string | null;
+  vesselAddress: string | null;
   requisitionDate: string | null;
   requiredPort: string | null;
   requiredDate: string | null;
@@ -103,6 +109,7 @@ export type QuoteComparisonData = {
   // award. See RfqLinkRow.isAwarded (src/lib/data/rfq-links.ts) for the same
   // flag on the vendor management dialog's own side.
   awardedLinkId: string | null;
+  purchaseOrderDraft: { id: string; sameAsQuoteQty: boolean } | null;
   vendors: QuoteComparisonVendor[];
 };
 
@@ -115,6 +122,7 @@ export type QuoteComparisonData = {
 // caller selected them — reissue_rfq_link hard-deletes the old link and
 // cascades away its quotation), vendors[] is simply shorter than linkIds —
 // the caller decides how to render that gap, not this function.
+// An empty linkIds list resolves to the requisition's awarded quote.
 export async function getRfqQuoteComparison(
   requisitionId: string,
   linkIds: string[],
@@ -134,7 +142,7 @@ export async function getRfqQuoteComparison(
       .from("purchase_requisitions")
       .select(
         `
-        requisition_date, required_port, requested_by, awarded_rfq_link_id,
+        title, requisition_date, required_port, requested_by, awarded_rfq_link_id,
         equipment_name, equipment_type, equipment_make, equipment_serial_no,
         equipment_model, equipment_specifications, equipment_other_details
         `,
@@ -147,43 +155,83 @@ export async function getRfqQuoteComparison(
   if (prRowError) throw prRowError;
   if (!listRow || !prRow) return null;
 
+  // An empty selection is used by Purchase Orders to request only the
+  // requisition's awarded quote.
+  const requestedLinkIds =
+    linkIds.length > 0 ? linkIds : prRow.awarded_rfq_link_id ? [prRow.awarded_rfq_link_id] : [];
+
   // Same vessel-option-label -> vessels.name relationship
   // get_rfq_quote_details_by_token and add_vessel() already establish —
   // done as a plain query here instead of embedded SQL since this is a
   // one-off staff read, not a security-definer RPC.
   let vesselImoNo: string | null = null;
+  let vesselMasterOwners: string | null = null;
+  let vesselCompanyName: string | null = null;
+  let vesselAddress: string | null = null;
   if (listRow.vessel_label) {
     const { data: vesselRow, error: vesselError } = await supabase
       .from("vessels")
-      .select("imo_no")
+      .select("imo_no, master_owners, company_name, address")
       .eq("name", listRow.vessel_label)
       .maybeSingle();
     if (vesselError) throw vesselError;
     vesselImoNo = vesselRow?.imo_no ?? null;
+    vesselMasterOwners = vesselRow?.master_owners ?? null;
+    vesselCompanyName = vesselRow?.company_name ?? null;
+    vesselAddress = vesselRow?.address ?? null;
   }
 
-  const { data: quotationRows, error: quotationsError } = await supabase
-    .from("purchase_requisition_rfq_quotations")
-    .select(
-      `
-      id, rfq_link_id, quotation_no, ref_no, vendor_name, vendor_contact_person, vendor_contact_no,
-      vendor_email, vendor_other_details, quotation_validity, payment_terms, delivery_terms,
-      remarks_notes, total_quoted_amount, created_at
-      `,
-    )
-    .eq("requisition_id", requisitionId)
-    .in("rfq_link_id", linkIds);
+  const { data: quotationRows, error: quotationsError } =
+    requestedLinkIds.length > 0
+      ? await supabase
+          .from("purchase_requisition_rfq_quotations")
+          .select(
+            `
+            id, rfq_link_id, quotation_no, ref_no, vendor_name, vendor_contact_person, vendor_contact_no,
+            vendor_email, vendor_other_details, quotation_validity, payment_terms, delivery_terms,
+            remarks_notes, total_quoted_amount, created_at
+            `,
+          )
+          .eq("requisition_id", requisitionId)
+          .in("rfq_link_id", requestedLinkIds)
+      : { data: [], error: null };
 
   if (quotationsError) throw quotationsError;
 
   // .in() doesn't preserve input order — re-sort so the caller's selection
   // order becomes the left-to-right column order on the page.
   const quotationsByLinkId = new Map((quotationRows ?? []).map((row) => [row.rfq_link_id, row]));
-  const orderedQuotations = linkIds
+  const orderedQuotations = requestedLinkIds
     .map((linkId) => quotationsByLinkId.get(linkId))
     .filter((row): row is NonNullable<typeof row> => row !== undefined);
 
   const quotationIds = orderedQuotations.map((row) => row.id);
+
+  // Purchase Orders calls this read without explicit linkIds, which means it
+  // is scoped to the awarded quote. Compare Quotes supplies linkIds and stays
+  // read-only, without loading PO draft state.
+  let purchaseOrderDraft: QuoteComparisonData["purchaseOrderDraft"] = null;
+  let neededPoQtyByQuotationItemId = new Map<string, string>();
+  if (linkIds.length === 0 && quotationIds[0]) {
+    const { data: draftRow, error: draftError } = await supabase
+      .from("purchase_order_drafts")
+      .select("id, quotation_id, same_as_quote_qty")
+      .eq("requisition_id", requisitionId)
+      .maybeSingle();
+    if (draftError) throw draftError;
+
+    if (draftRow?.quotation_id === quotationIds[0]) {
+      purchaseOrderDraft = { id: draftRow.id, sameAsQuoteQty: draftRow.same_as_quote_qty };
+      const { data: draftItemRows, error: draftItemsError } = await supabase
+        .from("purchase_order_draft_items")
+        .select("quotation_item_id, needed_po_qty")
+        .eq("draft_id", draftRow.id);
+      if (draftItemsError) throw draftItemsError;
+      neededPoQtyByQuotationItemId = new Map(
+        (draftItemRows ?? []).map((row) => [row.quotation_item_id, String(row.needed_po_qty)]),
+      );
+    }
+  }
 
   let itemRows: QuotationItemRow[] = [];
   if (quotationIds.length > 0) {
@@ -307,7 +355,9 @@ export async function getRfqQuoteComparison(
     totalQuotedAmount: quotation.total_quoted_amount,
     submittedAt: quotation.created_at,
     lineItems: (itemsByQuotationId.get(quotation.id) ?? []).map((item) => ({
+      quotationItemId: item.id,
       lineItemId: item.line_item_id,
+      neededPoQty: neededPoQtyByQuotationItemId.get(item.id) ?? null,
       requestedDescription: item.requested_description,
       requestedImpaCode: item.requested_impa_code,
       requestedPartNo: item.requested_part_no,
@@ -331,10 +381,14 @@ export async function getRfqQuoteComparison(
   return {
     requisitionId,
     category: listRow.category_value,
+    title: prRow.title,
     prNumber: listRow.pr_number,
     requisitionNumber: listRow.requisition_number,
     vesselLabel: listRow.vessel_label,
     vesselImoNo,
+    vesselMasterOwners,
+    vesselCompanyName,
+    vesselAddress,
     requisitionDate: prRow.requisition_date,
     requiredPort: prRow.required_port,
     requiredDate: prRow.requested_by,
@@ -346,6 +400,7 @@ export async function getRfqQuoteComparison(
     equipmentSpecifications: prRow.equipment_specifications,
     equipmentOtherDetails: prRow.equipment_other_details,
     awardedLinkId: prRow.awarded_rfq_link_id,
+    purchaseOrderDraft,
     vendors,
   };
 }

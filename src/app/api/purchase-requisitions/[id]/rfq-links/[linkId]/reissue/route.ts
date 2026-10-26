@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { issueRfqLinkSchema } from "@/lib/validation/rfq-link";
 
 const t = en.staff.requestedQuote.linksDialog.reissueDialog;
+const issueT = en.staff.poRequests.issueRfqDialog;
 // issueRfqLinkSchema is reused as-is for this form (identical shape), so its
 // Zod validation messages — and this route's own 23514 fallback, for the
 // same field — both come from the one shared copy path the schema already
@@ -23,6 +24,9 @@ const expiresAtPastError = en.staff.poRequests.issueRfqDialog.errors.expiresAtPa
 // expiry in the past.
 const NOT_FOUND_PG_CODE = "P0002";
 const CONFLICT_PG_CODE = "55000";
+const DUPLICATE_VENDOR_PG_CODE = "55001";
+const VENDOR_SELECTION_INVALID_PG_CODE = "55003";
+const VENDOR_SELECTION_MISMATCH_PG_CODE = "55004";
 const CLIENT_ERROR_PG_CODE = "23514";
 
 export async function POST(request: Request, { params }: { params: Promise<{ linkId: string }> }) {
@@ -50,7 +54,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ lin
   const { data, error } = await supabase
     .rpc("reissue_rfq_link", {
       p_link_id: linkId,
-      p_vendor_name: parsed.data.vendorName,
+      p_vendor_id: parsed.data.vendorId,
       p_vendor_email: parsed.data.vendorEmail,
       p_expires_at: parsed.data.expiresAt,
       p_message: parsed.data.message,
@@ -63,6 +67,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ lin
     }
     if (error?.code === CONFLICT_PG_CODE) {
       return NextResponse.json({ error: { message: t.reissueConflictError } }, { status: 409 });
+    }
+    if (error?.code === DUPLICATE_VENDOR_PG_CODE) {
+      return NextResponse.json({ error: { message: t.reissueDuplicateVendorError } }, { status: 409 });
+    }
+    if (error?.code === VENDOR_SELECTION_INVALID_PG_CODE) {
+      return NextResponse.json({ error: { message: issueT.vendorSelectionInvalid } }, { status: 400 });
+    }
+    if (error?.code === VENDOR_SELECTION_MISMATCH_PG_CODE) {
+      return NextResponse.json({ error: { message: t.vendorSelectionMismatch } }, { status: 409 });
     }
     if (error?.code === CLIENT_ERROR_PG_CODE) {
       return NextResponse.json({ error: { message: expiresAtPastError } }, { status: 400 });
@@ -78,7 +91,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ lin
       data: {
         token: data.access_token,
         link,
-        vendorName: parsed.data.vendorName,
+        vendorId: parsed.data.vendorId,
         vendorEmail: parsed.data.vendorEmail,
         message: parsed.data.message,
         expiresAt: parsed.data.expiresAt,

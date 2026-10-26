@@ -48,7 +48,13 @@ export async function POST(request: Request) {
 
   const supabase = await createClient();
   const { data, error } = await supabase
-    .rpc("add_vessel", { p_name: parsed.data.name, p_imo_no: parsed.data.imoNo })
+    .rpc("add_vessel", {
+      p_name: parsed.data.name,
+      p_imo_no: parsed.data.imoNo,
+      p_master_owners: parsed.data.masterOwners,
+      p_company_name: parsed.data.companyName,
+      p_address: parsed.data.address,
+    })
     .single();
 
   if (error || !data) {
@@ -61,7 +67,17 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json(
-    { data: { id: data.id, name: data.name, imoNo: data.imo_no, createdAt: data.created_at } },
+    {
+      data: {
+        id: data.id,
+        name: data.name,
+        imoNo: data.imo_no,
+        masterOwners: data.master_owners,
+        companyName: data.company_name,
+        address: data.address,
+        createdAt: data.created_at,
+      },
+    },
     { status: 201 },
   );
 }

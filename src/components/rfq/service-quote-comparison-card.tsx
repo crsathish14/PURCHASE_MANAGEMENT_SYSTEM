@@ -5,6 +5,7 @@ import en from "@/locales/en.json";
 import type { QuoteComparisonVendor } from "@/lib/data/rfq-quote-comparison";
 import { formatCurrencyUsd } from "@/lib/format-currency";
 import { VENDOR_QUOTE_CURRENCY } from "@/lib/constants/vendor-quote";
+import type { PurchaseOrderQuantityEditor } from "@/components/purchase-orders/purchase-order-quantity-editor";
 import { EquipmentDetailsSection } from "@/components/vendor-quote/equipment-details-section";
 import { ItemPhotos } from "@/components/vendor-quote/item-photos";
 
@@ -48,6 +49,9 @@ export type ServiceQuoteComparisonCardProps = {
   // winner — only one Award action can ever succeed per requisition.
   canAward: boolean;
   onAward: () => void;
+  // Service quotes intentionally have no quantity editor; this optional prop
+  // keeps the comparison-card union's shared prop shape consistent.
+  purchaseOrderEditor?: PurchaseOrderQuantityEditor;
 };
 
 export function ServiceQuoteComparisonCard({ vendor, pr, isAwarded, canAward, onAward }: ServiceQuoteComparisonCardProps) {

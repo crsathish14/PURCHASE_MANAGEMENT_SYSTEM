@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Controller,
   useFieldArray,
+  useWatch,
   type Control,
   type FieldErrors,
   type UseFieldArrayAppend,
@@ -14,7 +15,7 @@ import {
 } from "react-hook-form";
 import { X } from "lucide-react";
 
-import { Button, Input, Label } from "@/components/atoms";
+import { Button, Checkbox, Input, Label } from "@/components/atoms";
 import en from "@/locales/en.json";
 import { PR_CATEGORY, PR_LINE_ITEM_PRESET_COLUMN } from "@/lib/constants/purchase-requisition";
 import { getPresetColumnsForCategory } from "@/lib/purchase-requisition/preset-columns";
@@ -75,8 +76,26 @@ export function LineItemsField({
 }: LineItemsFieldProps) {
   const { fields, append, remove } = useFieldArray({ control, name: "lineItems" });
   const [addColumnOpen, setAddColumnOpen] = useState(false);
+  const [approvedQtyMatchesQty, setApprovedQtyMatchesQty] = useState(false);
+  const watchedLineItems = useWatch({ control, name: "lineItems" });
 
   const isService = category === PR_CATEGORY.SERVICE;
+  const approvedQtyColumn = columns.find(
+    (column) =>
+      column.key === PR_LINE_ITEM_PRESET_COLUMN.APPROVED_QTY || column.label === t.columns.approvedQty,
+  );
+
+  function handleApprovedQtyMatchesQtyChange(checked: boolean) {
+    setApprovedQtyMatchesQty(checked);
+    if (!checked || !approvedQtyColumn) return;
+
+    watchedLineItems?.forEach((item, index) => {
+      setValue(`lineItems.${index}.extra.${approvedQtyColumn.key}`, item.qty, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    });
+  }
 
   function handleAddColumn(label: string, presetKey?: string) {
     const key = presetKey ?? crypto.randomUUID();
@@ -169,6 +188,19 @@ export function LineItemsField({
         )}
       </div>
 
+      {!readOnly && approvedQtyColumn ? (
+        <div className="mb-3 flex items-center gap-2">
+          <Checkbox
+            id="approved-qty-same-as-qty"
+            checked={approvedQtyMatchesQty}
+            onChange={(event) => handleApprovedQtyMatchesQtyChange(event.target.checked)}
+          />
+          <label htmlFor="approved-qty-same-as-qty" className="text-xs font-semibold text-ink">
+            {t.approvedQtySameAsQty}
+          </label>
+        </div>
+      ) : null}
+
       <table className="mb-2 w-full border-collapse">
         <thead>
           <tr className="border-b border-line">
@@ -205,68 +237,92 @@ export function LineItemsField({
           </tr>
         </thead>
         <tbody>
-          {fields.map((field, index) => (
-            <tr key={field.id}>
-              <td className={cellClass}>
-                <Input
-                  disabled={readOnly}
-                  error={errors.lineItems?.[index]?.description?.message}
-                  {...register(`lineItems.${index}.description`)}
-                />
-              </td>
-              {isService ? null : (
+          {fields.map((field, index) => {
+            const qtyRegistration = register(`lineItems.${index}.qty`);
+            return (
+              <tr key={field.id}>
                 <td className={cellClass}>
                   <Input
                     disabled={readOnly}
-                    error={errors.lineItems?.[index]?.qty?.message}
-                    {...register(`lineItems.${index}.qty`)}
+                    error={errors.lineItems?.[index]?.description?.message}
+                    {...register(`lineItems.${index}.description`)}
                   />
                 </td>
-              )}
-              {columns.map((column) => (
-                <td key={column.key} className={cellClass}>
-                  <Input disabled={readOnly} {...register(`lineItems.${index}.extra.${column.key}`)} />
-                </td>
-              ))}
-              <td className={cellClass}>
-                <Controller
-                  control={control}
-                  name={`lineItems.${index}.attachments`}
-                  render={({ field: attachmentsField }) => (
-                    <LineItemPhotosField
-                      scopeId={scopeId}
-                      lineItemFieldId={field.id}
-                      value={attachmentsField.value}
-                      onChange={(next) => {
-                        if (onPhotoUploaded) {
-                          const prevPaths = new Set(attachmentsField.value.map((a) => a.storagePath));
-                          next.forEach((a) => {
-                            if (!prevPaths.has(a.storagePath)) onPhotoUploaded(a.storagePath);
+                {isService ? null : (
+                  <td className={cellClass}>
+                    <Input
+                      disabled={readOnly}
+                      error={errors.lineItems?.[index]?.qty?.message}
+                      {...qtyRegistration}
+                      onChange={(event) => {
+                        qtyRegistration.onChange(event);
+                        if (approvedQtyMatchesQty && approvedQtyColumn) {
+                          setValue(`lineItems.${index}.extra.${approvedQtyColumn.key}`, event.target.value, {
+                            shouldDirty: true,
+                            shouldValidate: true,
                           });
                         }
-                        attachmentsField.onChange(next);
                       }}
-                      disabled={readOnly}
                     />
-                  )}
-                />
-              </td>
-              {readOnly ? null : (
+                  </td>
+                )}
+                {columns.map((column) => {
+                  const registration = register(`lineItems.${index}.extra.${column.key}`);
+                  const isApprovedQty =
+                    column.key === PR_LINE_ITEM_PRESET_COLUMN.APPROVED_QTY || column.label === t.columns.approvedQty;
+                  return (
+                    <td key={column.key} className={cellClass}>
+                      <Input
+                        disabled={readOnly}
+                        {...registration}
+                        onChange={(event) => {
+                          registration.onChange(event);
+                          if (isApprovedQty && approvedQtyMatchesQty) setApprovedQtyMatchesQty(false);
+                        }}
+                      />
+                    </td>
+                  );
+                })}
                 <td className={cellClass}>
-                  <Button
-                    type="button"
-                    variant="icon"
-                    size="sm"
-                    aria-label={t.removeLineItem}
-                    disabled={fields.length === 1}
-                    onClick={() => handleRemoveItem(index)}
-                  >
-                    <X size={14} strokeWidth={1.7} aria-hidden="true" />
-                  </Button>
+                  <Controller
+                    control={control}
+                    name={`lineItems.${index}.attachments`}
+                    render={({ field: attachmentsField }) => (
+                      <LineItemPhotosField
+                        scopeId={scopeId}
+                        lineItemFieldId={field.id}
+                        value={attachmentsField.value}
+                        onChange={(next) => {
+                          if (onPhotoUploaded) {
+                            const prevPaths = new Set(attachmentsField.value.map((a) => a.storagePath));
+                            next.forEach((a) => {
+                              if (!prevPaths.has(a.storagePath)) onPhotoUploaded(a.storagePath);
+                            });
+                          }
+                          attachmentsField.onChange(next);
+                        }}
+                        disabled={readOnly}
+                      />
+                    )}
+                  />
                 </td>
-              )}
-            </tr>
-          ))}
+                {readOnly ? null : (
+                  <td className={cellClass}>
+                    <Button
+                      type="button"
+                      variant="icon"
+                      size="sm"
+                      aria-label={t.removeLineItem}
+                      disabled={fields.length === 1}
+                      onClick={() => handleRemoveItem(index)}
+                    >
+                      <X size={14} strokeWidth={1.7} aria-hidden="true" />
+                    </Button>
+                  </td>
+                )}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
 

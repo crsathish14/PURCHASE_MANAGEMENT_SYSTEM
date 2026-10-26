@@ -25,6 +25,7 @@ const NOT_FOUND_PG_CODE = "P0002";
 const CONFLICT_PG_CODE = "55000";
 const DUPLICATE_VENDOR_PG_CODE = "55001";
 const APPROVED_QTY_MISSING_PG_CODE = "55002";
+const VENDOR_SELECTION_INVALID_PG_CODE = "55003";
 const CLIENT_ERROR_PG_CODE = "23514";
 
 // Every vendor ever invited to this requisition's RFQ, for the Requested
@@ -70,7 +71,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { data, error } = await supabase
     .rpc("issue_rfq_link", {
       p_requisition_id: id,
-      p_vendor_name: parsed.data.vendorName,
+      p_vendor_id: parsed.data.vendorId,
       p_vendor_email: parsed.data.vendorEmail,
       p_expires_at: parsed.data.expiresAt,
       p_message: parsed.data.message,
@@ -90,6 +91,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (error?.code === APPROVED_QTY_MISSING_PG_CODE) {
       return NextResponse.json({ error: { message: t.issueApprovedQtyMissingError } }, { status: 409 });
     }
+    if (error?.code === VENDOR_SELECTION_INVALID_PG_CODE) {
+      return NextResponse.json({ error: { message: t.vendorSelectionInvalid } }, { status: 400 });
+    }
     if (error?.code === CLIENT_ERROR_PG_CODE) {
       return NextResponse.json({ error: { message: t.errors.expiresAtPast } }, { status: 400 });
     }
@@ -104,7 +108,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       data: {
         token: data.access_token,
         link,
-        vendorName: parsed.data.vendorName,
+        vendorId: parsed.data.vendorId,
         vendorEmail: parsed.data.vendorEmail,
         message: parsed.data.message,
         expiresAt: parsed.data.expiresAt,

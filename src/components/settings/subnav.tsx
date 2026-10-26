@@ -10,9 +10,8 @@ const ACTIVE_CLASSES =
 const INACTIVE_CLASSES =
   "rounded-md px-3 py-2 text-[13px] font-bold whitespace-nowrap text-slate hover:text-ink";
 
-// Shared between the Team & Access page and the Vessels page — both live
-// under the same Settings area and link to each other via this subnav.
-export function SettingsSubnav({ active }: { active: "team" | "vessels" }) {
+// Shared by the pages in the Settings area.
+export function SettingsSubnav({ active }: { active: "team" | "vessels" | "vendors" }) {
   return (
     <nav className="flex flex-row gap-1 overflow-x-auto md:flex-col">
       <Link
@@ -23,6 +22,9 @@ export function SettingsSubnav({ active }: { active: "team" | "vessels" }) {
       </Link>
       <Link href={ROUTES.VESSELS} className={active === "vessels" ? ACTIVE_CLASSES : INACTIVE_CLASSES}>
         {t.vessels}
+      </Link>
+      <Link href={ROUTES.VENDORS} className={active === "vendors" ? ACTIVE_CLASSES : INACTIVE_CLASSES}>
+        {t.vendors}
       </Link>
     </nav>
   );

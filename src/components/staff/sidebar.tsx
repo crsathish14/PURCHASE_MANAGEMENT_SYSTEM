@@ -1,8 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Anchor } from "lucide-react";
 
 import en from "@/locales/en.json";
 
@@ -32,10 +32,14 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
         }`}
       >
         <div className="flex items-center gap-2.5 px-5.5 pt-5.5 pb-4">
-          <span className="flex h-[30px] w-[30px] items-center justify-center rounded-md bg-harbor text-white">
-            <Anchor size={16} strokeWidth={1.7} aria-hidden="true" />
-          </span>
-          <span className="font-display text-[15px] text-white">{en.auth.brand.word}</span>
+          <Image
+            src="/mysea-shipping-logo.jpeg"
+            alt=""
+            width={30}
+            height={30}
+            className="rounded-md bg-white object-contain"
+          />
+          <span className="font-display text-[15px] text-white">{en.common.companyName}</span>
         </div>
 
         <nav className="flex flex-col gap-0.5 px-3">

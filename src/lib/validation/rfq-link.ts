@@ -10,7 +10,7 @@ const t = en.staff.poRequests.issueRfqDialog.errors;
 // validates the same way, since it POSTs straight through.
 export const issueRfqLinkSchema = z
   .object({
-    vendorName: z.string().min(1, { error: t.vendorNameRequired }),
+    vendorId: z.uuid({ error: t.vendorRequired }),
     vendorEmail: z.email({ error: t.vendorEmailInvalid }).min(1, { error: t.vendorEmailRequired }),
     expiresAt: z.string().min(1, { error: t.expiresAtRequired }),
     message: z.string().min(1, { error: t.messageRequired }),

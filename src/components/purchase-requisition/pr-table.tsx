@@ -23,11 +23,6 @@ const STATUS_TONE: Record<PrStatus, BadgeTone> = {
 
 const dateFormatter = new Intl.DateTimeFormat("en", { day: "numeric", month: "short" });
 
-function formatItemCount(count: number): string {
-  const template = count === 1 ? t.itemCountSingular : t.itemCountPlural;
-  return template.replace("{count}", String(count));
-}
-
 export type PrTableProps = {
   rows: PrListRow[];
   onRowSelect: (row: PrListRow) => void;
@@ -63,7 +58,7 @@ export function PrTable({
             <th className="px-4 py-3">{t.columns.vessel}</th>
             <th className="px-4 py-3">{t.columns.department}</th>
             <th className="px-4 py-3">{t.columns.category}</th>
-            <th className="px-4 py-3">{t.columns.description}</th>
+            <th className="px-4 py-3">{t.columns.title}</th>
             <th className="px-4 py-3">{t.columns.priority}</th>
             <th className="px-4 py-3">{t.columns.requester}</th>
             <th className="px-4 py-3">{t.columns.date}</th>
@@ -97,7 +92,7 @@ export function PrTable({
                 <td className="px-4 py-3 text-ink">{row.vesselLabel ?? "—"}</td>
                 <td className="px-4 py-3 text-ink">{row.departmentLabel ?? "—"}</td>
                 <td className="px-4 py-3 text-ink">{row.categoryLabel ?? "—"}</td>
-                <td className="px-4 py-3 text-slate">{formatItemCount(row.itemCount)}</td>
+                <td className="px-4 py-3 text-ink">{row.title ?? "—"}</td>
                 <td className="px-4 py-3">
                   <Badge tone={PRIORITY_TONE[row.priority]} dot={false}>
                     {priorityLabel(row.priority)}

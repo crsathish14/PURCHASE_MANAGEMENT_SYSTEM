@@ -45,7 +45,7 @@ export function StoresQuotePdf({ vendor, pr }: StoresQuotePdfProps) {
   return (
     <Document>
       <Page size="A4" style={pdfStyles.page}>
-        <PdfHeader companyName={t.pdfHeader.companyName} documentTitle={t.pdfHeader.documentTitle} />
+        <PdfHeader companyName={en.common.companyName} documentTitle={t.pdfHeader.documentTitle} />
         <RfqDetailsSection t={t.rfqDetails} pr={pr} vendor={vendor} />
         <VendorDetailsSection t={t.vendorDetails} vendor={vendor} />
 

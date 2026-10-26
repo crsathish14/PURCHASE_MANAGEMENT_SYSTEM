@@ -1,10 +1,17 @@
 "use client";
 
-import { Badge, Button, Input, Label, Textarea } from "@/components/atoms";
+import { Badge, Button, Checkbox, Input, Label, Textarea } from "@/components/atoms";
 import en from "@/locales/en.json";
 import type { QuoteComparisonVendor } from "@/lib/data/rfq-quote-comparison";
 import { formatCurrencyUsd } from "@/lib/format-currency";
 import { VENDOR_QUOTE_CURRENCY } from "@/lib/constants/vendor-quote";
+import {
+  getNeededPoLineTotal,
+  getNeededPoQty,
+  getPurchaseOrderAmount,
+  isValidNeededPoQty,
+  type PurchaseOrderQuantityEditor,
+} from "@/components/purchase-orders/purchase-order-quantity-editor";
 import { ItemPhotos } from "@/components/vendor-quote/item-photos";
 
 // A read-only clone of stores-quote-form.tsx's exact section structure,
@@ -16,6 +23,7 @@ import { ItemPhotos } from "@/components/vendor-quote/item-photos";
 // its own non-editable PR-context fields, so nothing here looks editable.
 const t = en.vendorQuote.storesForm;
 const tCompare = en.staff.requestedQuote.compare;
+const tPo = en.staff.purchaseOrders;
 
 const headerCellClass = "px-2 py-1.5 text-left font-mono text-[9.5px] font-bold tracking-wide text-slate-lt uppercase";
 const cellClass = "px-2 py-1.5 align-top";
@@ -45,6 +53,7 @@ export type StoresQuoteComparisonCardProps = {
   // button disappears everywhere once that's already happened.
   canAward: boolean;
   onAward: () => void;
+  purchaseOrderEditor?: PurchaseOrderQuantityEditor;
 };
 
 export function StoresQuoteComparisonCard({
@@ -53,7 +62,9 @@ export function StoresQuoteComparisonCard({
   isAwarded,
   canAward,
   onAward,
+  purchaseOrderEditor,
 }: StoresQuoteComparisonCardProps) {
+  const purchaseOrderAmount = getPurchaseOrderAmount(purchaseOrderEditor, vendor);
   return (
     <div className="h-full min-h-0 overflow-y-auto rounded-lg border border-line bg-paper p-5">
       <div className="mb-6 flex items-start justify-between gap-3 border-b border-line pb-4">
@@ -145,6 +156,19 @@ export function StoresQuoteComparisonCard({
 
       <section className="mt-8">
         <h3 className={sectionHeadingClass}>{t.itemDetails.title}</h3>
+        {purchaseOrderEditor ? (
+          <div className="mb-3 flex items-center gap-2">
+            <Checkbox
+              id={`po-qty-same-${vendor.quotationId}`}
+              checked={purchaseOrderEditor.sameAsQuoteQty}
+              disabled={purchaseOrderEditor.disabled}
+              onChange={(event) => purchaseOrderEditor.onSameAsQuoteQtyChange(event.target.checked)}
+            />
+            <label htmlFor={`po-qty-same-${vendor.quotationId}`} className="text-xs font-semibold text-ink">
+              {tPo.sameAsQuoteQty}
+            </label>
+          </div>
+        ) : null}
         <div className="overflow-x-auto rounded-lg border border-line">
           <table className="w-full min-w-275 border-collapse">
             <thead>
@@ -153,6 +177,7 @@ export function StoresQuoteComparisonCard({
                 <th className={headerCellClass}>{t.itemDetails.columns.requestedDescription}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.impaCode}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.approvedQty}</th>
+                {purchaseOrderEditor ? <th className={headerCellClass}>{tPo.neededPoQty}</th> : null}
                 <th className={headerCellClass}>{t.itemDetails.columns.uom}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.photos}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.offeredDescription}</th>
@@ -174,9 +199,29 @@ export function StoresQuoteComparisonCard({
                   <td className={cellClass}>
                     <Input disabled value={displayValue(item.requestedImpaCode)} />
                   </td>
-                  <td className={cellClass}>
-                    <Input disabled value={displayValue(item.approvedQty)} />
-                  </td>
+                  <td className={cellClass}><Input disabled value={displayValue(item.approvedQty)} /></td>
+                  {purchaseOrderEditor ? (
+                    <td className={cellClass}>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="any"
+                        required
+                        disabled={purchaseOrderEditor.disabled}
+                        value={getNeededPoQty(purchaseOrderEditor, item)}
+                        aria-label={tPo.neededPoQtyFor.replace("{item}", item.requestedDescription)}
+                        error={
+                          purchaseOrderEditor.validationAttempted &&
+                          !isValidNeededPoQty(getNeededPoQty(purchaseOrderEditor, item))
+                            ? tPo.invalidQuantity
+                            : undefined
+                        }
+                        onChange={(event) =>
+                          purchaseOrderEditor.onQuantityChange(item.quotationItemId, event.target.value)
+                        }
+                      />
+                    </td>
+                  ) : null}
                   <td className={cellClass}>
                     <Input disabled value={displayValue(item.uom)} />
                   </td>
@@ -193,7 +238,7 @@ export function StoresQuoteComparisonCard({
                     <Input disabled value={formatCurrencyUsd(item.unitPrice)} />
                   </td>
                   <td className={cellClass}>
-                    <Input disabled value={formatCurrencyUsd(item.totalPrice)} />
+                    <Input disabled value={formatCurrencyUsd(getNeededPoLineTotal(purchaseOrderEditor, item))} />
                   </td>
                   <td className={cellClass}>
                     <Input disabled value={displayValue(item.deliveryLeadTime)} />
@@ -211,16 +256,16 @@ export function StoresQuoteComparisonCard({
         </div>
         <div className="mt-3 flex justify-end gap-2 text-[13.5px]">
           <span className="font-bold text-ink">{t.itemDetails.grandTotal}</span>
-          <span className="font-mono text-ink">{formatCurrencyUsd(vendor.totalQuotedAmount)}</span>
+          <span className="font-mono text-ink">{formatCurrencyUsd(purchaseOrderAmount)}</span>
         </div>
       </section>
 
       <section className="mt-8">
         <h3 className={sectionHeadingClass}>{t.quotationSummary.title}</h3>
         <div className="mb-4">
-          <Label>{t.quotationSummary.totalQuotedAmount}</Label>
+          <Label>{purchaseOrderEditor ? tPo.purchaseOrderTotal : t.quotationSummary.totalQuotedAmount}</Label>
           <div className="flex items-center gap-2">
-            <Input disabled value={formatCurrencyUsd(vendor.totalQuotedAmount)} className="flex-1" />
+            <Input disabled value={formatCurrencyUsd(purchaseOrderAmount)} className="flex-1" />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">

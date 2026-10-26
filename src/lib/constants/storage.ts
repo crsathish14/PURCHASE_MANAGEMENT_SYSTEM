@@ -1,20 +1,13 @@
-// Single source of truth for the shared Supabase Storage subsystem: bucket
-// name, per-file/per-line-item limits, allowed mime types, and the path
-// convention this feature's objects live under. Any future upload feature
-// (PO/invoice attachments, etc.) reuses this same bucket and this same
-// signing route (src/app/api/uploads/sign/route.ts) rather than inventing
-// its own — see that route and plans/development.md §11 for how a second
-// feature plugs in.
+// Shared Supabase Storage vocabulary: bucket name, per-feature limits, allowed
+// mime types, and path prefixes. Authenticated uploads use the shared signing
+// route; anonymous vendor uploads use token-validating routes because Storage
+// RLS cannot validate their application tokens.
 export const STORAGE_BUCKET = { ATTACHMENTS: "attachments" } as const;
 
-// Mirrors the `attachments` bucket's own file_size_limit/allowed_mime_types
-// settings (see supabase/migrations/20260823190000_storage_attachments_policies.sql)
-// — duplicated here only for fast client-side pre-validation and for
-// api/uploads/sign's own pre-check before it bothers asking Storage for a
-// signed URL. The bucket's own settings are the real enforcement boundary: a
-// signed-upload-URL flow means file bytes never pass through our server, so
-// nothing server-side can inspect real bytes to double-check these numbers —
-// keep both sides in sync by hand if either changes.
+// Photo-only accepted types and limits are duplicated here for client-side
+// pre-validation. The shared bucket limit is 5 MB; its allowed types also
+// include application/pdf for vendor PO proforma submissions (see the later
+// migration). The bucket remains the Storage API enforcement boundary.
 export const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
 export const ALLOWED_PHOTO_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"] as const;
@@ -41,8 +34,7 @@ export const PHOTO_EXTENSION_BY_MIME_TYPE: Record<AllowedPhotoMimeType, string> 
 
 // Namespaces this feature's objects within the shared `attachments` bucket
 // (full path: `${PR_LINE_ITEM_PHOTO_PATH_PREFIX}/${scopeId}/${lineItemFieldId}/${uuid}.${ext}`,
-// see api/uploads/sign) — a future feature (e.g. PO documents) adds its own
-// sibling prefix under the same bucket instead of colliding with this one.
+// see api/uploads/sign). Other upload features use sibling prefixes.
 export const PR_LINE_ITEM_PHOTO_PATH_PREFIX = "pr-line-items";
 
 // Sibling prefix for the vendor RFQ quote form's own photo uploads (full
@@ -52,6 +44,13 @@ export const PR_LINE_ITEM_PHOTO_PATH_PREFIX = "pr-line-items";
 // with no session (the RFQ link's own access token is the scope segment,
 // there's no separate draft token to mint).
 export const RFQ_QUOTE_ITEM_PHOTO_PATH_PREFIX = "rfq-quote-item-photos";
+
+// Anonymous vendor PO submissions store one proforma invoice PDF per issued
+// Purchase Order. The token scopes the temporary upload; the final path is
+// persisted on purchase_order_issuances only when the vendor submits.
+export const PURCHASE_ORDER_PROFORMA_PATH_PREFIX = "purchase-order-proformas";
+export const PURCHASE_ORDER_PROFORMA_MIME_TYPE = "application/pdf" as const;
+export const MAX_PURCHASE_ORDER_PROFORMA_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB, attachments bucket limit
 
 // TTL for the *display* signed URLs getPurchaseRequisitionById re-issues on
 // every read (nothing persists these). Unrelated to, and NOT how you'd

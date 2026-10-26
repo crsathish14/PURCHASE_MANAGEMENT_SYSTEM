@@ -99,16 +99,56 @@ export type Database = {
           id: string;
           name: string;
           imo_no: string;
+          master_owners: string;
+          company_name: string;
+          address: string;
           created_at: string;
         };
         Insert: {
           id?: string;
           name: string;
           imo_no: string;
+          master_owners?: string;
+          company_name?: string;
+          address?: string;
         };
         Update: {
           name?: string;
           imo_no?: string;
+          master_owners?: string;
+          company_name?: string;
+          address?: string;
+        };
+        Relationships: [];
+      };
+      vendors: {
+        Row: {
+          id: string;
+          name: string;
+          pic: string;
+          address: string;
+          mail: string[];
+          contact: string[];
+          gst: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          pic?: string;
+          address?: string;
+          mail?: string[];
+          contact?: string[];
+          gst?: string;
+          created_at?: string;
+        };
+        Update: {
+          name?: string;
+          pic?: string;
+          address?: string;
+          mail?: string[];
+          contact?: string[];
+          gst?: string;
         };
         Relationships: [];
       };
@@ -391,6 +431,7 @@ export type Database = {
         Row: {
           id: string;
           requisition_id: string;
+          vendor_id: string | null;
           vendor_name: string;
           vendor_email: string;
           access_token: string;
@@ -403,6 +444,7 @@ export type Database = {
         Insert: {
           id?: string;
           requisition_id: string;
+          vendor_id?: string | null;
           vendor_name: string;
           vendor_email: string;
           access_token: string;
@@ -412,6 +454,7 @@ export type Database = {
           created_by: string;
         };
         Update: {
+          vendor_id?: string | null;
           vendor_name?: string;
           vendor_email?: string;
           message?: string;
@@ -431,6 +474,13 @@ export type Database = {
             columns: ["created_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_requisition_rfq_links_vendor_id_fkey";
+            columns: ["vendor_id"];
+            isOneToOne: false;
+            referencedRelation: "vendors";
             referencedColumns: ["id"];
           },
         ];
@@ -585,6 +635,159 @@ export type Database = {
           },
         ];
       };
+      purchase_order_drafts: {
+        Row: {
+          id: string;
+          requisition_id: string;
+          quotation_id: string;
+          same_as_quote_qty: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          requisition_id: string;
+          quotation_id: string;
+          same_as_quote_qty?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          quotation_id?: string;
+          same_as_quote_qty?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_drafts_requisition_id_fkey";
+            columns: ["requisition_id"];
+            isOneToOne: true;
+            referencedRelation: "purchase_requisitions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_order_drafts_quotation_id_fkey";
+            columns: ["quotation_id"];
+            isOneToOne: true;
+            referencedRelation: "purchase_requisition_rfq_quotations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      purchase_order_draft_items: {
+        Row: {
+          id: string;
+          draft_id: string;
+          quotation_item_id: string;
+          needed_po_qty: number;
+        };
+        Insert: {
+          id?: string;
+          draft_id: string;
+          quotation_item_id: string;
+          needed_po_qty: number;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_draft_items_draft_id_fkey";
+            columns: ["draft_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_order_drafts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_order_draft_items_quotation_item_id_fkey";
+            columns: ["quotation_item_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_requisition_rfq_quotation_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      purchase_order_issuances: {
+        Row: {
+          id: string;
+          requisition_id: string;
+          quotation_id: string;
+          access_token: string;
+          vendor_name: string;
+          vendor_email: string;
+          message: string;
+          invoice_to_company_name: string;
+          invoice_to_address: string;
+          issued_at: string;
+          proforma_invoice_path: string | null;
+          proforma_invoice_file_name: string | null;
+          proforma_received_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          requisition_id: string;
+          quotation_id: string;
+          access_token?: string;
+          vendor_name: string;
+          vendor_email: string;
+          message: string;
+          invoice_to_company_name?: string;
+          invoice_to_address?: string;
+          issued_at?: string;
+          proforma_invoice_path?: string | null;
+          proforma_invoice_file_name?: string | null;
+          proforma_received_at?: string | null;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_issuances_requisition_id_fkey";
+            columns: ["requisition_id"];
+            isOneToOne: true;
+            referencedRelation: "purchase_requisitions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_order_issuances_quotation_id_fkey";
+            columns: ["quotation_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_requisition_rfq_quotations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      purchase_order_issuance_items: {
+        Row: {
+          id: string;
+          issuance_id: string;
+          description: string;
+          part_no: string | null;
+          uom: string | null;
+          quantity: number | null;
+          unit_price: number | null;
+          total_price: number;
+          sort_order: number;
+        };
+        Insert: {
+          id?: string;
+          issuance_id: string;
+          description: string;
+          part_no?: string | null;
+          uom?: string | null;
+          quantity?: number | null;
+          unit_price?: number | null;
+          total_price: number;
+          sort_order?: number;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_issuance_items_issuance_id_fkey";
+            columns: ["issuance_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_order_issuances";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       pr_requisition_list: {
@@ -603,6 +806,7 @@ export type Database = {
           vessel_value: string | null;
           category_value: string | null;
           requisition_number: string | null;
+          pr_title: string | null;
         };
         Relationships: [];
       };
@@ -619,8 +823,22 @@ export type Database = {
     };
     Functions: {
       add_vessel: {
-        Args: { p_name: string; p_imo_no: string };
-        Returns: { id: string; name: string; imo_no: string; created_at: string }[];
+        Args: {
+          p_name: string;
+          p_imo_no: string;
+          p_master_owners: string;
+          p_company_name: string;
+          p_address: string;
+        };
+        Returns: {
+          id: string;
+          name: string;
+          imo_no: string;
+          master_owners: string;
+          company_name: string;
+          address: string;
+          created_at: string;
+        }[];
       };
       create_purchase_requisition: {
         Args: {
@@ -681,6 +899,77 @@ export type Database = {
         Args: { p_id: string; p_rfq_link_id: string };
         Returns: { id: string; status: PrStatus; awarded_rfq_link_id: string }[];
       };
+      save_purchase_order_draft: {
+        Args: { p_requisition_id: string; p_items: Json; p_same_as_quote_qty: boolean };
+        Returns: string;
+      };
+      issue_purchase_order: {
+        Args: {
+          p_requisition_id: string;
+          p_items: Json;
+          p_same_as_quote_qty: boolean;
+          p_message: string;
+          p_invoice_to_company_name: string;
+          p_invoice_to_address: string;
+        };
+        Returns: string;
+      };
+      get_purchase_order_issue_token: {
+        Args: { p_requisition_id: string };
+        Returns: string;
+      };
+      submit_purchase_order_proforma: {
+        Args: { p_token: string; p_storage_path: string; p_file_name: string };
+        Returns: boolean;
+      };
+      get_purchase_order_by_token: {
+        Args: { p_token: string };
+        Returns: {
+          requisition_id: string;
+          pr_number: string;
+          vessel_label: string | null;
+          category: string | null;
+          vendor_name: string;
+          vendor_email: string;
+          message: string;
+          issued_at: string;
+          items: Json;
+        }[];
+      };
+      get_purchase_order_for_export: {
+        Args: { p_requisition_id: string };
+        Returns: {
+          requisition_id: string;
+          vendor_name: string;
+          vendor_email: string;
+          invoice_to_company_name: string;
+          invoice_to_address: string;
+          issued_at: string;
+          items: Json;
+        }[];
+      };
+      get_purchase_order_pdf_by_token: {
+        Args: { p_token: string };
+        Returns: {
+          requisition_id: string;
+          pr_number: string;
+          requisition_title: string | null;
+          category: string;
+          vessel_name: string | null;
+          vessel_imo_no: string | null;
+          vessel_master_owners: string | null;
+          issued_vendor_name: string;
+          issued_vendor_email: string;
+          vendor_contact_person: string | null;
+          quotation_no: string | null;
+          ref_no: string | null;
+          payment_terms: string;
+          invoice_to_company_name: string;
+          invoice_to_address: string;
+          issued_at: string;
+          items: Json;
+        }[];
+      };
       duplicate_purchase_requisition: {
         Args: { p_id: string };
         Returns: { id: string; pr_number: string; line_item_id_map: Json }[];
@@ -717,13 +1006,14 @@ export type Database = {
           item_count: number;
           requester_name: string | null;
           requisition_number: string | null;
+          pr_title: string | null;
           total_count: number;
         }[];
       };
       issue_rfq_link: {
         Args: {
           p_requisition_id: string;
-          p_vendor_name: string;
+          p_vendor_id: string;
           p_vendor_email: string;
           p_expires_at: string;
           p_message: string;
@@ -733,7 +1023,7 @@ export type Database = {
       reissue_rfq_link: {
         Args: {
           p_link_id: string;
-          p_vendor_name: string;
+          p_vendor_id: string;
           p_vendor_email: string;
           p_expires_at: string;
           p_message: string;
@@ -815,12 +1105,39 @@ export type Database = {
           id: string;
           pr_number: string;
           requisition_number: string | null;
+          pr_title: string | null;
           vessel_label: string | null;
           category_label: string | null;
           vendor_count: number;
           quote_count: number;
           derived_status: string;
           first_issued_at: string;
+          total_count: number;
+        }[];
+      };
+      search_purchase_orders: {
+        Args: {
+          p_search: string | null;
+          p_statuses: string[] | null;
+          p_vessels: string[] | null;
+          p_categories: string[] | null;
+          p_date_preset: string | null;
+          p_start_date: string | null;
+          p_end_date: string | null;
+          p_page: number;
+          p_page_size: number;
+        };
+        Returns: {
+          id: string;
+          pr_number: string;
+          requisition_number: string | null;
+          pr_title: string | null;
+          vessel_label: string | null;
+          vendor_name: string;
+          quote_reference: string | null;
+          total_quoted_amount: number;
+          quote_submitted_at: string;
+          status: string;
           total_count: number;
         }[];
       };

@@ -42,10 +42,10 @@ export type PrListRow = {
   priority: PrPriority;
   status: PrStatus;
   createdAt: string;
+  title: string | null;
   vesselLabel: string | null;
   departmentLabel: string | null;
   categoryLabel: string | null;
-  itemCount: number;
   requesterName: string | null;
   requisitionNumber: string | null;
 };
@@ -102,10 +102,10 @@ export async function getPurchaseRequisitions({
     priority: row.priority,
     status: row.status,
     createdAt: row.created_at,
+    title: row.pr_title,
     vesselLabel: row.vessel_label,
     departmentLabel: row.department_label,
     categoryLabel: row.category_label,
-    itemCount: row.item_count,
     requesterName: row.requester_name,
     requisitionNumber: row.requisition_number,
   }));

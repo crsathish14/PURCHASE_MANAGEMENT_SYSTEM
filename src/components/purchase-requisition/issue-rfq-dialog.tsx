@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, Copy } from "lucide-react";
 
-import { Button, Dialog, Input, Label, Textarea } from "@/components/atoms";
+import { Button, Dialog, Input, Label, Select, Textarea } from "@/components/atoms";
 import en from "@/locales/en.json";
+import type { Vendor } from "@/lib/data/vendors";
 import { todayDateString } from "@/lib/validation/purchase-requisition";
 import { issueRfqLinkSchema, type IssueRfqLinkInput } from "@/lib/validation/rfq-link";
 import { toast } from "@/store/toast-store";
@@ -14,7 +15,7 @@ import { toast } from "@/store/toast-store";
 const t = en.staff.poRequests.issueRfqDialog;
 
 const DEFAULT_VALUES: IssueRfqLinkInput = {
-  vendorName: "",
+  vendorId: "",
   vendorEmail: "",
   expiresAt: "",
   message: t.messageDefault,
@@ -55,6 +56,8 @@ export function IssueRfqDialog({ open, onClose, requisitionId, prNumber, onIssue
   // these two are just the raw native inputs that get combined into it.
   const [expiresAtDate, setExpiresAtDate] = useState("");
   const [expiresAtTime, setExpiresAtTime] = useState("");
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [vendorLookupStatus, setVendorLookupStatus] = useState<"idle" | "loading" | "error">("idle");
 
   const {
     register,
@@ -69,13 +72,43 @@ export function IssueRfqDialog({ open, onClose, requisitionId, prNumber, onIssue
     defaultValues: DEFAULT_VALUES,
   });
 
-  const [vendorName, vendorEmail, expiresAt, message] = watch([
-    "vendorName",
+  useEffect(() => {
+    if (!open) return;
+
+    let active = true;
+    async function loadVendors() {
+      setVendorLookupStatus("loading");
+      try {
+        const response = await fetch("/api/vendors");
+        const payload = (await response.json()) as { data?: Vendor[] };
+        if (!response.ok) throw new Error("Vendor lookup failed");
+        if (active) {
+          setVendors(Array.isArray(payload.data) ? payload.data : []);
+          setVendorLookupStatus("idle");
+        }
+      } catch {
+        if (active) {
+          setVendorLookupStatus("error");
+        }
+      }
+    }
+
+    void loadVendors();
+    return () => {
+      active = false;
+    };
+  }, [open]);
+
+  const [vendorId, vendorEmail, expiresAt, message] = watch([
+    "vendorId",
     "vendorEmail",
     "expiresAt",
     "message",
   ]);
-  const requiredFieldsFilled = Boolean(vendorName && vendorEmail && expiresAt && message);
+  const selectedVendor = vendors.find((vendor) => vendor.id === vendorId) ?? null;
+  const requiredFieldsFilled = Boolean(
+    selectedVendor && vendorEmail && selectedVendor.mail.includes(vendorEmail) && expiresAt && message,
+  );
   const hasErrors = Object.keys(errors).length > 0;
 
   function updateExpiresAtDate(date: string) {
@@ -222,29 +255,54 @@ export function IssueRfqDialog({ open, onClose, requisitionId, prNumber, onIssue
 
       <form id="issue-rfq-link-form" onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="mb-4">
-          <Label htmlFor="rfq-vendor-name" error={!!errors.vendorName}>
+          <Label htmlFor="rfq-vendor-id" error={!!errors.vendorId}>
             {t.vendorName}
           </Label>
-          <Input
-            id="rfq-vendor-name"
-            type="text"
-            placeholder={t.vendorNamePlaceholder}
-            error={errors.vendorName?.message}
-            {...register("vendorName")}
-          />
+          <Select
+            id="rfq-vendor-id"
+            error={errors.vendorId?.message}
+            disabled={vendorLookupStatus !== "idle" || vendors.length === 0}
+            {...register("vendorId", {
+              onChange: () => setValue("vendorEmail", "", { shouldDirty: true, shouldValidate: true }),
+            })}
+          >
+            <option value="">{t.vendorNamePlaceholder}</option>
+            {vendors.map((vendor) => (
+              <option key={vendor.id} value={vendor.id}>
+                {vendor.name}
+              </option>
+            ))}
+          </Select>
+          {vendorLookupStatus === "loading" ? (
+            <p className="mt-1 text-[11px] text-slate-lt">{t.vendorListLoading}</p>
+          ) : vendorLookupStatus === "error" ? (
+            <p className="mt-1 text-[11px] text-slate-lt">{t.vendorListError}</p>
+          ) : vendors.length === 0 ? (
+            <p className="mt-1 text-[11px] text-slate-lt">{t.noVendors}</p>
+          ) : null}
         </div>
 
         <div className="mb-4">
           <Label htmlFor="rfq-vendor-email" error={!!errors.vendorEmail}>
             {t.vendorEmail}
           </Label>
-          <Input
+          <Select
             id="rfq-vendor-email"
-            type="email"
-            placeholder={t.vendorEmailPlaceholder}
             error={errors.vendorEmail?.message}
+            disabled={!selectedVendor || selectedVendor.mail.length === 0}
             {...register("vendorEmail")}
-          />
+          >
+            <option value="">{selectedVendor ? t.vendorEmailPlaceholder : t.selectVendorFirst}</option>
+            {selectedVendor?.mail.map((email, index) => (
+              <option key={`${selectedVendor.id}-mail-${index}`} value={email}>
+                {email}
+              </option>
+            ))}
+          </Select>
+          {selectedVendor?.mail.length === 0 ? (
+            <p className="mt-1 text-[11px] text-rust">{t.vendorHasNoEmails}</p>
+          ) : null}
+          <p className="mt-1 text-[11px] text-slate-lt">{t.vendorSelectionHint}</p>
         </div>
 
         <div className="mb-4">

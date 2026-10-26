@@ -1,8 +1,7 @@
+import Image from "next/image";
 import type { ReactNode } from "react";
 
 import en from "@/locales/en.json";
-
-import { AnchorIcon } from "./icons";
 
 // Shared two-panel shell (dark brand panel + mist form panel on the right) —
 // used by (auth)/layout.tsx for /login and /request-access, and directly by
@@ -18,9 +17,13 @@ export function AuthShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen flex-col lg:h-screen lg:flex-row">
       <div className="flex min-w-0 flex-col overflow-hidden bg-[linear-gradient(175deg,#0B2A4A_0%,#08213B_100%)] px-6 py-8 text-[#DCE4F2] lg:basis-3/5 lg:px-13 lg:py-11">
         <div className="flex items-center gap-2.5">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-harbor text-white">
-            <AnchorIcon className="h-[15px] w-[15px]" />
-          </span>
+          <Image
+            src="/mysea-shipping-logo.jpeg"
+            alt=""
+            width={28}
+            height={28}
+            className="rounded-md bg-white object-contain"
+          />
           <span className="font-display text-base text-white">{brand.word}</span>
         </div>
 

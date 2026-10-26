@@ -13,6 +13,8 @@ export const ROUTES = {
   PO_REQUESTS: `/${defaultLocale}/po-requests`,
   RFQ_LIST: `/${defaultLocale}/rfq-list`,
   PURCHASE_ORDERS: `/${defaultLocale}/purchase-orders`,
+  PURCHASE_ORDER_FORM: `/${defaultLocale}/purchase-order`,
+  PURCHASE_ORDER_THANK_YOU: `/${defaultLocale}/purchase-order/thank-you`,
   INVOICE_LOG: `/${defaultLocale}/invoice-log`,
   DELIVERY_NOTES: `/${defaultLocale}/delivery-notes`,
   VENDORS: `/${defaultLocale}/vendors`,
@@ -21,12 +23,12 @@ export const ROUTES = {
   QUOTE_FORM: `/${defaultLocale}/quote`,
 } as const;
 
-// This app's first dynamic-segment path — every other ROUTES entry above is
-// a flat static string, but a per-token vendor link can't be one of those.
-// Still built from ROUTES.QUOTE_FORM (never a second hardcoded "/en/quote"
-// literal), so this helper, src/proxy.ts's public-path prefix check, and
-// src/app/[lang]/quote/[token]/page.tsx's own segment all stay derived from
-// the same single source instead of three independently-typed strings.
+// Tokenized vendor links are built from the same locale-prefixed route
+// constants used by src/proxy.ts's public-path checks and their page routes.
 export function quoteFormPath(token: string): string {
   return `${ROUTES.QUOTE_FORM}/${token}`;
+}
+
+export function purchaseOrderFormPath(token: string): string {
+  return `${ROUTES.PURCHASE_ORDER_FORM}/${token}`;
 }
