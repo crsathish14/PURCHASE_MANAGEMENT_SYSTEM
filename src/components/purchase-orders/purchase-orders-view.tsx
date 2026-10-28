@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 import { Badge, Button, type BadgeTone } from "@/components/atoms";
 import en from "@/locales/en.json";
@@ -51,21 +52,35 @@ type ListParams = {
   endDate: string | null;
 };
 
+type InitialFilters = {
+  page: number;
+  pageSize: number;
+  search: string;
+  statuses: string[];
+  vessels: string[];
+  categories: string[];
+  datePreset: DatePreset | null;
+  startDate: string | null;
+  endDate: string | null;
+};
+
 const DEFAULT_PAGE_SIZE = 20;
 
 export function PurchaseOrdersView({
   initialDropdownFields,
   initialRows,
   initialTotal,
+  initialFilters,
 }: {
   initialDropdownFields: PrDropdownField[];
   initialRows: PurchaseOrderListRow[];
   initialTotal: number;
+  initialFilters: InitialFilters;
 }) {
   const [rows, setRows] = useState(initialRows);
   const [total, setTotal] = useState(initialTotal);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [page, setPage] = useState(initialFilters.page);
+  const [pageSize, setPageSize] = useState(initialFilters.pageSize);
   const [loading, setLoading] = useState(false);
   const [quoteDetail, setQuoteDetail] = useState<QuoteComparisonData | null>(null);
   const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
@@ -78,15 +93,34 @@ export function PurchaseOrdersView({
   const [issuedLink, setIssuedLink] = useState<string | null>(null);
   const [issuedRequisitionIds, setIssuedRequisitionIds] = useState<Set<string>>(() => new Set());
 
-  const [appliedSearch, setAppliedSearch] = useState("");
-  const [appliedStatuses, setAppliedStatuses] = useState<string[]>([]);
-  const [appliedVessels, setAppliedVessels] = useState<string[]>([]);
-  const [appliedCategories, setAppliedCategories] = useState<string[]>([]);
-  const [appliedDatePreset, setAppliedDatePreset] = useState<DatePreset | null>(null);
-  const [appliedStartDate, setAppliedStartDate] = useState<string | null>(null);
-  const [appliedEndDate, setAppliedEndDate] = useState<string | null>(null);
+  const [appliedSearch, setAppliedSearch] = useState(initialFilters.search);
+  const [appliedStatuses, setAppliedStatuses] = useState<string[]>(initialFilters.statuses);
+  const [appliedVessels, setAppliedVessels] = useState<string[]>(initialFilters.vessels);
+  const [appliedCategories, setAppliedCategories] = useState<string[]>(initialFilters.categories);
+  const [appliedDatePreset, setAppliedDatePreset] = useState<DatePreset | null>(initialFilters.datePreset);
+  const [appliedStartDate, setAppliedStartDate] = useState<string | null>(initialFilters.startDate);
+  const [appliedEndDate, setAppliedEndDate] = useState<string | null>(initialFilters.endDate);
   const [toolbarResetKey, setToolbarResetKey] = useState(0);
   const requestIdRef = useRef(0);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  function updateUrl(params: ListParams) {
+    const query = new URLSearchParams();
+    if (params.page !== 1) query.set("page", String(params.page));
+    if (params.pageSize !== DEFAULT_PAGE_SIZE) query.set("pageSize", String(params.pageSize));
+    if (params.search) query.set("q", params.search);
+    if (params.statuses.length) query.set("status", params.statuses.join(","));
+    if (params.vessels.length) query.set("vessel", params.vessels.join(","));
+    if (params.categories.length) query.set("category", params.categories.join(","));
+    if (params.datePreset) {
+      query.set("datePreset", params.datePreset);
+      if (params.startDate) query.set("dateFrom", params.startDate);
+      if (params.endDate) query.set("dateTo", params.endDate);
+    }
+    const qs = query.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  }
 
   const appliedParams = {
     search: appliedSearch,
@@ -145,6 +179,7 @@ export function PurchaseOrdersView({
       setAppliedDatePreset(params.datePreset);
       setAppliedStartDate(params.startDate);
       setAppliedEndDate(params.endDate);
+      updateUrl(params);
     } catch {
       if (requestId === requestIdRef.current) toast.error(t.loadError);
     } finally {

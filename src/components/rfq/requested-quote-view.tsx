@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 import { Button } from "@/components/atoms";
 import en from "@/locales/en.json";
@@ -18,10 +19,23 @@ import { RfqToolbar } from "./rfq-toolbar";
 
 const t = en.staff.requestedQuote;
 
+type InitialFilters = {
+  page: number;
+  pageSize: number;
+  search: string;
+  statuses: string[];
+  vessels: string[];
+  categories: string[];
+  datePreset: DatePreset | null;
+  startDate: string | null;
+  endDate: string | null;
+};
+
 export type RequestedQuoteViewProps = {
   initialDropdownFields: PrDropdownField[];
   initialRows: RequestedQuoteListRow[];
   initialTotal: number;
+  initialFilters: InitialFilters;
 };
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -54,27 +68,46 @@ type ListParams = {
 // fetches the vendor/link list BEFORE the dialog opens (row shows the same
 // detailLoadingId cursor meanwhile), so RfqLinksDialog itself stays purely
 // presentational with no data-fetching of its own.
-export function RequestedQuoteView({ initialDropdownFields, initialRows, initialTotal }: RequestedQuoteViewProps) {
+export function RequestedQuoteView({ initialDropdownFields, initialRows, initialTotal, initialFilters }: RequestedQuoteViewProps) {
   const [selectedRow, setSelectedRow] = useState<RequestedQuoteListRow | null>(null);
   const [selectedLinks, setSelectedLinks] = useState<RfqLinkRow[]>([]);
   const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
 
   const [rows, setRows] = useState(initialRows);
   const [total, setTotal] = useState(initialTotal);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [page, setPage] = useState(initialFilters.page);
+  const [pageSize, setPageSize] = useState(initialFilters.pageSize);
   const [loading, setLoading] = useState(false);
 
-  const [appliedSearch, setAppliedSearch] = useState("");
-  const [appliedStatuses, setAppliedStatuses] = useState<string[]>([]);
-  const [appliedVessels, setAppliedVessels] = useState<string[]>([]);
-  const [appliedCategories, setAppliedCategories] = useState<string[]>([]);
-  const [appliedDatePreset, setAppliedDatePreset] = useState<DatePreset | null>(null);
-  const [appliedStartDate, setAppliedStartDate] = useState<string | null>(null);
-  const [appliedEndDate, setAppliedEndDate] = useState<string | null>(null);
+  const [appliedSearch, setAppliedSearch] = useState(initialFilters.search);
+  const [appliedStatuses, setAppliedStatuses] = useState<string[]>(initialFilters.statuses);
+  const [appliedVessels, setAppliedVessels] = useState<string[]>(initialFilters.vessels);
+  const [appliedCategories, setAppliedCategories] = useState<string[]>(initialFilters.categories);
+  const [appliedDatePreset, setAppliedDatePreset] = useState<DatePreset | null>(initialFilters.datePreset);
+  const [appliedStartDate, setAppliedStartDate] = useState<string | null>(initialFilters.startDate);
+  const [appliedEndDate, setAppliedEndDate] = useState<string | null>(initialFilters.endDate);
   const [toolbarResetKey, setToolbarResetKey] = useState(0);
 
   const requestIdRef = useRef(0);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  function updateUrl(params: ListParams) {
+    const query = new URLSearchParams();
+    if (params.page !== 1) query.set("page", String(params.page));
+    if (params.pageSize !== DEFAULT_PAGE_SIZE) query.set("pageSize", String(params.pageSize));
+    if (params.search) query.set("q", params.search);
+    if (params.statuses.length) query.set("status", params.statuses.join(","));
+    if (params.vessels.length) query.set("vessel", params.vessels.join(","));
+    if (params.categories.length) query.set("category", params.categories.join(","));
+    if (params.datePreset) {
+      query.set("datePreset", params.datePreset);
+      if (params.startDate) query.set("dateFrom", params.startDate);
+      if (params.endDate) query.set("dateTo", params.endDate);
+    }
+    const qs = query.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  }
 
   const appliedParams = {
     search: appliedSearch,
@@ -134,6 +167,7 @@ export function RequestedQuoteView({ initialDropdownFields, initialRows, initial
       setAppliedDatePreset(params.datePreset);
       setAppliedStartDate(params.startDate);
       setAppliedEndDate(params.endDate);
+      updateUrl(params);
     } catch {
       if (requestId === requestIdRef.current) toast.error(t.table.loadError);
     } finally {

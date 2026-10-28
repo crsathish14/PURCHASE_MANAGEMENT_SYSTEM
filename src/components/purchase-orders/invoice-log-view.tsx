@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 import { Badge, Spinner, type BadgeTone } from "@/components/atoms";
 import en from "@/locales/en.json";
@@ -49,6 +50,18 @@ type ListParams = {
   proformaEndDate: string | null;
 };
 
+type InitialFilters = {
+  page: number;
+  pageSize: number;
+  search: string;
+  statuses: string[];
+  vessels: string[];
+  categories: string[];
+  proformaDatePreset: DatePreset | null;
+  proformaStartDate: string | null;
+  proformaEndDate: string | null;
+};
+
 type RequestInvoiceTarget = {
   id: string;
   vendorName: string;
@@ -69,15 +82,17 @@ export function InvoiceLogView({
   initialDropdownFields,
   initialRows,
   initialTotal,
+  initialFilters,
 }: {
   initialDropdownFields: PrDropdownField[];
   initialRows: PurchaseOrderListRow[];
   initialTotal: number;
+  initialFilters: InitialFilters;
 }) {
   const [rows, setRows] = useState(initialRows);
   const [total, setTotal] = useState(initialTotal);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [page, setPage] = useState(initialFilters.page);
+  const [pageSize, setPageSize] = useState(initialFilters.pageSize);
   const [loading, setLoading] = useState(false);
   const requestIdRef = useRef(0);
 
@@ -86,14 +101,34 @@ export function InvoiceLogView({
   const [copyingLinkId, setCopyingLinkId] = useState<string | null>(null);
   const [loadingInvoiceId, setLoadingInvoiceId] = useState<string | null>(null);
 
-  const [appliedSearch, setAppliedSearch] = useState("");
-  const [appliedStatuses, setAppliedStatuses] = useState<string[]>([]);
-  const [appliedVessels, setAppliedVessels] = useState<string[]>([]);
-  const [appliedCategories, setAppliedCategories] = useState<string[]>([]);
-  const [appliedProformaDatePreset, setAppliedProformaDatePreset] = useState<DatePreset | null>(null);
-  const [appliedProformaStartDate, setAppliedProformaStartDate] = useState<string | null>(null);
-  const [appliedProformaEndDate, setAppliedProformaEndDate] = useState<string | null>(null);
+  const [appliedSearch, setAppliedSearch] = useState(initialFilters.search);
+  const [appliedStatuses, setAppliedStatuses] = useState<string[]>(initialFilters.statuses);
+  const [appliedVessels, setAppliedVessels] = useState<string[]>(initialFilters.vessels);
+  const [appliedCategories, setAppliedCategories] = useState<string[]>(initialFilters.categories);
+  const [appliedProformaDatePreset, setAppliedProformaDatePreset] = useState<DatePreset | null>(initialFilters.proformaDatePreset);
+  const [appliedProformaStartDate, setAppliedProformaStartDate] = useState<string | null>(initialFilters.proformaStartDate);
+  const [appliedProformaEndDate, setAppliedProformaEndDate] = useState<string | null>(initialFilters.proformaEndDate);
   const [toolbarResetKey, setToolbarResetKey] = useState(0);
+
+  const router = useRouter();
+  const pathname = usePathname();
+
+  function updateUrl(params: ListParams) {
+    const query = new URLSearchParams();
+    if (params.page !== 1) query.set("page", String(params.page));
+    if (params.pageSize !== DEFAULT_PAGE_SIZE) query.set("pageSize", String(params.pageSize));
+    if (params.search) query.set("q", params.search);
+    if (params.statuses.length) query.set("status", params.statuses.join(","));
+    if (params.vessels.length) query.set("vessel", params.vessels.join(","));
+    if (params.categories.length) query.set("category", params.categories.join(","));
+    if (params.proformaDatePreset) {
+      query.set("proformaDatePreset", params.proformaDatePreset);
+      if (params.proformaStartDate) query.set("proformaDateFrom", params.proformaStartDate);
+      if (params.proformaEndDate) query.set("proformaDateTo", params.proformaEndDate);
+    }
+    const qs = query.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  }
 
   const appliedParams = {
     search: appliedSearch,
@@ -159,6 +194,7 @@ export function InvoiceLogView({
       setAppliedProformaDatePreset(params.proformaDatePreset);
       setAppliedProformaStartDate(params.proformaStartDate);
       setAppliedProformaEndDate(params.proformaEndDate);
+      updateUrl(params);
     } catch {
       if (requestId === requestIdRef.current) toast.error(t.loadError);
     } finally {
