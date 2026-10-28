@@ -59,7 +59,7 @@ export function IssuePurchaseOrderDialog({
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState<"link" | "message" | null>(null);
 
-  const hasQuantityFields = category === PR_CATEGORY.STORES || category === PR_CATEGORY.SPARES;
+  const hasQuantityFields = category === PR_CATEGORY.STORES || category === PR_CATEGORY.SPARES || category === PR_CATEGORY.LO;
   const quantitiesValid =
     !hasQuantityFields || vendor.lineItems.every((item) => isValidNeededPoQty(quantities[item.quotationItemId] ?? ""));
   const vendorEmail = vendor.vendorEmail?.trim() ?? "";

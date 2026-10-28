@@ -1,11 +1,11 @@
 import type ExcelJS from "exceljs";
 
-import type { PrCategory } from "@/lib/constants/purchase-requisition";
+import type { PrTemplateCategory } from "@/lib/constants/purchase-requisition";
 import type { PrDropdownField } from "@/lib/data/purchase-requisition";
 import type { CreateRequisitionFormValues } from "@/lib/validation/purchase-requisition";
 
 export type ParsedImportResult = {
-  category: PrCategory;
+  category: PrTemplateCategory;
   fileName: string;
   values: Partial<CreateRequisitionFormValues>;
   warnings: string[];

@@ -73,20 +73,23 @@ These files hold every value that would otherwise be a magic string:
   option value, or a default form value — import the constant instead. `UserRole`/`ProfileStatus`
   types in `src/lib/types/database.ts` are derived from this file, not redeclared.
 - `src/lib/constants/purchase-requisition.ts` — `PR_PRIORITY`, `PR_STATUS`, `DATE_PRESET`,
-  `PR_CATEGORY` (`SERVICE`/`STORES`/`SPARES`, mirroring the `category` dropdown field's seeded
+  `PR_CATEGORY` (`SERVICE`/`STORES`/`SPARES`/`LO`, mirroring the `category` dropdown field's seeded
   option *values* — used only for frontend conditional branching on which line-item columns to
   show; the DB via `pr_dropdown_fields`/`pr_dropdown_field_options` stays the actual source of
   truth for the dropdown's label/option list), and `PR_LINE_ITEM_PRESET_COLUMN`
-  (`REMARKS` — applies to all three categories; `APPROVED_QTY`/`ROB`/`UOM` — Stores and Spares only,
+  (`REMARKS` — applies to all four categories; `APPROVED_QTY`/`ROB`/`UOM` — Stores, Spares, and LO,
   Service has no Qty concept at all (see `LineItemsField`'s own `isService` flag, which hides the main
-  Qty field entirely for this category); `PART_NO` — Spares only; `IMPA_CODE` — Stores only, Spares has
+  Qty field entirely for this category); `PART_NO` — Spares only; `IMPA_CODE` — Stores only, Spares and LO have
   no IMPA/ISSA code equivalent; `AVAILABLE_ONBOARD` — Service only — the stable keys `LineItemsField`
   uses for its category-driven preset line-item columns, kept distinct from a genuinely user-added
   custom column's random `crypto.randomUUID()` key). The category →
   preset-column-set mapping itself lives
   in one place, `getPresetColumnsForCategory()` in `src/lib/purchase-requisition/preset-columns.ts`
-  — both `LineItemsField` (manual create/edit) and the import-template parser (§16) import it, so
-  they can't drift apart. `APPROVED_QTY` is office-only (filled in during review, never sourced from
+  — `LineItemsField` (manual create/edit) and supported import-template parsers (§16) import it, so
+  their column definitions stay aligned. LO uses the Stores set without IMPA Code. Its import/export
+  templates are deferred; current template parsing and export remain limited to
+  Stores/Spares/Service.
+  `APPROVED_QTY` is office-only (filled in during review, never sourced from
   the import template) but is still part of this set, since the column must exist either way. It's
   manually editable in Create/Edit Requisition; the frontend-only “Approved Qty is same as Qty”
   checkbox copies each row's Required Qty into Approved Qty and keeps them synced until Approved Qty
@@ -95,9 +98,9 @@ These files hold every value that would otherwise be a magic string:
   (`line-items-field.tsx`'s `isApprovedQty` check, matched by key **or** label — a saved-and-reloaded
   preset column comes back with its real DB uuid as `key`, not the literal preset string, so the label
   match is what still catches it post-reload) — it can be left blank and saved, it just can never be
-  deleted from a Stores/Spares requisition's column set via the UI. `handleRemoveColumn` itself is
+  deleted from a Stores/Spares/LO requisition's column set via the UI. `handleRemoveColumn` itself is
   untouched, since the category-switch effect still needs to call it when switching *away* from
-  Stores/Spares into Service, which has no Approved Qty column at all.
+  Stores/Spares/LO into Service, which has no Approved Qty column at all.
 - `src/lib/routes.ts` — `ROUTES`, every locale-prefixed path the app links to or redirects to (see
   §3).
 - `src/lib/constants/storage.ts` — `STORAGE_BUCKET` (currently just `ATTACHMENTS`), `MAX_PHOTO_SIZE_BYTES`,
@@ -237,11 +240,19 @@ a dev server when practical, not just that it compiles.
 The Create Requisition "Import Excel" menu (`po-requests-view.tsx`) generates and parses
 spreadsheets — `exceljs` is the one dependency for both directions (its `package.json`
 `browser`/`main` fields resolve to the right build automatically for a client component vs. a
-Route Handler; no separate library needed per side). All three categories now ship a real,
-persisted, VBA-driven workbook (the actual paper-form workflow) rather than an ExcelJS-generated
-one:
+Route Handler; no separate library needed per side). All three template-supported categories now
+ship a real, persisted, VBA-driven workbook (the actual paper-form workflow) rather than an
+ExcelJS-generated one:
 
-**Every category — a persisted, VBA-driven workbook (the real paper-form workflow)**
+LO (Lub Oil) is the fourth PR category. Its line-item preset matches Stores without IMPA Code. LO
+supports manual PR creation and RFQ issuance with a read-only vendor preview; quote submission and
+LO import/export templates are deferred. Spreadsheet
+template endpoints and parsers continue to support Stores, Spares, and Service. An existing imported
+PR may still be changed to LO before submission, and the manual form then switches to LO's preset.
+The PR row menu exposes Issue RFQ for LO. The PR Excel Export action remains hidden for LO until an
+LO export template is implemented.
+
+**Each template-supported category — a persisted, VBA-driven workbook (the real paper-form workflow)**
 - `GET src/app/api/purchase-requisitions/import-template/route.ts?category=stores|spares|service`
   streams a static `.xlsm` straight off disk (`readStoresTemplateBuffer()` /
   `readSparesTemplateBuffer()` / `readServiceTemplateBuffer()` in
@@ -442,6 +453,33 @@ pattern is the closest sibling precedent for "one shared plumbing, reused across
 token/expiry mechanism itself (`issue_rfq_link`, `get_rfq_link_by_token`, `submit_rfq_link`, all in
 `20260824030000_rfq_link_rpcs.sql`/`20260825010000_rfq_link_expiry_datetime.sql`) is untouched by
 this feature — everything below is additive, sitting alongside it.
+
+LO RFQ issuance is enabled. `issue_rfq_link` exempts Service only from its Approved Qty check, so
+that database guard already applies to LO. The token page dispatches LO to `LoQuoteForm`
+(`src/components/vendor-quote/lo-quote-form.tsx`) — a Stores-shaped form without IMPA code fields
+(no requested IMPA/ISSA Code column and no Offered IMPA/ISSA Code editable column). LO quote
+persistence uses Approved Qty × Unit Price, same as Stores; `submit_rfq_quotation` branches
+explicitly on `'lo'` to skip the IMPA/ISSA Code label lookup. The unit-price enforcement trigger
+(`require_rfq_quote_unit_price`) includes `'lo'` alongside `'stores'` and `'spares'`.
+LO quote comparison and vendor quote PDF export are implemented (Stage 4): `LoQuoteComparisonCard`
+(`src/components/rfq/lo-quote-comparison-card.tsx`) mirrors `StoresQuoteComparisonCard` without IMPA
+columns; `LoQuotePdf` (`src/lib/rfq-quote-pdf/lo-quote-pdf.tsx`) mirrors `StoresQuotePdf` the same
+way; `CompareQuotesModal` dispatches LO to `LoQuoteComparisonCard`; the vendor quote PDF export route
+(`src/app/api/purchase-requisitions/[id]/rfq-links/[linkId]/export/route.tsx`) accepts all four
+categories via `PrCategoryWithCurrentPdfSupport`. PO draft/issue/PDFs are implemented (Stage 5):
+`isPurchaseOrderPdfCategory` and `COLUMN_WIDTH_BY_CATEGORY` include LO, `hasCodeColumn` returns false
+for LO (no IMPA column in the PO PDF), and all three `hasQuantityFields` checks (in
+`purchase-orders-view.tsx` and `issue-purchase-order-dialog.tsx`) include LO so quantity editing and
+issuance work the same as Stores. The vendor proforma flow (Stage 6) required no code changes — every
+token-based PO lookup, PDF retrieval, proforma signing/upload/submission, and staff retrieval path is
+already category-agnostic. The PR row's RFQ action is enabled; PR Excel Export remains hidden because
+LO templates are separate work.
+
+Two distinct "current PDF support" type aliases exist in `src/lib/constants/purchase-requisition.ts`,
+both now covering all four categories: `PrCategoryWithCurrentPdfSupport` (vendor quote PDFs, all four
+since Stage 4) and `PrCategoryWithCurrentPoPdfSupport` (PO PDFs, all four since Stage 5). They remain
+separate so a future category can be added to one before the other. Use the appropriate alias for each
+PDF feature.
 
 - **New tables** (`20260830010000_purchase_requisition_rfq_quotations.sql`):
   `purchase_requisition_rfq_quotations` (one row per vendor submission, 1:1 with its
@@ -856,10 +894,10 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
   - Scope is view/award-only for this modal: its award action changes the requisition state but does
     not create a PO draft. Draft quantity editing and saving live in the Purchase Orders page (§19);
     formal PO issuance remains a separate workflow.
-  - **Extended to Spares/Service** (see §17's own "Extending to Spares and Service" bullet for the
+  - **Extended to Spares/Service/LO** (see §17's own "Extending to Spares and Service" bullet for the
     full picture): `CompareQuotesModal` no longer hardcodes `StoresQuoteComparisonCard` — it picks
-    one of `StoresQuoteComparisonCard`/`SparesQuoteComparisonCard`/`ServiceQuoteComparisonCard` once
-    per render, keyed on `QuoteComparisonData.category` (a requisition has exactly one category for
+    one of `StoresQuoteComparisonCard`/`SparesQuoteComparisonCard`/`ServiceQuoteComparisonCard`/
+    `LoQuoteComparisonCard` once per render, keyed on `QuoteComparisonData.category` (a requisition has exactly one category for
     its whole lifetime, shared by every vendor quoted against it, so this lives on `data`, not on
     each `QuoteComparisonVendor`). `getRfqQuoteComparison()` gained `category` (from
     `pr_requisition_list.category_value`, already selected elsewhere in this codebase for the same
@@ -1114,7 +1152,7 @@ sees the exact quantities and recalculated line totals that staff issued. The is
 the awarded vendor name/email and an editable message template; it returns a copyable link and message
 for staff to share (the app does not send email). After issue, quantity edits and draft saves are
 disabled for that row, and the detail modal replaces Save/Issue with Copy URL and Download; the
-category-specific Purchase Order PDF is available for Stores, Spares, and Service.
+category-specific Purchase Order PDF is available for all four categories (Stores, Spares, Service, LO).
 Staff retrieve the saved URL through the authenticated `get_purchase_order_issue_token` RPC, which
 keeps the token unavailable through direct table reads.
 
@@ -1122,7 +1160,7 @@ The vendor uploads one PDF proforma invoice (up to the shared bucket's 5 MB limi
 `/api/purchase-order/[token]/proforma/sign`, which revalidates the token before minting a signed upload
 URL. The vendor page's Download button uses `GET /api/purchase-order/[token]/export` to download the
 same category-specific PO PDF as staff. Its token-only `get_purchase_order_pdf_by_token` RPC returns
-only the fields needed for the PDF while the token is valid, for Stores, Spares, and Service. The
+only the fields needed for the PDF while the token is valid, for all four categories. The
 submit route verifies the token-scoped Storage object and PDF header, then calls the
 `submit_purchase_order_proforma` RPC. That RPC atomically saves the Storage path, original filename,
 and `proforma_received_at`; future token lookups and staff token retrieval return no link. On success,

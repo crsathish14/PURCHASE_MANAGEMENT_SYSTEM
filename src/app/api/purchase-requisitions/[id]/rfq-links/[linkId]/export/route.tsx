@@ -2,10 +2,14 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { NextResponse } from "next/server";
 
 import en from "@/locales/en.json";
-import { PR_CATEGORY, type PrCategory } from "@/lib/constants/purchase-requisition";
+import {
+  PR_CATEGORY,
+  type PrCategoryWithCurrentPdfSupport,
+} from "@/lib/constants/purchase-requisition";
 import { getRfqQuoteComparison } from "@/lib/data/rfq-quote-comparison";
 import { buildRfqQuotePdfFilename } from "@/lib/rfq-quote-pdf/filename";
 import type { RfqQuotePdfPrContext } from "@/lib/rfq-quote-pdf/sections";
+import { LoQuotePdf } from "@/lib/rfq-quote-pdf/lo-quote-pdf";
 import { ServiceQuotePdf } from "@/lib/rfq-quote-pdf/service-quote-pdf";
 import { SparesQuotePdf } from "@/lib/rfq-quote-pdf/spares-quote-pdf";
 import { StoresQuotePdf } from "@/lib/rfq-quote-pdf/stores-quote-pdf";
@@ -13,16 +17,11 @@ import { requireApiActiveUser } from "@/lib/supabase/require-active-user";
 
 const t = en.staff.requestedQuote.linksDialog;
 
-// Same lenient default-to-Stores behavior compare-quotes-modal.tsx already
-// uses for this same nullable field, not the stricter isPrCategory 400-guard
-// the unrelated Excel export route uses — this route's whole job is "a
-// static copy of what Compare Quotes already shows for this vendor," so it
-// should degrade exactly the way Compare Quotes itself already does on this
-// same field.
-const PDF_DOCUMENT_BY_CATEGORY: Record<PrCategory, typeof StoresQuotePdf> = {
+const PDF_DOCUMENT_BY_CATEGORY: Record<PrCategoryWithCurrentPdfSupport, typeof StoresQuotePdf> = {
   [PR_CATEGORY.STORES]: StoresQuotePdf,
   [PR_CATEGORY.SPARES]: SparesQuotePdf,
   [PR_CATEGORY.SERVICE]: ServiceQuotePdf,
+  [PR_CATEGORY.LO]: LoQuotePdf,
 };
 
 // GET /api/purchase-requisitions/[id]/rfq-links/[linkId]/export — downloads
@@ -44,6 +43,14 @@ export async function GET(
     if (!data) {
       return NextResponse.json({ error: { message: "Requisition not found." } }, { status: 404 });
     }
+    if (
+      data.category !== PR_CATEGORY.STORES &&
+      data.category !== PR_CATEGORY.SPARES &&
+      data.category !== PR_CATEGORY.SERVICE &&
+      data.category !== PR_CATEGORY.LO
+    ) {
+      return NextResponse.json({ error: { message: t.exportPdfUnsupportedCategory } }, { status: 400 });
+    }
 
     // vendors[] is shorter than the requested linkIds whenever a link has no
     // matching quotation (reissued away since the row was rendered, a
@@ -55,12 +62,7 @@ export async function GET(
       return NextResponse.json({ error: { message: t.exportPdfNotFoundError } }, { status: 404 });
     }
 
-    const category: PrCategory =
-      data.category === PR_CATEGORY.SPARES
-        ? PR_CATEGORY.SPARES
-        : data.category === PR_CATEGORY.SERVICE
-          ? PR_CATEGORY.SERVICE
-          : PR_CATEGORY.STORES;
+    const category: PrCategoryWithCurrentPdfSupport = data.category;
 
     const pr: RfqQuotePdfPrContext = {
       prNumber: data.prNumber,

@@ -267,7 +267,9 @@ export function PurchaseOrdersView({
     if (!quoteDetail || !vendor || isIssuedStatus(row?.status)) return;
 
     const hasQuantityFields =
-      quoteDetail.category === PR_CATEGORY.STORES || quoteDetail.category === PR_CATEGORY.SPARES;
+      quoteDetail.category === PR_CATEGORY.STORES ||
+      quoteDetail.category === PR_CATEGORY.SPARES ||
+      quoteDetail.category === PR_CATEGORY.LO;
     if (
       hasQuantityFields &&
       vendor.lineItems.some((item) => !isValidNeededPoQty(neededPoQuantities[item.quotationItemId] ?? ""))
@@ -360,7 +362,9 @@ export function PurchaseOrdersView({
   }
 
   const hasQuantityFields =
-    quoteDetail?.category === PR_CATEGORY.STORES || quoteDetail?.category === PR_CATEGORY.SPARES;
+    quoteDetail?.category === PR_CATEGORY.STORES ||
+    quoteDetail?.category === PR_CATEGORY.SPARES ||
+    quoteDetail?.category === PR_CATEGORY.LO;
   const selectedRow = rows.find((row) => row.id === quoteDetail?.requisitionId);
   const isIssued =
     Boolean(quoteDetail && issuedRequisitionIds.has(quoteDetail.requisitionId)) ||
@@ -464,22 +468,7 @@ export function PurchaseOrdersView({
                         {dateFormatter.format(new Date(row.quoteSubmittedAt))}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 whitespace-nowrap">
-                          <Badge tone={STATUS_TONE[row.status]}>{t.statusLabels[row.status]}</Badge>
-                          {row.status === PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED ? (
-                            <a
-                              href={`/api/purchase-orders/${row.id}/proforma`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(event) => event.stopPropagation()}
-                              onKeyDown={(event) => event.stopPropagation()}
-                              aria-label={`${t.viewProforma} ${row.prNumber}`}
-                              className="rounded-md border border-line bg-paper px-2.5 py-1.5 text-xs font-bold text-harbor transition-colors hover:bg-mist focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-harbor"
-                            >
-                              {t.viewProforma}
-                            </a>
-                          ) : null}
-                        </div>
+                        <Badge tone={STATUS_TONE[row.status]}>{t.statusLabels[row.status]}</Badge>
                       </td>
                     </tr>
                   ))

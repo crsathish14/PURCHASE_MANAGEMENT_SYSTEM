@@ -262,6 +262,23 @@
       "next": "Next page",
       "pageOf": "Page {page} of {total}"
     },
+    "invoiceLog": {
+      "title": "Invoice Log",
+      "subtitle": "Proforma invoices received from vendors.",
+      "columns": {
+        "prRef": "PR Ref",
+        "requisitionNumber": "Requisition No.",
+        "title": "Title",
+        "vessel": "Vessel",
+        "vendor": "Vendor",
+        "total": "Quote Total",
+        "status": "Status"
+      },
+      "viewProforma": "View Proforma",
+      "viewFor": "View proforma for {prNumber}",
+      "empty": "No proforma invoices received yet.",
+      "loadError": "Couldn't load invoice log."
+    },
     "teamAccess": {
       "title": "Team & access",
       "subtitle": "Manage who can sign in to Vessel PMS and what they can do.",
@@ -729,6 +746,7 @@
         "awardError": "Couldn't award this requisition. Please try again.",
         "exportPdfError": "Couldn't export this quote as a PDF. Try again.",
         "exportPdfNotFoundError": "This vendor's quote could not be found. It may have been reissued.",
+        "exportPdfUnsupportedCategory": "PDF export is not available for this category yet.",
         "awardDialog": {
           "title": "Award this vendor?",
           "message": "Award {prNumber} to {vendorName}? This marks their quote as the winning quote and changes the requisition status to Awarded. This cannot be undone.",
@@ -1073,6 +1091,80 @@
         "paymentTermsRequired": "Payment terms are required",
         "deliveryTermsRequired": "Delivery terms are required"
       }
+    },
+    "loForm": {
+      "pdfHeader": {
+        "documentTitle": "LUB OIL QUOTATION"
+      },
+      "rfqDetails": {
+        "title": "RFQ Details",
+        "vesselName": "Vessel Name",
+        "imoNo": "IMO No.",
+        "dateOfIssue": "Date of Issue",
+        "requisitionNo": "Requisition No. (PR No.)",
+        "portOfDelivery": "Port / Place of Delivery",
+        "requiredDate": "Required Date",
+        "requestedCurrency": "Requested Currency",
+        "quotationNo": "Quotation No.",
+        "quotationNoPlaceholder": "e.g. Q-2045",
+        "refNo": "Ref. No.",
+        "refNoPlaceholder": "e.g. REF-2045"
+      },
+      "vendorDetails": {
+        "title": "Vendor Details",
+        "vendorName": "Vendor / Company Name",
+        "vendorNamePlaceholder": "e.g. Anchor Marine Supplies",
+        "contactPerson": "Contact Person",
+        "contactNo": "Contact No.",
+        "email": "Email ID",
+        "otherDetails": "Other Details",
+        "optional": "optional"
+      },
+      "itemDetails": {
+        "title": "Item Details",
+        "columns": {
+          "slNo": "S.No.",
+          "requestedDescription": "Requested Item Description",
+          "approvedQty": "Qty",
+          "uom": "UOM",
+          "photos": "Photos",
+          "offeredDescription": "Offered Item Description",
+          "unitPrice": "Unit Price",
+          "totalPrice": "Total Price",
+          "deliveryLeadTime": "Delivery Lead Time (In Days)",
+          "remarks": "Remarks",
+          "vendorPhotos": "Attach Photos"
+        },
+        "noPhotos": "No photos",
+        "viewPhoto": "View photo",
+        "viewPhotoStack": "View {count} photos",
+        "grandTotal": "Grand Total"
+      },
+      "quotationSummary": {
+        "title": "Quotation Summary & Terms",
+        "totalQuotedAmount": "Total Quoted Amount",
+        "quotationValidity": "Quotation Validity",
+        "quotationValidityPlaceholder": "e.g. 30 days from quotation date",
+        "paymentTerms": "Payment Terms",
+        "paymentTermsPlaceholder": "e.g. 30 days net",
+        "deliveryTerms": "Delivery Terms (Incoterm)",
+        "deliveryTermsPlaceholder": "e.g. FOB Singapore",
+        "remarksNotes": "Remarks / Notes",
+        "optional": "optional"
+      },
+      "submit": "Submit Quotation",
+      "submitting": "Submitting…",
+      "errors": {
+        "vendorNameRequired": "Vendor / Company name is required",
+        "vendorEmailInvalid": "Enter a valid email address",
+        "offeredDescriptionRequired": "Offered item description is required",
+        "unitPriceRequired": "Unit Price is required for every line item",
+        "unitPriceInvalid": "Enter a valid amount",
+        "deliveryLeadTimeInvalid": "Enter a whole number of days",
+        "quotationValidityRequired": "Quotation validity is required",
+        "paymentTermsRequired": "Payment terms are required",
+        "deliveryTermsRequired": "Delivery terms are required"
+      }
     }
   },
   "vendorPurchaseOrder": {
@@ -1153,6 +1245,10 @@
       "service": {
         "itemsTitle": "Services Ordered",
         "description": "Description of Service"
+      },
+      "lo": {
+        "itemsTitle": "Lub Oil Ordered",
+        "description": "Description of Lub Oil"
       }
     },
     "columns": {

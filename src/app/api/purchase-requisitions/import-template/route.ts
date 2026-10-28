@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { PR_CATEGORY } from "@/lib/constants/purchase-requisition";
-import type { PrCategory } from "@/lib/constants/purchase-requisition";
+import type { PrTemplateCategory } from "@/lib/constants/purchase-requisition";
 import { requireApiActiveUser } from "@/lib/supabase/require-active-user";
 import {
   readServiceTemplateBuffer,
@@ -9,7 +9,7 @@ import {
   readStoresTemplateBuffer,
 } from "@/lib/purchase-requisition/templates";
 
-// Every category ships its real, VBA-driven paper-form workbook (persisted
+// Every template-supported category ships its real, VBA-driven paper-form workbook (persisted
 // as-is under lib/purchase-requisition/templates/ — see that folder's
 // vba-source/stores/, vba-source/spares/, and vba-source/service/ for the
 // readable macro code and setup guides, three independent VBA projects)
@@ -21,12 +21,12 @@ import {
 // category-specific header fields are no longer produced by this route for
 // any category — kept in the parser only for files already downloaded
 // before that switch.
-const TEMPLATE_BUFFER_READER: Record<PrCategory, () => Promise<Buffer>> = {
+const TEMPLATE_BUFFER_READER: Record<PrTemplateCategory, () => Promise<Buffer>> = {
   [PR_CATEGORY.STORES]: readStoresTemplateBuffer,
   [PR_CATEGORY.SPARES]: readSparesTemplateBuffer,
   [PR_CATEGORY.SERVICE]: readServiceTemplateBuffer,
 };
-const TEMPLATE_FILE_NAME: Record<PrCategory, string> = {
+const TEMPLATE_FILE_NAME: Record<PrTemplateCategory, string> = {
   [PR_CATEGORY.STORES]: "pms-store-requisition-template.xlsm",
   [PR_CATEGORY.SPARES]: "pms-spares-requisition-template.xlsm",
   [PR_CATEGORY.SERVICE]: "pms-service-requisition-template.xlsm",
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
       { status: 400 },
     );
   }
-  const category: PrCategory = categoryParam;
+  const category: PrTemplateCategory = categoryParam;
 
   let buffer: Buffer;
   try {

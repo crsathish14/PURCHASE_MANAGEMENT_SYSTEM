@@ -42,6 +42,14 @@ export function getPresetColumnsForCategory(category?: string): PresetColumn[] {
       remarks,
     ];
   }
+  if (category === PR_CATEGORY.LO) {
+    return [
+      { key: PR_LINE_ITEM_PRESET_COLUMN.UOM, label: t.columns.uom },
+      rob,
+      approvedQty,
+      remarks,
+    ];
+  }
   if (category === PR_CATEGORY.SPARES) {
     return [
       { key: PR_LINE_ITEM_PRESET_COLUMN.PART_NO, label: t.columns.partNo },

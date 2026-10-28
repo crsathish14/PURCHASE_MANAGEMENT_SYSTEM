@@ -4,6 +4,7 @@ import en from "@/locales/en.json";
 import { PR_CATEGORY } from "@/lib/constants/purchase-requisition";
 import { getRfqQuoteDetailsByToken } from "@/lib/data/rfq-quote";
 import { LinkExpired, type LinkInvalidReason } from "@/components/vendor-quote/link-expired";
+import { LoQuoteForm } from "@/components/vendor-quote/lo-quote-form";
 import { QuoteForm } from "@/components/vendor-quote/quote-form";
 import { ServiceQuoteForm } from "@/components/vendor-quote/service-quote-form";
 import { SparesQuoteForm } from "@/components/vendor-quote/spares-quote-form";
@@ -31,19 +32,20 @@ export default async function QuoteFormPage({ params }: { params: Promise<{ toke
   else if (detail.submittedAt) invalidReason = "submitted";
   else if (detail.isExpired) invalidReason = "expired";
 
-  // All 3 PR categories now have a real quotation form — the category comes
-  // straight from the PR, never a separate manual choice. Any invalid-link
-  // state, or a genuinely unrecognized/missing category, keeps falling back
-  // to the generic stub exactly as before.
+  // The category comes straight from the PR, never a separate manual choice.
+  // Unknown categories keep the generic stub.
   const category = invalidReason ? null : (detail?.category ?? null);
-  const hasRealForm =
-    category === PR_CATEGORY.STORES || category === PR_CATEGORY.SPARES || category === PR_CATEGORY.SERVICE;
+  const widePage =
+    category === PR_CATEGORY.STORES ||
+    category === PR_CATEGORY.SPARES ||
+    category === PR_CATEGORY.SERVICE ||
+    category === PR_CATEGORY.LO;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-mist px-6 py-10">
       <div
         className={`w-full rounded-lg border border-line bg-paper p-8 shadow-(--shadow-e2) ${
-          hasRealForm ? "max-w-6xl" : "max-w-105"
+          widePage ? "max-w-6xl" : "max-w-105"
         }`}
       >
         {invalidReason || !detail ? (
@@ -54,6 +56,8 @@ export default async function QuoteFormPage({ params }: { params: Promise<{ toke
           <SparesQuoteForm token={token} detail={detail} />
         ) : category === PR_CATEGORY.SERVICE ? (
           <ServiceQuoteForm token={token} detail={detail} />
+        ) : category === PR_CATEGORY.LO ? (
+          <LoQuoteForm token={token} detail={detail} />
         ) : (
           <QuoteForm token={token} prNumber={detail.prNumber} />
         )}

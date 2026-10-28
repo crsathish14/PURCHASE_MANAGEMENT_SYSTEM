@@ -140,3 +140,38 @@ export const submitServiceVendorQuoteSchema = z.object({
 });
 
 export type SubmitServiceVendorQuoteInput = z.infer<typeof submitServiceVendorQuoteSchema>;
+
+const tLo = en.vendorQuote.loForm.errors;
+
+// LO item schema mirrors Stores exactly, except there is no offeredImpaCode —
+// LO has no IMPA/ISSA Code column at any stage.
+export const loVendorQuoteItemSchema = z.object({
+  lineItemId: z.string().min(1),
+  offeredDescription: z.string().min(1, { error: tLo.offeredDescriptionRequired }),
+  unitPrice: z
+    .string()
+    .min(1, { error: tLo.unitPriceRequired })
+    .regex(/^\d+(\.\d+)?$/, { error: tLo.unitPriceInvalid }),
+  deliveryLeadTime: z.string().refine((value) => value === "" || /^\d+$/.test(value), {
+    error: tLo.deliveryLeadTimeInvalid,
+  }),
+  remarks: z.string(),
+  photos: z.array(vendorQuoteItemPhotoSchema),
+});
+
+export const submitLoVendorQuoteSchema = z.object({
+  quotationNo: z.string(),
+  refNo: z.string(),
+  vendorName: z.string().min(1, { error: tLo.vendorNameRequired }),
+  vendorContactPerson: z.string(),
+  vendorContactNo: z.string(),
+  vendorEmail: z.union([z.literal(""), z.email({ error: tLo.vendorEmailInvalid })]),
+  vendorOtherDetails: z.string(),
+  quotationValidity: z.string().min(1, { error: tLo.quotationValidityRequired }),
+  paymentTerms: z.string().min(1, { error: tLo.paymentTermsRequired }),
+  deliveryTerms: z.string().min(1, { error: tLo.deliveryTermsRequired }),
+  remarksNotes: z.string(),
+  items: z.array(loVendorQuoteItemSchema),
+});
+
+export type SubmitLoVendorQuoteInput = z.infer<typeof submitLoVendorQuoteSchema>;

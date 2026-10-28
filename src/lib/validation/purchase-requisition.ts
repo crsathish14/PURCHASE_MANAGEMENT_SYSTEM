@@ -89,7 +89,7 @@ export function buildCreateRequisitionSchema(
   // Description are unconditionally required — Requested By, Required Port,
   // Requisition Number, Remarks, custom "Add more" fields, and Approved
   // Qty/Remarks/Photos are all optional. Required Quantity (qty) is
-  // conditionally required below, only when category is Stores/Spares.
+  // conditionally required below for Stores/Spares/LO.
   return z
     .object({
       priority: z.enum([PR_PRIORITY.HIGH, PR_PRIORITY.MEDIUM, PR_PRIORITY.LOW], {
@@ -140,7 +140,8 @@ export function buildCreateRequisitionSchema(
       // dropdownShape keys and the list-view's joins already hardcode
       // 'vessel'/'department'/'category' — not a new precedent.
       const category = data.dropdowns.category;
-      const qtyRequired = category === PR_CATEGORY.STORES || category === PR_CATEGORY.SPARES;
+      const qtyRequired =
+        category === PR_CATEGORY.STORES || category === PR_CATEGORY.SPARES || category === PR_CATEGORY.LO;
       if (qtyRequired) {
         data.lineItems.forEach((item, index) => {
           if (!item.qty.trim()) {
