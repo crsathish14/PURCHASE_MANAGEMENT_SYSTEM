@@ -25,6 +25,9 @@ export type PurchaseOrderFilters = {
   datePreset?: DatePreset;
   startDate?: string;
   endDate?: string;
+  proformaDatePreset?: DatePreset;
+  proformaStartDate?: string;
+  proformaEndDate?: string;
 };
 
 export type PurchaseOrderDraftItemInput = {
@@ -247,6 +250,9 @@ export async function getPurchaseOrders({
   datePreset,
   startDate,
   endDate,
+  proformaDatePreset,
+  proformaStartDate,
+  proformaEndDate,
 }: {
   page: number;
   pageSize: number;
@@ -260,6 +266,9 @@ export async function getPurchaseOrders({
     p_date_preset: datePreset ?? null,
     p_start_date: startDate ?? null,
     p_end_date: endDate ?? null,
+    p_proforma_date_preset: proformaDatePreset ?? null,
+    p_proforma_start_date: proformaStartDate ?? null,
+    p_proforma_end_date: proformaEndDate ?? null,
     p_page: page,
     p_page_size: pageSize,
   });

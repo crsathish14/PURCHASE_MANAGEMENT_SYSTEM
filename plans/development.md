@@ -1192,7 +1192,14 @@ Once the proforma is received, staff can request the vendor's invoice from the I
 (`/en/invoice-log`, `ROUTES.INVOICE_LOG`). The tab lists all PRs with status `PROFORMA_RECEIVED`,
 `INVOICE_REQUESTED`, or `INVOICE_RECEIVED`, showing PR Ref, Requisition No., Title, Vessel, Vendor,
 Total, and Status. Each row always shows a "View Proforma" link (same `/api/purchase-orders/[id]/proforma`
-stream endpoint). Two extra statuses and their flows:
+stream endpoint). The list has server-side search (PR Ref, Requisition No., Title) and filters
+(status limited to the three invoice-log values, vessel, category, proforma received date) via the
+same `RfqToolbar`/`search_purchase_orders` path as Purchase Orders. The proforma date filter uses
+dedicated `p_proforma_date_preset`/`p_proforma_start_date`/`p_proforma_end_date` RPC params that
+filter on `issuance.proforma_received_at`, sent by the client as `proformaDatePreset`/
+`proformaDateFrom`/`proformaDateTo` query params (distinct from the PO page's `datePreset`/
+`dateFrom`/`dateTo`, which filter `quote_submitted_at`). The Invoice Log toolbar's `date` label reads
+"Proforma date"; its search placeholder reads "Search PR ref, requisition no., or title". Two extra statuses and their flows:
 
 - **`INVOICE_REQUESTED`** — staff clicked "Request Invoice" on a `PROFORMA_RECEIVED` row, which
   opens a modal (`RequestInvoiceDialog`) with locked vendor name, editable email, and an editable

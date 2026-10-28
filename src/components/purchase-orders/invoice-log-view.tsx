@@ -5,10 +5,13 @@ import { useRef, useState } from "react";
 import { Badge, Spinner, type BadgeTone } from "@/components/atoms";
 import en from "@/locales/en.json";
 import { PURCHASE_ORDER_STATUS, type PurchaseOrderStatus } from "@/lib/constants/purchase-order";
+import type { DatePreset } from "@/lib/constants/purchase-requisition";
+import type { PrDropdownField } from "@/lib/data/purchase-requisition";
 import type { PurchaseOrderListRow } from "@/lib/data/purchase-orders";
 import { formatCurrencyUsd } from "@/lib/format-currency";
 import { toast } from "@/store/toast-store";
 import { RfqPager } from "@/components/rfq/rfq-pager";
+import { RfqToolbar } from "@/components/rfq/rfq-toolbar";
 import { RequestInvoiceDialog } from "./request-invoice-dialog";
 import { InvoiceDocumentsModal, type InvoiceDocumentItem } from "./invoice-documents-modal";
 
@@ -27,7 +30,24 @@ const INVOICE_LOG_STATUSES = [
   PURCHASE_ORDER_STATUS.INVOICE_RECEIVED,
 ];
 
+const INVOICE_LOG_STATUS_OPTIONS = INVOICE_LOG_STATUSES.map((value) => ({
+  value,
+  label: en.staff.purchaseOrders.statusLabels[value],
+}));
+
 const DEFAULT_PAGE_SIZE = 20;
+
+type ListParams = {
+  page: number;
+  pageSize: number;
+  search: string;
+  statuses: string[];
+  vessels: string[];
+  categories: string[];
+  proformaDatePreset: DatePreset | null;
+  proformaStartDate: string | null;
+  proformaEndDate: string | null;
+};
 
 type RequestInvoiceTarget = {
   id: string;
@@ -46,9 +66,11 @@ type VendorsResult = { data?: { id: string; mail: string[] }[]; error?: { messag
 type DocsResult = { data?: InvoiceDocumentItem[]; error?: { message: string } };
 
 export function InvoiceLogView({
+  initialDropdownFields,
   initialRows,
   initialTotal,
 }: {
+  initialDropdownFields: PrDropdownField[];
   initialRows: PurchaseOrderListRow[];
   initialTotal: number;
 }) {
@@ -64,36 +86,137 @@ export function InvoiceLogView({
   const [copyingLinkId, setCopyingLinkId] = useState<string | null>(null);
   const [loadingInvoiceId, setLoadingInvoiceId] = useState<string | null>(null);
 
-  async function fetchRows(nextPage: number, nextPageSize: number) {
+  const [appliedSearch, setAppliedSearch] = useState("");
+  const [appliedStatuses, setAppliedStatuses] = useState<string[]>([]);
+  const [appliedVessels, setAppliedVessels] = useState<string[]>([]);
+  const [appliedCategories, setAppliedCategories] = useState<string[]>([]);
+  const [appliedProformaDatePreset, setAppliedProformaDatePreset] = useState<DatePreset | null>(null);
+  const [appliedProformaStartDate, setAppliedProformaStartDate] = useState<string | null>(null);
+  const [appliedProformaEndDate, setAppliedProformaEndDate] = useState<string | null>(null);
+  const [toolbarResetKey, setToolbarResetKey] = useState(0);
+
+  const appliedParams = {
+    search: appliedSearch,
+    statuses: appliedStatuses,
+    vessels: appliedVessels,
+    categories: appliedCategories,
+    proformaDatePreset: appliedProformaDatePreset,
+    proformaStartDate: appliedProformaStartDate,
+    proformaEndDate: appliedProformaEndDate,
+  };
+
+  const hasActiveFilters =
+    appliedSearch.length > 0 ||
+    appliedStatuses.length > 0 ||
+    appliedVessels.length > 0 ||
+    appliedCategories.length > 0 ||
+    appliedProformaDatePreset !== null;
+
+  // When no status filter is applied, lock to the 3 invoice-log statuses so
+  // pending_po / po_issued rows never appear here regardless of filter state.
+  function resolveStatusParam(selected: string[]): string {
+    return (selected.length > 0 ? selected : INVOICE_LOG_STATUSES).join(",");
+  }
+
+  async function fetchList(params: ListParams) {
     const requestId = ++requestIdRef.current;
     setLoading(true);
     try {
       const query = new URLSearchParams({
-        page: String(nextPage),
-        pageSize: String(nextPageSize),
-        status: INVOICE_LOG_STATUSES.join(","),
+        page: String(params.page),
+        pageSize: String(params.pageSize),
+        status: resolveStatusParam(params.statuses),
       });
+      if (params.search) query.set("search", params.search);
+      if (params.vessels.length) query.set("vessel", params.vessels.join(","));
+      if (params.categories.length) query.set("category", params.categories.join(","));
+      if (params.proformaDatePreset) query.set("proformaDatePreset", params.proformaDatePreset);
+      if (params.proformaStartDate) query.set("proformaDateFrom", params.proformaStartDate);
+      if (params.proformaEndDate) query.set("proformaDateTo", params.proformaEndDate);
+
       const response = await fetch(`/api/purchase-orders?${query.toString()}`);
       const payload = await response.json();
+
       if (requestId !== requestIdRef.current) return;
       if (!response.ok) {
         toast.error(payload?.error?.message ?? t.loadError);
         return;
       }
-      if (payload.data.length === 0 && nextPage > 1) {
-        await fetchRows(1, nextPageSize);
+
+      if (payload.data.length === 0 && params.page > 1) {
+        await fetchList({ ...params, page: 1 });
         return;
       }
+
       setRows(payload.data);
       setTotal(payload.meta.total);
-      setPage(nextPage);
-      setPageSize(nextPageSize);
+      setPage(params.page);
+      setPageSize(params.pageSize);
+      setAppliedSearch(params.search);
+      setAppliedStatuses(params.statuses);
+      setAppliedVessels(params.vessels);
+      setAppliedCategories(params.categories);
+      setAppliedProformaDatePreset(params.proformaDatePreset);
+      setAppliedProformaStartDate(params.proformaStartDate);
+      setAppliedProformaEndDate(params.proformaEndDate);
     } catch {
       if (requestId === requestIdRef.current) toast.error(t.loadError);
     } finally {
       if (requestId === requestIdRef.current) setLoading(false);
     }
   }
+
+  function handleSearchSettled(search: string) {
+    void fetchList({ page: 1, pageSize, ...appliedParams, search });
+  }
+
+  // The toolbar's datePreset/startDate/endDate are the proforma date filter here.
+  function handleFilterSubmit(params: {
+    search: string;
+    statuses: string[];
+    vessels: string[];
+    categories: string[];
+    datePreset: DatePreset | null;
+    startDate: string | null;
+    endDate: string | null;
+  }) {
+    void fetchList({
+      page: 1,
+      pageSize,
+      search: params.search,
+      statuses: params.statuses,
+      vessels: params.vessels,
+      categories: params.categories,
+      proformaDatePreset: params.datePreset,
+      proformaStartDate: params.startDate,
+      proformaEndDate: params.endDate,
+    });
+  }
+
+  function handleFilterClear() {
+    setAppliedSearch("");
+    setAppliedStatuses([]);
+    setAppliedVessels([]);
+    setAppliedCategories([]);
+    setAppliedProformaDatePreset(null);
+    setAppliedProformaStartDate(null);
+    setAppliedProformaEndDate(null);
+    setToolbarResetKey((key) => key + 1);
+    void fetchList({
+      page: 1,
+      pageSize,
+      search: "",
+      statuses: [],
+      vessels: [],
+      categories: [],
+      proformaDatePreset: null,
+      proformaStartDate: null,
+      proformaEndDate: null,
+    });
+  }
+
+  const vesselOptions = initialDropdownFields.find((field) => field.key === "vessel")?.options ?? [];
+  const categoryOptions = initialDropdownFields.find((field) => field.key === "category")?.options ?? [];
 
   async function handleCopyLink(row: PurchaseOrderListRow) {
     setCopyingLinkId(row.id);
@@ -151,7 +274,7 @@ export function InvoiceLogView({
 
   function handleRequestInvoiceSuccess() {
     setRequestInvoiceTarget(null);
-    void fetchRows(page, pageSize);
+    void fetchList({ page, pageSize, ...appliedParams });
   }
 
   const ctaClass =
@@ -163,6 +286,24 @@ export function InvoiceLogView({
         <h1 className="font-display text-2xl font-semibold text-ink">{t.title}</h1>
         <p className="mt-1.5 text-sm text-slate">{t.subtitle}</p>
       </div>
+
+      <RfqToolbar
+        key={toolbarResetKey}
+        labels={t.toolbar}
+        statusOptions={INVOICE_LOG_STATUS_OPTIONS}
+        vesselOptions={vesselOptions}
+        categoryOptions={categoryOptions}
+        appliedStatuses={appliedStatuses}
+        appliedVessels={appliedVessels}
+        appliedCategories={appliedCategories}
+        appliedDatePreset={appliedProformaDatePreset}
+        appliedStartDate={appliedProformaStartDate}
+        appliedEndDate={appliedProformaEndDate}
+        onSearchSettled={handleSearchSettled}
+        onSubmit={handleFilterSubmit}
+        onClear={handleFilterClear}
+        submitting={loading}
+      />
 
       <section
         aria-label={t.title}
@@ -188,7 +329,7 @@ export function InvoiceLogView({
                 {rows.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-lt">
-                      {t.empty}
+                      {hasActiveFilters ? t.noResults : t.empty}
                     </td>
                   </tr>
                 ) : (
@@ -269,8 +410,8 @@ export function InvoiceLogView({
               page={page}
               pageSize={pageSize}
               total={total}
-              onPageChange={(nextPage) => void fetchRows(nextPage, pageSize)}
-              onPageSizeChange={(nextPageSize) => void fetchRows(1, nextPageSize)}
+              onPageChange={(nextPage) => void fetchList({ ...appliedParams, page: nextPage, pageSize })}
+              onPageSizeChange={(nextPageSize) => void fetchList({ ...appliedParams, page: 1, pageSize: nextPageSize })}
             />
           </div>
         </div>

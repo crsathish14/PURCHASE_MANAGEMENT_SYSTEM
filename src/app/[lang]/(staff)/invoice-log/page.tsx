@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import en from "@/locales/en.json";
 import { getPurchaseOrders } from "@/lib/data/purchase-orders";
+import { getPrDropdownFields } from "@/lib/data/purchase-requisition";
 import { requireActiveUser } from "@/lib/supabase/require-active-user";
 import { InvoiceLogView } from "@/components/purchase-orders/invoice-log-view";
 import { PURCHASE_ORDER_STATUS } from "@/lib/constants/purchase-order";
@@ -15,14 +16,17 @@ export const metadata: Metadata = {
 
 export default async function InvoiceLogPage() {
   await requireActiveUser();
-  const { rows, total } = await getPurchaseOrders({
-    page: 1,
-    pageSize: DEFAULT_PAGE_SIZE,
-    statuses: [
-      PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED,
-      PURCHASE_ORDER_STATUS.INVOICE_REQUESTED,
-      PURCHASE_ORDER_STATUS.INVOICE_RECEIVED,
-    ],
-  });
-  return <InvoiceLogView initialRows={rows} initialTotal={total} />;
+  const [dropdownFields, { rows, total }] = await Promise.all([
+    getPrDropdownFields(),
+    getPurchaseOrders({
+      page: 1,
+      pageSize: DEFAULT_PAGE_SIZE,
+      statuses: [
+        PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED,
+        PURCHASE_ORDER_STATUS.INVOICE_REQUESTED,
+        PURCHASE_ORDER_STATUS.INVOICE_RECEIVED,
+      ],
+    }),
+  ]);
+  return <InvoiceLogView initialDropdownFields={dropdownFields} initialRows={rows} initialTotal={total} />;
 }

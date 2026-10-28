@@ -44,6 +44,28 @@ function parseDateFilter(searchParams: URLSearchParams): {
   return { datePreset, startDate: dateFrom, endDate };
 }
 
+function parseProformaDateFilter(searchParams: URLSearchParams): {
+  proformaDatePreset?: DatePreset;
+  proformaStartDate?: string;
+  proformaEndDate?: string;
+} {
+  const requestedPreset = searchParams.get("proformaDatePreset");
+  if (!requestedPreset || !VALID_DATE_PRESETS.has(requestedPreset)) return {};
+  const proformaDatePreset = requestedPreset as DatePreset;
+
+  if (proformaDatePreset !== DATE_PRESET.CUSTOM) return { proformaDatePreset };
+
+  const dateFrom = searchParams.get("proformaDateFrom");
+  const dateTo = searchParams.get("proformaDateTo");
+  if (!dateFrom || !dateTo || !ISO_DATE_RE.test(dateFrom) || !ISO_DATE_RE.test(dateTo)) return {};
+
+  const today = new Date().toISOString().slice(0, 10);
+  const endDate = dateTo > today ? today : dateTo;
+  if (dateFrom > endDate) return {};
+
+  return { proformaDatePreset, proformaStartDate: dateFrom, proformaEndDate: endDate };
+}
+
 export async function GET(request: Request) {
   const auth = await requireApiActiveUser();
   if (auth.error) return auth.error;
@@ -61,6 +83,7 @@ export async function GET(request: Request) {
   const vessels = parseCsvParam(searchParams.get("vessel"));
   const categories = parseCsvParam(searchParams.get("category"));
   const { datePreset, startDate, endDate } = parseDateFilter(searchParams);
+  const { proformaDatePreset, proformaStartDate, proformaEndDate } = parseProformaDateFilter(searchParams);
 
   try {
     const { rows, total } = await getPurchaseOrders({
@@ -73,6 +96,9 @@ export async function GET(request: Request) {
       datePreset,
       startDate,
       endDate,
+      proformaDatePreset,
+      proformaStartDate,
+      proformaEndDate,
     });
     return NextResponse.json({ data: rows, meta: { page, pageSize, total } });
   } catch (error) {

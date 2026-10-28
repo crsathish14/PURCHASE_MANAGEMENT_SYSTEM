@@ -309,6 +309,28 @@
         "loading": "Loading documents…",
         "loadError": "Could not load documents.",
         "close": "Close"
+      },
+      "noResults": "No invoice log entries match your search and filters.",
+      "toolbar": {
+        "searchPlaceholder": "Search PR ref, requisition no., or title",
+        "status": "Status",
+        "vessel": "Vessel",
+        "category": "Category",
+        "date": "Proforma date",
+        "all": "All",
+        "any": "Any",
+        "nSelected": "{count} selected",
+        "submit": "Submit",
+        "clear": "Clear",
+        "removeFilter": "Remove {label} filter",
+        "dateOptions": {
+          "last1Month": "Last 1 month",
+          "last3Months": "Last 3 months",
+          "last6Months": "Last 6 months",
+          "custom": "Custom date",
+          "startDate": "Start date",
+          "endDate": "End date"
+        }
       }
     },
     "teamAccess": {
