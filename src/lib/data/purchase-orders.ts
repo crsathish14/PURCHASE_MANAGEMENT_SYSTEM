@@ -10,6 +10,7 @@ export type PurchaseOrderListRow = {
   title: string | null;
   vesselLabel: string | null;
   vendorName: string;
+  vendorId: string | null;
   quoteReference: string | null;
   totalQuotedAmount: number;
   quoteSubmittedAt: string;
@@ -272,6 +273,7 @@ export async function getPurchaseOrders({
     title: row.pr_title,
     vesselLabel: row.vessel_label,
     vendorName: row.vendor_name,
+    vendorId: row.vendor_id ?? null,
     quoteReference: row.quote_reference,
     totalQuotedAmount: row.total_quoted_amount,
     quoteSubmittedAt: row.quote_submitted_at,

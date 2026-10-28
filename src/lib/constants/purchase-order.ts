@@ -4,6 +4,8 @@ export const PURCHASE_ORDER_STATUS = {
   PENDING_PO: "pending_po",
   PO_ISSUED: "po_issued",
   PROFORMA_RECEIVED: "proforma_received",
+  INVOICE_REQUESTED: "invoice_requested",
+  INVOICE_RECEIVED: "invoice_received",
 } as const;
 
 export type PurchaseOrderStatus = (typeof PURCHASE_ORDER_STATUS)[keyof typeof PURCHASE_ORDER_STATUS];

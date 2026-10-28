@@ -26,6 +26,8 @@ const STATUS_TONE: Record<PurchaseOrderStatus, BadgeTone> = {
   [PURCHASE_ORDER_STATUS.PENDING_PO]: "amber",
   [PURCHASE_ORDER_STATUS.PO_ISSUED]: "moss",
   [PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED]: "teal",
+  [PURCHASE_ORDER_STATUS.INVOICE_REQUESTED]: "amber",
+  [PURCHASE_ORDER_STATUS.INVOICE_RECEIVED]: "moss",
 };
 const STATUS_OPTIONS = Object.values(PURCHASE_ORDER_STATUS).map((value) => ({
   value,

@@ -788,6 +788,79 @@ export type Database = {
           },
         ];
       };
+      purchase_order_invoice_links: {
+        Row: {
+          id: string;
+          requisition_id: string;
+          issuance_id: string;
+          access_token: string;
+          vendor_name: string;
+          vendor_email: string;
+          message: string | null;
+          created_at: string;
+          submitted_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          requisition_id: string;
+          issuance_id: string;
+          access_token?: string;
+          vendor_name: string;
+          vendor_email: string;
+          message?: string | null;
+          created_at?: string;
+          submitted_at?: string | null;
+        };
+        Update: {
+          submitted_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_invoice_links_requisition_id_fkey";
+            columns: ["requisition_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_requisitions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_order_invoice_links_issuance_id_fkey";
+            columns: ["issuance_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_order_issuances";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      purchase_order_invoice_documents: {
+        Row: {
+          id: string;
+          invoice_link_id: string;
+          document_type: string;
+          storage_path: string;
+          original_filename: string;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          invoice_link_id: string;
+          document_type: string;
+          storage_path: string;
+          original_filename: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_invoice_documents_invoice_link_id_fkey";
+            columns: ["invoice_link_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_order_invoice_links";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       pr_requisition_list: {
@@ -1134,12 +1207,44 @@ export type Database = {
           pr_title: string | null;
           vessel_label: string | null;
           vendor_name: string;
+          vendor_id: string | null;
           quote_reference: string | null;
           total_quoted_amount: number;
           quote_submitted_at: string;
           status: string;
           total_count: number;
         }[];
+      };
+      request_purchase_order_invoice: {
+        Args: {
+          p_requisition_id: string;
+          p_vendor_email: string;
+          p_message: string | null;
+        };
+        Returns: string;
+      };
+      get_purchase_order_invoice_by_token: {
+        Args: { p_token: string };
+        Returns: {
+          requisition_id: string;
+          pr_number: string;
+          vessel_label: string | null;
+          vendor_name: string;
+          vendor_email: string;
+        }[];
+      };
+      submit_purchase_order_invoice: {
+        Args: {
+          p_token: string;
+          p_invoice_path: string;
+          p_invoice_name: string;
+          p_supporting_docs: Json;
+        };
+        Returns: boolean;
+      };
+      get_purchase_order_invoice_link_token: {
+        Args: { p_requisition_id: string };
+        Returns: string;
       };
     };
     Enums: {

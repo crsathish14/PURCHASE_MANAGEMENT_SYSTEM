@@ -118,9 +118,9 @@ These files hold every value that would otherwise be a magic string:
   new table shape.
 
 - `src/lib/constants/purchase-order.ts` — `PURCHASE_ORDER_STATUS` (`PENDING_PO`, `PO_ISSUED`,
-  `PROFORMA_RECEIVED`), the page-level status for an awarded quote before issuance, after issuance,
-  and after the vendor submits a proforma invoice. This is distinct from the requisition's terminal
-  `PR_STATUS.AWARDED` value.
+  `PROFORMA_RECEIVED`, `INVOICE_REQUESTED`, `INVOICE_RECEIVED`), the page-level status for an awarded
+  quote progressing through issuance, proforma receipt, invoice request, and invoice receipt. This is
+  distinct from the requisition's terminal `PR_STATUS.AWARDED` value.
 
 ## 8. Client state (Zustand)
 
@@ -1187,6 +1187,64 @@ after the `TO MASTER AND OWNERS OF` label, plus the vessel IMO.
 Rev. No. and Code No. are not shown, and line-item Lead Time is centered. The quote form has no separate
 supplier address field, so the PDF leaves Supplier Address as a placeholder.
 The download filename is `{prNumber}-Purchase-Order.pdf`.
+
+Once the proforma is received, staff can request the vendor's invoice from the Invoice Log tab
+(`/en/invoice-log`, `ROUTES.INVOICE_LOG`). The tab lists all PRs with status `PROFORMA_RECEIVED`,
+`INVOICE_REQUESTED`, or `INVOICE_RECEIVED`, showing PR Ref, Requisition No., Title, Vessel, Vendor,
+Total, and Status. Each row always shows a "View Proforma" link (same `/api/purchase-orders/[id]/proforma`
+stream endpoint). Two extra statuses and their flows:
+
+- **`INVOICE_REQUESTED`** — staff clicked "Request Invoice" on a `PROFORMA_RECEIVED` row, which
+  opens a modal (`RequestInvoiceDialog`) with locked vendor name, editable email, and an editable
+  message template. Submitting POSTs to `/api/purchase-orders/[id]/invoice-request`, which calls the
+  `request_purchase_order_invoice(p_requisition_id, p_vendor_email, p_message)` security-definer RPC.
+  That RPC inserts a `purchase_order_invoice_links` row and returns the access token. The row's CTA
+  becomes "Copy Link" — clicking it GETs the same route (no body), which calls
+  `get_purchase_order_invoice_link_token` and builds the vendor URL
+  (`/en/purchase-order-invoice/<token>`).
+- **`INVOICE_RECEIVED`** — the vendor submitted through the public token page. The CTA changes to
+  "View Invoice", which fetches `/api/purchase-orders/[id]/invoice-documents` (staff-only, returns
+  signed URLs for all documents), then opens `InvoiceDocumentsModal` showing file-type icons
+  (PDF/DOC/XLS) with filenames. Clicking a file navigates to
+  `/api/purchase-orders/[id]/invoice-documents/<docId>` — PDF is served inline, other types as an
+  attachment. Both document routes use `requireApiActiveUser()` and stream directly from the private
+  `attachments` Storage bucket via the admin client.
+
+**Vendor invoice page** (`/[lang]/purchase-order-invoice/[token]`, public):
+- `getInvoiceByToken(token)` uses the admin client + `get_purchase_order_invoice_by_token` RPC
+  (security definer, anon+authenticated, returns null if already submitted).
+- `VendorInvoiceForm` lets the vendor upload one mandatory PDF invoice and up to 5 optional
+  supporting documents (PDF, DOC, DOCX, XLS, XLSX — no size cap, matching the bucket's
+  `file_size_limit = null` setting). Files are uploaded via the same sign → `uploadToSignedUrl` pattern
+  as other vendor uploads, using `/api/purchase-order/[token]/invoice/sign` which mints signed URLs
+  via the admin client (no vendor session). Storage path: `po-invoice-documents/<token>/<uuid>.<ext>`.
+- Submit POSTs to `/api/purchase-order/[token]/invoice/submit`, which: re-validates the token, verifies
+  each path starts with `po-invoice-documents/<token>/`, downloads the invoice to confirm it's a real
+  PDF (looks for `%PDF-` header), then calls `submit_purchase_order_invoice(p_token, p_invoice_path,
+  p_invoice_name, p_supporting_docs)` via the admin client. The RPC inserts
+  `purchase_order_invoice_documents` rows and sets `submitted_at`, atomically. On success the vendor
+  sees the `/[lang]/purchase-order-invoice/thank-you` static page.
+
+**New DB tables** (`20261028010000_purchase_order_invoice_links.sql`):
+`purchase_order_invoice_links` (one row per invoice request, access token, vendor snapshot, `submitted_at`)
+and `purchase_order_invoice_documents` (one row per file, `document_type in ('invoice','supporting')`,
+`storage_path`, `original_filename`, FK with `on delete cascade`). RLS: `select to authenticated using (true)`.
+
+**`search_purchase_orders` extended** (`20261028030000_update_search_purchase_orders_invoice.sql`, `create or replace`)
+— adds a `left join purchase_order_invoice_links` and extends the status `case` with
+`invoice_received` (link submitted) and `invoice_requested` (link exists, not submitted yet) above
+the existing `proforma_received`/`po_issued`/`pending_po` levels.
+
+**`PURCHASE_ORDER_STATUS`** now has five values: `PENDING_PO`, `PO_ISSUED`, `PROFORMA_RECEIVED`,
+`INVOICE_REQUESTED`, `INVOICE_RECEIVED`. `PO_INVOICE_DOCUMENT_PATH_PREFIX = "po-invoice-documents"`
+is the storage path namespace constant (`src/lib/constants/storage.ts`). `ROUTES.INVOICE_LOG`,
+`ROUTES.PURCHASE_ORDER_INVOICE_FORM`, `ROUTES.PURCHASE_ORDER_INVOICE_THANK_YOU`, and
+`purchaseOrderInvoiceFormPath(token)` are in `src/lib/routes.ts`. `src/proxy.ts` treats
+`purchase-order-invoice/*` as a public path (same as `purchase-order/*` and `quote/*`).
+
+The `InvoiceDocumentsModal` uses the fetch-before-open pattern (data fetched in the parent's event
+handler, passed as `docs` + `loadError` props) — not a useEffect with setState, consistent with how
+`rfq-links-dialog.tsx` works and required by the `react-hooks/set-state-in-effect` lint rule.
 
 ## 20. Keeping this file current
 

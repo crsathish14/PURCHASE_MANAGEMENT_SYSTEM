@@ -18,8 +18,11 @@ export default async function InvoiceLogPage() {
   const { rows, total } = await getPurchaseOrders({
     page: 1,
     pageSize: DEFAULT_PAGE_SIZE,
-    statuses: [PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED],
+    statuses: [
+      PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED,
+      PURCHASE_ORDER_STATUS.INVOICE_REQUESTED,
+      PURCHASE_ORDER_STATUS.INVOICE_RECEIVED,
+    ],
   });
-
   return <InvoiceLogView initialRows={rows} initialTotal={total} />;
 }

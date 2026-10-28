@@ -2,22 +2,48 @@
 
 import { useRef, useState } from "react";
 
-import { Badge, type BadgeTone } from "@/components/atoms";
+import { Badge, Spinner, type BadgeTone } from "@/components/atoms";
 import en from "@/locales/en.json";
 import { PURCHASE_ORDER_STATUS, type PurchaseOrderStatus } from "@/lib/constants/purchase-order";
 import type { PurchaseOrderListRow } from "@/lib/data/purchase-orders";
 import { formatCurrencyUsd } from "@/lib/format-currency";
 import { toast } from "@/store/toast-store";
 import { RfqPager } from "@/components/rfq/rfq-pager";
+import { RequestInvoiceDialog } from "./request-invoice-dialog";
+import { InvoiceDocumentsModal, type InvoiceDocumentItem } from "./invoice-documents-modal";
 
 const t = en.staff.invoiceLog;
 const STATUS_TONE: Record<PurchaseOrderStatus, BadgeTone> = {
   [PURCHASE_ORDER_STATUS.PENDING_PO]: "amber",
   [PURCHASE_ORDER_STATUS.PO_ISSUED]: "moss",
   [PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED]: "teal",
+  [PURCHASE_ORDER_STATUS.INVOICE_REQUESTED]: "amber",
+  [PURCHASE_ORDER_STATUS.INVOICE_RECEIVED]: "moss",
 };
 
+const INVOICE_LOG_STATUSES = [
+  PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED,
+  PURCHASE_ORDER_STATUS.INVOICE_REQUESTED,
+  PURCHASE_ORDER_STATUS.INVOICE_RECEIVED,
+];
+
 const DEFAULT_PAGE_SIZE = 20;
+
+type RequestInvoiceTarget = {
+  id: string;
+  vendorName: string;
+  vendorEmails: string[];
+};
+
+type ViewInvoiceTarget = {
+  id: string;
+  docs: InvoiceDocumentItem[];
+  loadError: string | null;
+};
+
+type CopyResult = { data?: { link: string }; error?: { message: string } };
+type VendorsResult = { data?: { id: string; mail: string[] }[]; error?: { message: string } };
+type DocsResult = { data?: InvoiceDocumentItem[]; error?: { message: string } };
 
 export function InvoiceLogView({
   initialRows,
@@ -33,6 +59,11 @@ export function InvoiceLogView({
   const [loading, setLoading] = useState(false);
   const requestIdRef = useRef(0);
 
+  const [requestInvoiceTarget, setRequestInvoiceTarget] = useState<RequestInvoiceTarget | null>(null);
+  const [viewInvoiceTarget, setViewInvoiceTarget] = useState<ViewInvoiceTarget | null>(null);
+  const [copyingLinkId, setCopyingLinkId] = useState<string | null>(null);
+  const [loadingInvoiceId, setLoadingInvoiceId] = useState<string | null>(null);
+
   async function fetchRows(nextPage: number, nextPageSize: number) {
     const requestId = ++requestIdRef.current;
     setLoading(true);
@@ -40,7 +71,7 @@ export function InvoiceLogView({
       const query = new URLSearchParams({
         page: String(nextPage),
         pageSize: String(nextPageSize),
-        status: PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED,
+        status: INVOICE_LOG_STATUSES.join(","),
       });
       const response = await fetch(`/api/purchase-orders?${query.toString()}`);
       const payload = await response.json();
@@ -63,6 +94,68 @@ export function InvoiceLogView({
       if (requestId === requestIdRef.current) setLoading(false);
     }
   }
+
+  async function handleCopyLink(row: PurchaseOrderListRow) {
+    setCopyingLinkId(row.id);
+    try {
+      const response = await fetch(`/api/purchase-orders/${row.id}/invoice-request`);
+      const payload = (await response.json().catch(() => null)) as CopyResult | null;
+      if (!response.ok || !payload?.data?.link) {
+        toast.error(payload?.error?.message ?? t.fetchTokenError);
+        return;
+      }
+      await navigator.clipboard.writeText(payload.data.link);
+      toast.success(t.linkCopied);
+    } catch {
+      toast.error(t.linkCopyFailed);
+    } finally {
+      setCopyingLinkId(null);
+    }
+  }
+
+  async function handleViewInvoice(row: PurchaseOrderListRow) {
+    setLoadingInvoiceId(row.id);
+    try {
+      const response = await fetch(`/api/purchase-orders/${row.id}/invoice-documents`);
+      const payload = (await response.json().catch(() => null)) as DocsResult | null;
+      if (!response.ok || !payload) {
+        setViewInvoiceTarget({
+          id: row.id,
+          docs: [],
+          loadError: payload?.error?.message ?? t.invoiceDocumentsModal.loadError,
+        });
+        return;
+      }
+      setViewInvoiceTarget({ id: row.id, docs: payload.data ?? [], loadError: null });
+    } catch {
+      setViewInvoiceTarget({ id: row.id, docs: [], loadError: t.invoiceDocumentsModal.loadError });
+    } finally {
+      setLoadingInvoiceId(null);
+    }
+  }
+
+  async function handleOpenRequestInvoice(row: PurchaseOrderListRow) {
+    let emails: string[] = [];
+    if (row.vendorId) {
+      try {
+        const res = await fetch("/api/vendors");
+        const payload = (await res.json().catch(() => null)) as VendorsResult | null;
+        const vendor = payload?.data?.find((v) => v.id === row.vendorId);
+        emails = vendor?.mail ?? [];
+      } catch {
+        // proceed with empty list; the dialog shows an error message
+      }
+    }
+    setRequestInvoiceTarget({ id: row.id, vendorName: row.vendorName, vendorEmails: emails });
+  }
+
+  function handleRequestInvoiceSuccess() {
+    setRequestInvoiceTarget(null);
+    void fetchRows(page, pageSize);
+  }
+
+  const ctaClass =
+    "rounded-md border border-line bg-paper px-2.5 py-1.5 text-xs font-bold text-harbor transition-colors hover:bg-mist focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-harbor disabled:cursor-not-allowed disabled:opacity-60";
 
   return (
     <div>
@@ -112,18 +205,57 @@ export function InvoiceLogView({
                         {formatCurrencyUsd(row.totalQuotedAmount)}
                       </td>
                       <td className="px-4 py-3">
-                        <Badge tone={STATUS_TONE[row.status]}>{en.staff.purchaseOrders.statusLabels[row.status]}</Badge>
+                        <Badge tone={STATUS_TONE[row.status]}>
+                          {en.staff.purchaseOrders.statusLabels[row.status]}
+                        </Badge>
                       </td>
                       <td className="px-4 py-3">
-                        <a
-                          href={`/api/purchase-orders/${row.id}/proforma`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          aria-label={t.viewFor.replace("{prNumber}", row.prNumber)}
-                          className="rounded-md border border-line bg-paper px-2.5 py-1.5 text-xs font-bold text-harbor transition-colors hover:bg-mist focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-harbor"
-                        >
-                          {t.viewProforma}
-                        </a>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <a
+                            href={`/api/purchase-orders/${row.id}/proforma`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={t.viewFor.replace("{prNumber}", row.prNumber)}
+                            className={ctaClass}
+                          >
+                            {t.viewProforma}
+                          </a>
+
+                          {row.status === PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED ? (
+                            <button
+                              type="button"
+                              className={ctaClass}
+                              onClick={() => void handleOpenRequestInvoice(row)}
+                            >
+                              {t.requestInvoice}
+                            </button>
+                          ) : row.status === PURCHASE_ORDER_STATUS.INVOICE_REQUESTED ? (
+                            <button
+                              type="button"
+                              className={ctaClass}
+                              disabled={copyingLinkId === row.id}
+                              onClick={() => void handleCopyLink(row)}
+                            >
+                              {copyingLinkId === row.id ? t.copyingLink : t.copyInvoiceLink}
+                            </button>
+                          ) : row.status === PURCHASE_ORDER_STATUS.INVOICE_RECEIVED ? (
+                            <button
+                              type="button"
+                              className={ctaClass}
+                              disabled={loadingInvoiceId === row.id}
+                              onClick={() => void handleViewInvoice(row)}
+                            >
+                              {loadingInvoiceId === row.id ? (
+                                <span className="flex items-center gap-1.5">
+                                  <Spinner size="sm" />
+                                  {t.viewInvoice}
+                                </span>
+                              ) : (
+                                t.viewInvoice
+                              )}
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -143,6 +275,27 @@ export function InvoiceLogView({
           </div>
         </div>
       </section>
+
+      {requestInvoiceTarget ? (
+        <RequestInvoiceDialog
+          open
+          onClose={() => setRequestInvoiceTarget(null)}
+          onSuccess={handleRequestInvoiceSuccess}
+          requisitionId={requestInvoiceTarget.id}
+          vendorName={requestInvoiceTarget.vendorName}
+          vendorEmails={requestInvoiceTarget.vendorEmails}
+        />
+      ) : null}
+
+      {viewInvoiceTarget ? (
+        <InvoiceDocumentsModal
+          open
+          onClose={() => setViewInvoiceTarget(null)}
+          requisitionId={viewInvoiceTarget.id}
+          docs={viewInvoiceTarget.docs}
+          loadError={viewInvoiceTarget.loadError}
+        />
+      ) : null}
     </div>
   );
 }
