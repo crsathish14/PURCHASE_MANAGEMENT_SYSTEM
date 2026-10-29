@@ -96,7 +96,7 @@ export function RequestInvoiceDialog({
         <Input id="req-inv-vendor" readOnly value={vendorName} />
       </div>
       <div className="mb-4">
-        <Label htmlFor="req-inv-email">{t.emailLabel}</Label>
+        <Label htmlFor="req-inv-email" required>{t.emailLabel}</Label>
         {noEmails ? (
           <p className="mt-1 text-[13px] text-rust">{t.noEmailsError}</p>
         ) : (
@@ -115,7 +115,7 @@ export function RequestInvoiceDialog({
         )}
       </div>
       <div>
-        <Label htmlFor="req-inv-message">{t.messageLabel}</Label>
+        <Label htmlFor="req-inv-message" required>{t.messageLabel}</Label>
         <Textarea
           id="req-inv-message"
           rows={7}

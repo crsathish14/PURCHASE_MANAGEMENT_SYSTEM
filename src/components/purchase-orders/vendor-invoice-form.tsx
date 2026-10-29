@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 
-import { Button } from "@/components/atoms";
+import { Button, RequiredMark } from "@/components/atoms";
 import en from "@/locales/en.json";
 import {
   INVOICE_DOCUMENT_INVOICE_MIME_TYPE,
@@ -197,7 +197,10 @@ export function VendorInvoiceForm({
 
       {/* Invoice upload */}
       <section className="rounded-lg border border-line bg-mist px-4 py-4">
-        <h2 className="font-display text-base font-semibold text-ink">{t.invoiceSection}</h2>
+        <h2 className="font-display text-base font-semibold text-ink">
+          {t.invoiceSection}
+          <RequiredMark />
+        </h2>
         <div className="mt-4">
           {invoiceUpload ? (
             <div className="flex items-center justify-between gap-3 rounded-lg border border-line bg-white px-3 py-2.5">

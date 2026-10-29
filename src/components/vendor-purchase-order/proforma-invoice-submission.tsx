@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 
-import { Button } from "@/components/atoms";
+import { Button, RequiredMark } from "@/components/atoms";
 import en from "@/locales/en.json";
 import {
   MAX_PURCHASE_ORDER_PROFORMA_SIZE_BYTES,
@@ -190,7 +190,10 @@ export function ProformaInvoiceSubmission({
   return (
     <form onSubmit={(event) => void handleSubmit(event)} className="space-y-5">
       <section className="rounded-lg border border-line bg-mist px-4 py-4">
-        <h2 className="font-display text-base font-semibold text-ink">{t.proformaTitle}</h2>
+        <h2 className="font-display text-base font-semibold text-ink">
+          {t.proformaTitle}
+          <RequiredMark />
+        </h2>
         <p className="mt-1 text-sm text-slate">{t.proformaDescription}</p>
         <div className="mt-4">
           {uploaded ? (

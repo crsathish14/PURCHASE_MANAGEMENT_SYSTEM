@@ -15,7 +15,7 @@ import {
 } from "react-hook-form";
 import { X } from "lucide-react";
 
-import { Button, Checkbox, Input, Label } from "@/components/atoms";
+import { Button, Checkbox, Input, Label, RequiredMark } from "@/components/atoms";
 import en from "@/locales/en.json";
 import { PR_CATEGORY, PR_LINE_ITEM_PRESET_COLUMN } from "@/lib/constants/purchase-requisition";
 import { getPresetColumnsForCategory } from "@/lib/purchase-requisition/preset-columns";
@@ -204,8 +204,16 @@ export function LineItemsField({
       <table className="mb-2 w-full border-collapse">
         <thead>
           <tr className="border-b border-line">
-            <th className={`${headerCellClass} w-85`}>{t.columns.description}</th>
-            {isService ? null : <th className={`${headerCellClass} w-28`}>{t.columns.qty}</th>}
+            <th className={`${headerCellClass} w-85`}>
+              {t.columns.description}
+              {readOnly ? null : <RequiredMark />}
+            </th>
+            {isService ? null : (
+              <th className={`${headerCellClass} w-28`}>
+                {t.columns.qty}
+                {readOnly ? null : <RequiredMark />}
+              </th>
+            )}
             {columns.map((column) => {
               // Approved Qty must always exist for Stores/Spares/LO (it can be
               // left blank and saved, but never removed) — matched by key OR

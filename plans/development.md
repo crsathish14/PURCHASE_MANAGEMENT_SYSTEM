@@ -42,7 +42,15 @@ automatic — no `dark:` variants needed. Canonical source: `Design-docs/design-
 
 - `src/components/atoms/` — reusable primitives (Button, Badge, Input, Textarea, Select, Label,
   Checkbox, Avatar, Spinner, Menu, Dialog, PasswordInput, PasswordStrengthMeter, ImagePreviewModal,
-  PhotoThumbnailStack), imported via the barrel: `import { Button, Badge } from "@/components/atoms"`.
+  PhotoThumbnailStack, RequiredMark), imported via the barrel: `import { Button, Badge } from "@/components/atoms"`.
+- **Mandatory-field marker.** Every mandatory field shows a red `*` (`text-rust`, `aria-hidden`): pass
+  `required` to `Label` for a form field, or render `<RequiredMark />` directly where there is no
+  `Label` (table `<th>`, section headings such as the vendor invoice/proforma PDF upload). It is purely
+  visual — forms use `noValidate` + Zod, so there is no native `required` attribute. Hide it when the
+  field isn't editable (`required={!readOnly}`, a locked Category, a reissue dialog's pre-filled
+  vendor). Optional fields keep their grey "(optional)" suffix next to the label; the two conventions
+  coexist. When a field's mandatory rule changes in a Zod schema or a `requiredFieldsFilled` gate,
+  update its marker in the same change.
 - `src/components/<feature>/` — everything else, grouped by feature area: `auth/` (login,
   request-access, change-password forms + shared icons), `staff/` (sidebar, topbar, shell,
   nav-items), `team-access/` (the Team & Access page's view/table/member-dialog — the latter
@@ -932,6 +940,10 @@ plumbing rather than duplicating it — this page is a read-only aggregation ove
   Purchase Requisition, Requested Quote, and Purchase Order search RPCs return it for each row. The
   Purchase Requisition table uses this column in place of Item Count; count copy and rendering are
   removed from that UI. Purchase Orders continues to show PR Ref as well as Requisition No.
+  Title is mandatory for every category: `buildCreateRequisitionSchema` requires a non-blank value
+  (shared by the create and update routes, so the server enforces it too) and
+  `create-requisition-dialog.tsx`'s `requiredFieldsFilled` gate includes it. The `pr_title` column
+  stays nullable, so PRs saved before this rule must be given a title the next time they are edited.
 - **Requested Quote table gained a Category column** (`rfq-table.tsx`, `t.table.columns.category`,
   positioned right after Vessel — same relative placement `pr-table.tsx`'s own Category column
   already uses) — previously called out as a deferred/optional enhancement when the Spares/Service

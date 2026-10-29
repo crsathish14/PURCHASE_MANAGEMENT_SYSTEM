@@ -241,8 +241,11 @@ export function CreateRequisitionDialog({
 
   const watchedDropdowns = watch("dropdowns");
   const priority = watch("priority");
+  const requisitionTitle = watch("title");
   const requiredFieldsFilled =
-    Boolean(priority) && dropdownFields.every((field) => watchedDropdowns?.[field.key]);
+    Boolean(priority) &&
+    Boolean(requisitionTitle?.trim()) &&
+    dropdownFields.every((field) => watchedDropdowns?.[field.key]);
   const hasErrors = Object.keys(errors).length > 0;
 
   // confirmedPaths = paths that made it into a just-successful save (absent
@@ -366,7 +369,7 @@ export function CreateRequisitionDialog({
           </div>
 
           <div>
-            <Label htmlFor="pr-priority" error={!!errors.priority}>
+            <Label htmlFor="pr-priority" error={!!errors.priority} required={!readOnly}>
               {t.priority}
             </Label>
             <Select
@@ -394,7 +397,11 @@ export function CreateRequisitionDialog({
             const categoryLocked = field.key === "category" && mode !== "create";
             return (
               <div key={field.key}>
-                <Label htmlFor={`pr-dropdown-${field.key}`} error={!!errors.dropdowns?.[field.key]}>
+                <Label
+                  htmlFor={`pr-dropdown-${field.key}`}
+                  error={!!errors.dropdowns?.[field.key]}
+                  required={!readOnly && !categoryLocked}
+                >
                   {field.label}
                   {categoryLocked && !readOnly ? (
                     <span className="ml-1.5 font-normal text-slate-lt">{t.categoryLocked}</span>
@@ -461,7 +468,7 @@ export function CreateRequisitionDialog({
           </div>
 
           <div>
-            <Label htmlFor="pr-requisition-title" error={!!errors.title}>
+            <Label htmlFor="pr-requisition-title" error={!!errors.title} required={!readOnly}>
               {t.requisitionTitle}
             </Label>
             <Input

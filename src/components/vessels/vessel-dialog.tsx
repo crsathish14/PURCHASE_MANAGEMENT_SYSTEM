@@ -124,7 +124,7 @@ export function VesselDialog({
         ) : (
           <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <Label htmlFor="vessel-name" error={!!errors.name}>
+              <Label htmlFor="vessel-name" error={!!errors.name} required>
                 {t.name}
               </Label>
               <Input
@@ -137,7 +137,7 @@ export function VesselDialog({
             </div>
 
             <div>
-              <Label htmlFor="vessel-imo-no" error={!!errors.imoNo}>
+              <Label htmlFor="vessel-imo-no" error={!!errors.imoNo} required>
                 {t.imoNo}
               </Label>
               <Input

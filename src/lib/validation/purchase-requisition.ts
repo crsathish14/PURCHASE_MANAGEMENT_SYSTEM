@@ -85,9 +85,9 @@ export function buildCreateRequisitionSchema(
     }),
   );
 
-  // Only the backend-driven dropdown fields, Priority, and each line item's
-  // Description are unconditionally required — Requested By, Required Port,
-  // Requisition Number, Remarks, custom "Add more" fields, and Approved
+  // Only the backend-driven dropdown fields, Priority, Title, and each line
+  // item's Description are unconditionally required — Requested By, Required
+  // Port, Requisition Number, Remarks, custom "Add more" fields, and Approved
   // Qty/Remarks/Photos are all optional. Required Quantity (qty) is
   // conditionally required below for Stores/Spares/LO.
   return z
@@ -100,7 +100,7 @@ export function buildCreateRequisitionSchema(
       requiredPort: z.string(),
       requisitionNumber: z.string(),
       requisitionDate: z.string(),
-      title: z.string(),
+      title: z.string().trim().min(1, { error: t.fieldRequired }),
       remarks: z.string(),
       equipmentName: z.string(),
       equipmentType: z.string(),

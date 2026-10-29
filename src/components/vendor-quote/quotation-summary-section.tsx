@@ -50,7 +50,7 @@ export function QuotationSummarySection<TFieldValues extends QuotationSummarySec
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-4">
         <div>
-          <Label htmlFor="quote-validity" error={!!errors.quotationValidity}>
+          <Label htmlFor="quote-validity" error={!!errors.quotationValidity} required>
             {t.quotationValidity}
           </Label>
           <Input
@@ -62,7 +62,7 @@ export function QuotationSummarySection<TFieldValues extends QuotationSummarySec
           />
         </div>
         <div>
-          <Label htmlFor="quote-payment-terms" error={!!errors.paymentTerms}>
+          <Label htmlFor="quote-payment-terms" error={!!errors.paymentTerms} required>
             {t.paymentTerms}
           </Label>
           <Input
@@ -74,7 +74,7 @@ export function QuotationSummarySection<TFieldValues extends QuotationSummarySec
           />
         </div>
         <div className="col-span-2">
-          <Label htmlFor="quote-delivery-terms" error={!!errors.deliveryTerms}>
+          <Label htmlFor="quote-delivery-terms" error={!!errors.deliveryTerms} required>
             {t.deliveryTerms}
           </Label>
           <Input

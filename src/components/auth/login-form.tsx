@@ -74,7 +74,7 @@ export function LoginForm() {
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="mb-4">
-          <Label htmlFor="login-email" error={!!errors.email}>
+          <Label htmlFor="login-email" error={!!errors.email} required>
             {t.email}
           </Label>
           <Input
@@ -87,7 +87,7 @@ export function LoginForm() {
         </div>
 
         <div className="mb-4">
-          <Label htmlFor="login-password" error={!!errors.password}>
+          <Label htmlFor="login-password" error={!!errors.password} required>
             {t.password}
           </Label>
           <PasswordInput

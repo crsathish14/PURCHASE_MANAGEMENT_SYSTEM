@@ -36,6 +36,8 @@ export type { PhotoThumbnailStackProps } from "./photo-thumbnail-stack";
 export { QuoteProgress } from "./quote-progress";
 export type { QuoteProgressProps } from "./quote-progress";
 
+export { RequiredMark } from "./required-mark";
+
 export { Select } from "./select";
 export type { SelectProps } from "./select";
 

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { Button, Input } from "@/components/atoms";
+import { Button, Input, RequiredMark } from "@/components/atoms";
 import en from "@/locales/en.json";
 import type { RfqQuoteDetail, RfqQuoteLineItem } from "@/lib/data/rfq-quote";
 import { formatCurrencyUsd } from "@/lib/format-currency";
@@ -176,8 +176,14 @@ export function LoQuoteForm({ token, detail }: LoQuoteFormProps) {
                 <th className={headerCellClass}>{t.itemDetails.columns.approvedQty}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.uom}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.photos}</th>
-                <th className={headerCellClass}>{t.itemDetails.columns.offeredDescription}</th>
-                <th className={`${headerCellClass} w-24`}>{t.itemDetails.columns.unitPrice}</th>
+                <th className={headerCellClass}>
+                  {t.itemDetails.columns.offeredDescription}
+                  <RequiredMark />
+                </th>
+                <th className={`${headerCellClass} w-24`}>
+                  {t.itemDetails.columns.unitPrice}
+                  <RequiredMark />
+                </th>
                 <th className={`${headerCellClass} w-24`}>{t.itemDetails.columns.totalPrice}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.deliveryLeadTime}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.remarks}</th>

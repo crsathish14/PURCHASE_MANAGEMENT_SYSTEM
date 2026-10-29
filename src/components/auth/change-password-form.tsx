@@ -60,14 +60,14 @@ export function ChangePasswordForm({ email }: { email: string }) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate>
       <div className="mb-4">
-        <Label htmlFor="cp-email" error={!!errors.email}>
+        <Label htmlFor="cp-email" error={!!errors.email} required>
           {t.email}
         </Label>
         <Input id="cp-email" type="email" error={errors.email?.message} {...register("email")} />
       </div>
 
       <div className="mb-4">
-        <Label htmlFor="cp-current-password" error={!!errors.currentPassword}>
+        <Label htmlFor="cp-current-password" error={!!errors.currentPassword} required>
           {t.currentPassword}
         </Label>
         <PasswordInput
@@ -79,7 +79,7 @@ export function ChangePasswordForm({ email }: { email: string }) {
       </div>
 
       <div className="mb-4">
-        <Label htmlFor="cp-new-password" error={!!errors.newPassword}>
+        <Label htmlFor="cp-new-password" error={!!errors.newPassword} required>
           {t.newPassword}
         </Label>
         <PasswordInput
@@ -91,7 +91,7 @@ export function ChangePasswordForm({ email }: { email: string }) {
       </div>
 
       <div className="mb-1">
-        <Label htmlFor="cp-confirm-password" error={!!errors.confirmNewPassword}>
+        <Label htmlFor="cp-confirm-password" error={!!errors.confirmNewPassword} required>
           {t.confirmPassword}
         </Label>
         <PasswordInput

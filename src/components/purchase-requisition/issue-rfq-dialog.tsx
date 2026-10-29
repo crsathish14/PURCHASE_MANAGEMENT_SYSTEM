@@ -255,7 +255,7 @@ export function IssueRfqDialog({ open, onClose, requisitionId, prNumber, onIssue
 
       <form id="issue-rfq-link-form" onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="mb-4">
-          <Label htmlFor="rfq-vendor-id" error={!!errors.vendorId}>
+          <Label htmlFor="rfq-vendor-id" error={!!errors.vendorId} required>
             {t.vendorName}
           </Label>
           <Select
@@ -283,7 +283,7 @@ export function IssueRfqDialog({ open, onClose, requisitionId, prNumber, onIssue
         </div>
 
         <div className="mb-4">
-          <Label htmlFor="rfq-vendor-email" error={!!errors.vendorEmail}>
+          <Label htmlFor="rfq-vendor-email" error={!!errors.vendorEmail} required>
             {t.vendorEmail}
           </Label>
           <Select
@@ -306,7 +306,9 @@ export function IssueRfqDialog({ open, onClose, requisitionId, prNumber, onIssue
         </div>
 
         <div className="mb-4">
-          <Label error={!!errors.expiresAt}>{t.expiresAt}</Label>
+          <Label error={!!errors.expiresAt} required>
+            {t.expiresAt}
+          </Label>
           <div className="flex gap-2.5">
             <Input
               type="date"
@@ -329,7 +331,7 @@ export function IssueRfqDialog({ open, onClose, requisitionId, prNumber, onIssue
         </div>
 
         <div>
-          <Label htmlFor="rfq-message" error={!!errors.message}>
+          <Label htmlFor="rfq-message" error={!!errors.message} required>
             {t.message}
           </Label>
           <Textarea id="rfq-message" rows={5} error={errors.message?.message} {...register("message")} />

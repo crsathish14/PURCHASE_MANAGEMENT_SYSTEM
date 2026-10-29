@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge, Button, Checkbox, Input, Label, Textarea } from "@/components/atoms";
+import { Badge, Button, Checkbox, Input, Label, RequiredMark, Textarea } from "@/components/atoms";
 import en from "@/locales/en.json";
 import type { QuoteComparisonVendor } from "@/lib/data/rfq-quote-comparison";
 import { formatCurrencyUsd } from "@/lib/format-currency";
@@ -166,7 +166,12 @@ export function LoQuoteComparisonCard({
                 <th className={`${headerCellClass} w-10`}>{t.itemDetails.columns.slNo}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.requestedDescription}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.approvedQty}</th>
-                {purchaseOrderEditor ? <th className={headerCellClass}>{tPo.neededPoQty}</th> : null}
+                {purchaseOrderEditor ? (
+                  <th className={headerCellClass}>
+                    {tPo.neededPoQty}
+                    {purchaseOrderEditor.disabled ? null : <RequiredMark />}
+                  </th>
+                ) : null}
                 <th className={headerCellClass}>{t.itemDetails.columns.uom}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.photos}</th>
                 <th className={headerCellClass}>{t.itemDetails.columns.offeredDescription}</th>
