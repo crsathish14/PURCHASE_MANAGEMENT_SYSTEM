@@ -3,7 +3,7 @@ import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
 import en from "@/locales/en.json";
 import { VENDOR_QUOTE_CURRENCY } from "@/lib/constants/vendor-quote";
 import { PR_CATEGORY } from "@/lib/constants/purchase-requisition";
-import type { PrCategory } from "@/lib/constants/purchase-requisition";
+import type { PrCategoryWithCurrentPoPdfSupport } from "@/lib/constants/purchase-requisition";
 import type { QuoteComparisonVendor } from "@/lib/data/rfq-quote-comparison";
 import { formatCurrencyUsd } from "@/lib/format-currency";
 import { purchaseOrderPdfStyles as styles } from "./styles";
@@ -23,7 +23,7 @@ export type PurchaseOrderPdfItem = {
 };
 
 export type PurchaseOrderPdfProps = {
-  category: PrCategory;
+  category: PrCategoryWithCurrentPoPdfSupport;
   logoDataUri: string;
   prNumber: string;
   requisitionTitle: string | null;
@@ -39,8 +39,13 @@ export type PurchaseOrderPdfProps = {
   items: PurchaseOrderPdfItem[];
 };
 
-export function isPurchaseOrderPdfCategory(category: string | null): category is PrCategory {
-  return Object.values(PR_CATEGORY).includes(category as PrCategory);
+export function isPurchaseOrderPdfCategory(category: string | null): category is PrCategoryWithCurrentPoPdfSupport {
+  return (
+    category === PR_CATEGORY.STORES ||
+    category === PR_CATEGORY.SPARES ||
+    category === PR_CATEGORY.SERVICE ||
+    category === PR_CATEGORY.LO
+  );
 }
 
 function displayValue(value: string | null | undefined): string {
@@ -185,7 +190,7 @@ function InvoiceToSection({
 }
 
 const COLUMN_WIDTH_BY_CATEGORY: Record<
-  PrCategory,
+  PrCategoryWithCurrentPoPdfSupport,
   {
     slNo: string;
     description: string;
@@ -231,6 +236,19 @@ const COLUMN_WIDTH_BY_CATEGORY: Record<
     leadTime: "11%",
     remarks: "23%",
   },
+  // LO is Stores without IMPA code — redistribute the freed 9% to description
+  // and remarks for better readability.
+  [PR_CATEGORY.LO]: {
+    slNo: "4%",
+    description: "29%",
+    code: "0%",
+    quantity: "6%",
+    unit: "7%",
+    unitPrice: "10%",
+    lineTotal: "11%",
+    leadTime: "10%",
+    remarks: "23%",
+  },
 };
 
 export function PurchaseOrderPdf({
@@ -253,7 +271,7 @@ export function PurchaseOrderPdf({
   const supplierReference = vendor.refNo?.trim() || vendor.quotationNo?.trim() || null;
   const categoryCopy = t.categories[category];
   const columns = COLUMN_WIDTH_BY_CATEGORY[category];
-  const hasCodeColumn = category !== PR_CATEGORY.SERVICE;
+  const hasCodeColumn = category !== PR_CATEGORY.SERVICE && category !== PR_CATEGORY.LO;
   const codeLabel = category === PR_CATEGORY.STORES ? t.columns.impaCode : t.columns.partNo;
 
   return (

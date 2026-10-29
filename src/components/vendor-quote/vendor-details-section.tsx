@@ -42,7 +42,7 @@ export function VendorDetailsSection<TFieldValues extends VendorDetailsSectionFi
       <h2 className={sectionHeadingClass}>{t.title}</h2>
       <div className="grid grid-cols-2 gap-x-4 gap-y-4">
         <div>
-          <Label htmlFor="quote-vendor-name" error={!!errors.vendorName}>
+          <Label htmlFor="quote-vendor-name" error={!!errors.vendorName} required>
             {t.vendorName}
           </Label>
           <Input

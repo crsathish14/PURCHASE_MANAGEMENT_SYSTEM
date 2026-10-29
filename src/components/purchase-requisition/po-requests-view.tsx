@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Plus, Upload } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 
 import { Button, Menu, MenuItem } from "@/components/atoms";
 import en from "@/locales/en.json";
@@ -30,6 +31,7 @@ export type PoRequestsViewProps = {
   initialRows: PrListRow[];
   initialTotal: number;
   initialVessels: Vessel[];
+  initialFilters: InitialFilters;
 };
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -51,11 +53,24 @@ type ListParams = {
   endDate: string | null;
 };
 
+type InitialFilters = {
+  page: number;
+  pageSize: number;
+  search: string;
+  statuses: string[];
+  vessels: string[];
+  categories: string[];
+  datePreset: DatePreset | null;
+  startDate: string | null;
+  endDate: string | null;
+};
+
 export function PoRequestsView({
   initialDropdownFields,
   initialRows,
   initialTotal,
   initialVessels,
+  initialFilters,
 }: PoRequestsViewProps) {
   // Lifted (not owned by a single trigger) because the header CTA, the
   // empty-state CTA, and clicking any row all open this same dialog instance —
@@ -92,8 +107,8 @@ export function PoRequestsView({
 
   const [rows, setRows] = useState(initialRows);
   const [total, setTotal] = useState(initialTotal);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [page, setPage] = useState(initialFilters.page);
+  const [pageSize, setPageSize] = useState(initialFilters.pageSize);
   const [loading, setLoading] = useState(false);
 
   // What's actually been fetched — as opposed to whatever's currently staged
@@ -101,16 +116,35 @@ export function PoRequestsView({
   // can be colored correctly, and reused by every non-toolbar refresh trigger
   // (pagination, post-mutation refetches) so a filtered view doesn't reset
   // itself just because the user paged or edited/cancelled/duplicated a row.
-  const [appliedSearch, setAppliedSearch] = useState("");
-  const [appliedStatuses, setAppliedStatuses] = useState<string[]>([]);
-  const [appliedVessels, setAppliedVessels] = useState<string[]>([]);
-  const [appliedCategories, setAppliedCategories] = useState<string[]>([]);
-  const [appliedDatePreset, setAppliedDatePreset] = useState<DatePreset | null>(null);
-  const [appliedStartDate, setAppliedStartDate] = useState<string | null>(null);
-  const [appliedEndDate, setAppliedEndDate] = useState<string | null>(null);
+  const [appliedSearch, setAppliedSearch] = useState(initialFilters.search);
+  const [appliedStatuses, setAppliedStatuses] = useState<string[]>(initialFilters.statuses);
+  const [appliedVessels, setAppliedVessels] = useState<string[]>(initialFilters.vessels);
+  const [appliedCategories, setAppliedCategories] = useState<string[]>(initialFilters.categories);
+  const [appliedDatePreset, setAppliedDatePreset] = useState<DatePreset | null>(initialFilters.datePreset);
+  const [appliedStartDate, setAppliedStartDate] = useState<string | null>(initialFilters.startDate);
+  const [appliedEndDate, setAppliedEndDate] = useState<string | null>(initialFilters.endDate);
   const [toolbarResetKey, setToolbarResetKey] = useState(0);
 
   const requestIdRef = useRef(0);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  function updateUrl(params: ListParams) {
+    const query = new URLSearchParams();
+    if (params.page !== 1) query.set("page", String(params.page));
+    if (params.pageSize !== DEFAULT_PAGE_SIZE) query.set("pageSize", String(params.pageSize));
+    if (params.search) query.set("q", params.search);
+    if (params.statuses.length) query.set("status", params.statuses.join(","));
+    if (params.vessels.length) query.set("vessel", params.vessels.join(","));
+    if (params.categories.length) query.set("category", params.categories.join(","));
+    if (params.datePreset) {
+      query.set("datePreset", params.datePreset);
+      if (params.startDate) query.set("dateFrom", params.startDate);
+      if (params.endDate) query.set("dateTo", params.endDate);
+    }
+    const qs = query.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  }
 
   const appliedParams = {
     search: appliedSearch,
@@ -174,6 +208,7 @@ export function PoRequestsView({
       setAppliedDatePreset(params.datePreset);
       setAppliedStartDate(params.startDate);
       setAppliedEndDate(params.endDate);
+      updateUrl(params);
     } catch {
       if (requestId === requestIdRef.current) toast.error(t.table.loadError);
     } finally {

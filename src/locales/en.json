@@ -171,7 +171,9 @@
       "statusLabels": {
         "pending_po": "Pending PO",
         "po_issued": "PO Issued",
-        "proforma_received": "Proforma Received"
+        "proforma_received": "Proforma Received",
+        "invoice_requested": "Invoice Requested",
+        "invoice_received": "Invoice Received"
       },
       "toolbar": {
         "searchPlaceholder": "Search PR ref, vendor, or quote ref",
@@ -261,6 +263,75 @@
       "previous": "Previous page",
       "next": "Next page",
       "pageOf": "Page {page} of {total}"
+    },
+    "invoiceLog": {
+      "title": "Invoice Log",
+      "subtitle": "Proforma invoices received from vendors.",
+      "columns": {
+        "prRef": "PR Ref",
+        "requisitionNumber": "Requisition No.",
+        "title": "Title",
+        "vessel": "Vessel",
+        "vendor": "Vendor",
+        "total": "Quote Total",
+        "status": "Status"
+      },
+      "viewProforma": "View Proforma",
+      "viewFor": "View proforma for {prNumber}",
+      "empty": "No proforma invoices received yet.",
+      "loadError": "Couldn't load invoice log.",
+      "requestInvoice": "Request Invoice",
+      "copyInvoiceLink": "Copy Link",
+      "viewInvoice": "View Invoice",
+      "linkCopied": "Link copied to clipboard.",
+      "linkCopyFailed": "Failed to copy link.",
+      "invoiceRequested": "Invoice request sent.",
+      "requestInvoiceError": "Couldn't send invoice request.",
+      "copyingLink": "Copying…",
+      "fetchTokenError": "Couldn't retrieve invoice link.",
+      "requestInvoiceDialog": {
+        "title": "Request Invoice",
+        "subtitle": "Send the vendor a link to upload their invoice.",
+        "vendorNameLabel": "Vendor",
+        "emailLabel": "Email",
+        "messageLabel": "Message",
+        "send": "Send Request",
+        "sending": "Sending…",
+        "cancel": "Cancel",
+        "defaultMessage": "Dear {vendorName},\n\nPlease upload your invoice for the purchase order referenced above using the link below.\n\nThank you,\nPurchase Department",
+        "noEmailsError": "No email addresses found for this vendor. Please update the vendor record first."
+      },
+      "invoiceDocumentsModal": {
+        "title": "Invoice Documents",
+        "invoiceSection": "Invoice",
+        "supportingSection": "Supporting Documents",
+        "noDocuments": "No documents found.",
+        "loading": "Loading documents…",
+        "loadError": "Could not load documents.",
+        "close": "Close"
+      },
+      "noResults": "No invoice log entries match your search and filters.",
+      "toolbar": {
+        "searchPlaceholder": "Search PR ref, requisition no., or title",
+        "status": "Status",
+        "vessel": "Vessel",
+        "category": "Category",
+        "date": "Proforma date",
+        "all": "All",
+        "any": "Any",
+        "nSelected": "{count} selected",
+        "submit": "Submit",
+        "clear": "Clear",
+        "removeFilter": "Remove {label} filter",
+        "dateOptions": {
+          "last1Month": "Last 1 month",
+          "last3Months": "Last 3 months",
+          "last6Months": "Last 6 months",
+          "custom": "Custom date",
+          "startDate": "Start date",
+          "endDate": "End date"
+        }
+      }
     },
     "teamAccess": {
       "title": "Team & access",
@@ -729,6 +800,7 @@
         "awardError": "Couldn't award this requisition. Please try again.",
         "exportPdfError": "Couldn't export this quote as a PDF. Try again.",
         "exportPdfNotFoundError": "This vendor's quote could not be found. It may have been reissued.",
+        "exportPdfUnsupportedCategory": "PDF export is not available for this category yet.",
         "awardDialog": {
           "title": "Award this vendor?",
           "message": "Award {prNumber} to {vendorName}? This marks their quote as the winning quote and changes the requisition status to Awarded. This cannot be undone.",
@@ -1073,6 +1145,80 @@
         "paymentTermsRequired": "Payment terms are required",
         "deliveryTermsRequired": "Delivery terms are required"
       }
+    },
+    "loForm": {
+      "pdfHeader": {
+        "documentTitle": "LUB OIL QUOTATION"
+      },
+      "rfqDetails": {
+        "title": "RFQ Details",
+        "vesselName": "Vessel Name",
+        "imoNo": "IMO No.",
+        "dateOfIssue": "Date of Issue",
+        "requisitionNo": "Requisition No. (PR No.)",
+        "portOfDelivery": "Port / Place of Delivery",
+        "requiredDate": "Required Date",
+        "requestedCurrency": "Requested Currency",
+        "quotationNo": "Quotation No.",
+        "quotationNoPlaceholder": "e.g. Q-2045",
+        "refNo": "Ref. No.",
+        "refNoPlaceholder": "e.g. REF-2045"
+      },
+      "vendorDetails": {
+        "title": "Vendor Details",
+        "vendorName": "Vendor / Company Name",
+        "vendorNamePlaceholder": "e.g. Anchor Marine Supplies",
+        "contactPerson": "Contact Person",
+        "contactNo": "Contact No.",
+        "email": "Email ID",
+        "otherDetails": "Other Details",
+        "optional": "optional"
+      },
+      "itemDetails": {
+        "title": "Item Details",
+        "columns": {
+          "slNo": "S.No.",
+          "requestedDescription": "Requested Item Description",
+          "approvedQty": "Qty",
+          "uom": "UOM",
+          "photos": "Photos",
+          "offeredDescription": "Offered Item Description",
+          "unitPrice": "Unit Price",
+          "totalPrice": "Total Price",
+          "deliveryLeadTime": "Delivery Lead Time (In Days)",
+          "remarks": "Remarks",
+          "vendorPhotos": "Attach Photos"
+        },
+        "noPhotos": "No photos",
+        "viewPhoto": "View photo",
+        "viewPhotoStack": "View {count} photos",
+        "grandTotal": "Grand Total"
+      },
+      "quotationSummary": {
+        "title": "Quotation Summary & Terms",
+        "totalQuotedAmount": "Total Quoted Amount",
+        "quotationValidity": "Quotation Validity",
+        "quotationValidityPlaceholder": "e.g. 30 days from quotation date",
+        "paymentTerms": "Payment Terms",
+        "paymentTermsPlaceholder": "e.g. 30 days net",
+        "deliveryTerms": "Delivery Terms (Incoterm)",
+        "deliveryTermsPlaceholder": "e.g. FOB Singapore",
+        "remarksNotes": "Remarks / Notes",
+        "optional": "optional"
+      },
+      "submit": "Submit Quotation",
+      "submitting": "Submitting…",
+      "errors": {
+        "vendorNameRequired": "Vendor / Company name is required",
+        "vendorEmailInvalid": "Enter a valid email address",
+        "offeredDescriptionRequired": "Offered item description is required",
+        "unitPriceRequired": "Unit Price is required for every line item",
+        "unitPriceInvalid": "Enter a valid amount",
+        "deliveryLeadTimeInvalid": "Enter a whole number of days",
+        "quotationValidityRequired": "Quotation validity is required",
+        "paymentTermsRequired": "Payment terms are required",
+        "deliveryTermsRequired": "Delivery terms are required"
+      }
     }
   },
   "vendorPurchaseOrder": {
@@ -1117,6 +1263,35 @@
     "thankYouLinkExpired": "This Purchase Order link can no longer be used.",
     "submit": "Submit Proforma Invoice"
   },
+  "vendorInvoice": {
+    "title": "Submit Invoice",
+    "subtitle": "Upload your invoice and any supporting documents for this purchase order.",
+    "orderRef": "Purchase Order Reference",
+    "vessel": "Vessel",
+    "vendorLabel": "Vendor",
+    "invoiceSection": "Invoice (PDF, required)",
+    "supportingSection": "Supporting Documents (optional, max 5 — PDF, Word, or Excel)",
+    "dropInvoice": "Drop PDF here or click to choose",
+    "chooseInvoice": "Choose PDF invoice",
+    "uploadingFile": "Uploading…",
+    "uploadSupporting": "Add Document",
+    "removeFile": "Remove",
+    "removingFile": "Removing…",
+    "submit": "Submit Invoice",
+    "submitting": "Submitting…",
+    "invoiceRequired": "An invoice PDF is required before submitting.",
+    "invoiceTypeError": "The invoice must be a PDF file.",
+    "supportingTypeError": "Supporting documents must be PDF, Word, or Excel files.",
+    "supportingMaxError": "You can attach up to 5 supporting documents.",
+    "uploadError": "Upload failed. Please try again.",
+    "submitError": "Submission failed. Please try again.",
+    "linkExpired": "This link is no longer active.",
+    "invalidTitle": "Invoice link unavailable",
+    "invalidDescription": "This link has already been used or is no longer valid.",
+    "thankYouTitle": "Invoice Submitted",
+    "thankYouDescription": "Your invoice has been received. The purchase team will review it shortly.",
+    "thankYouLinkExpired": "This invoice submission link can no longer be used."
+  },
   "purchaseOrderPdf": {
     "documentTitle": "LETTER OF PURCHASE ORDER",
     "formNumber": "FORM NO. FO/P/013",
@@ -1153,6 +1328,10 @@
       "service": {
         "itemsTitle": "Services Ordered",
         "description": "Description of Service"
+      },
+      "lo": {
+        "itemsTitle": "Lub Oil Ordered",
+        "description": "Description of Lub Oil"
       }
     },
     "columns": {

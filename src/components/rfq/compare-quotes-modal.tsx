@@ -9,6 +9,7 @@ import en from "@/locales/en.json";
 import { PR_CATEGORY } from "@/lib/constants/purchase-requisition";
 import type { QuoteComparisonData } from "@/lib/data/rfq-quote-comparison";
 import type { PurchaseOrderQuantityEditor } from "@/components/purchase-orders/purchase-order-quantity-editor";
+import { LoQuoteComparisonCard } from "./lo-quote-comparison-card";
 import { ServiceQuoteComparisonCard } from "./service-quote-comparison-card";
 import { SparesQuoteComparisonCard } from "./spares-quote-comparison-card";
 import { StoresQuoteComparisonCard } from "./stores-quote-comparison-card";
@@ -96,7 +97,9 @@ export function CompareQuotesModal({
       ? SparesQuoteComparisonCard
       : data?.category === PR_CATEGORY.SERVICE
         ? ServiceQuoteComparisonCard
-        : StoresQuoteComparisonCard;
+        : data?.category === PR_CATEGORY.LO
+          ? LoQuoteComparisonCard
+          : StoresQuoteComparisonCard;
 
   return createPortal(
     <div className="fixed inset-0 z-40 flex flex-col bg-ink/40 p-4 sm:p-6" onClick={onClose}>
@@ -153,7 +156,9 @@ export function CompareQuotesModal({
                       canAward={!data?.awardedLinkId}
                       onAward={() => onAwardClick({ linkId: vendor.linkId, vendorName: vendor.vendorName })}
                       purchaseOrderEditor={
-                        data?.category === PR_CATEGORY.STORES || data?.category === PR_CATEGORY.SPARES
+                        data?.category === PR_CATEGORY.STORES ||
+                        data?.category === PR_CATEGORY.SPARES ||
+                        data?.category === PR_CATEGORY.LO
                           ? purchaseOrderEditor
                           : undefined
                       }

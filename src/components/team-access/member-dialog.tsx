@@ -113,7 +113,7 @@ function InviteForm({
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <div className="mb-4">
-            <Label htmlFor="invite-full-name" error={!!errors.fullName}>
+            <Label htmlFor="invite-full-name" error={!!errors.fullName} required>
               {t.fullName}
             </Label>
             <Input
@@ -126,7 +126,7 @@ function InviteForm({
           </div>
 
           <div className="mb-4">
-            <Label htmlFor="invite-email" error={!!errors.email}>
+            <Label htmlFor="invite-email" error={!!errors.email} required>
               {t.email}
             </Label>
             <Input
@@ -139,7 +139,7 @@ function InviteForm({
           </div>
 
           <div className="mb-4">
-            <Label htmlFor="invite-password" error={!!errors.password}>
+            <Label htmlFor="invite-password" error={!!errors.password} required>
               {t.password}
             </Label>
             <PasswordInput
@@ -151,7 +151,7 @@ function InviteForm({
           </div>
 
           <div className="mb-4">
-            <Label htmlFor="invite-role">{t.role}</Label>
+            <Label htmlFor="invite-role" required>{t.role}</Label>
             <Select id="invite-role" {...register("role")}>
               <option value={USER_ROLE.OFFICER}>{en.staff.roleLabels.officer}</option>
               <option value={USER_ROLE.ADMIN}>{en.staff.roleLabels.admin}</option>
@@ -252,7 +252,7 @@ function ResetForm({
         </div>
 
         <div className="mb-4">
-          <Label htmlFor="reset-password" error={!!errors.password}>
+          <Label htmlFor="reset-password" error={!!errors.password} required>
             {t.newPassword}
           </Label>
           <PasswordInput

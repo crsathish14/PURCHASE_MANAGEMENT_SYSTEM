@@ -59,7 +59,7 @@ export function IssuePurchaseOrderDialog({
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState<"link" | "message" | null>(null);
 
-  const hasQuantityFields = category === PR_CATEGORY.STORES || category === PR_CATEGORY.SPARES;
+  const hasQuantityFields = category === PR_CATEGORY.STORES || category === PR_CATEGORY.SPARES || category === PR_CATEGORY.LO;
   const quantitiesValid =
     !hasQuantityFields || vendor.lineItems.every((item) => isValidNeededPoQty(quantities[item.quotationItemId] ?? ""));
   const vendorEmail = vendor.vendorEmail?.trim() ?? "";
@@ -205,7 +205,7 @@ export function IssuePurchaseOrderDialog({
               {t.masterAndOwnersOf} {vesselMasterOwners?.trim() || "—"}
             </p>
             <div className="mb-3">
-              <Label htmlFor="po-invoice-company">{t.invoiceCompanyName}</Label>
+              <Label htmlFor="po-invoice-company" required>{t.invoiceCompanyName}</Label>
               <Input
                 id="po-invoice-company"
                 value={invoiceCompanyName}
@@ -240,7 +240,7 @@ export function IssuePurchaseOrderDialog({
             <Input id="po-vendor-email" readOnly value={vendorEmail} />
           </div>
           <div>
-            <Label htmlFor="po-message">{t.message}</Label>
+            <Label htmlFor="po-message" required>{t.message}</Label>
             <Textarea
               id="po-message"
               rows={7}

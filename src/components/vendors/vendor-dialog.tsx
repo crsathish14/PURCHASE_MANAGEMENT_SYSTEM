@@ -102,7 +102,7 @@ export function VendorDialog({
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
             <div>
-              <Label htmlFor="vendor-name" error={!!errors.name}>
+              <Label htmlFor="vendor-name" error={!!errors.name} required>
                 {t.name}
               </Label>
               <Input

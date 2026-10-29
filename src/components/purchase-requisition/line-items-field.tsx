@@ -15,7 +15,7 @@ import {
 } from "react-hook-form";
 import { X } from "lucide-react";
 
-import { Button, Checkbox, Input, Label } from "@/components/atoms";
+import { Button, Checkbox, Input, Label, RequiredMark } from "@/components/atoms";
 import en from "@/locales/en.json";
 import { PR_CATEGORY, PR_LINE_ITEM_PRESET_COLUMN } from "@/lib/constants/purchase-requisition";
 import { getPresetColumnsForCategory } from "@/lib/purchase-requisition/preset-columns";
@@ -45,7 +45,7 @@ type LineItemsFieldProps = {
   // quantified the way a stores/spares part is) but, like every other
   // category, always gets Photos plus whatever `getPresetColumnsForCategory`
   // returns for it. Undefined before a category is picked, treated the same
-  // as Stores/Spares (only Service is special-cased).
+  // as Stores/Spares/LO (only Service is special-cased).
   category?: string;
   readOnly?: boolean;
   // Top-level Storage path folder for any photos uploaded in this form
@@ -204,10 +204,18 @@ export function LineItemsField({
       <table className="mb-2 w-full border-collapse">
         <thead>
           <tr className="border-b border-line">
-            <th className={`${headerCellClass} w-85`}>{t.columns.description}</th>
-            {isService ? null : <th className={`${headerCellClass} w-28`}>{t.columns.qty}</th>}
+            <th className={`${headerCellClass} w-85`}>
+              {t.columns.description}
+              {readOnly ? null : <RequiredMark />}
+            </th>
+            {isService ? null : (
+              <th className={`${headerCellClass} w-28`}>
+                {t.columns.qty}
+                {readOnly ? null : <RequiredMark />}
+              </th>
+            )}
             {columns.map((column) => {
-              // Approved Qty must always exist for Stores/Spares (it can be
+              // Approved Qty must always exist for Stores/Spares/LO (it can be
               // left blank and saved, but never removed) — matched by key OR
               // label since a saved-and-reloaded preset column comes back
               // with its real DB uuid as `key`, not the literal preset

@@ -68,6 +68,9 @@ export function PrTable({
         </thead>
         <tbody>
           {rows.map((row) => {
+            // LO's PR export template is handled separately. Its RFQ action
+            // is available from Stage 2 onward.
+            const isLo = row.categoryLabel === "LO";
             const cancelDisabled = row.status === PR_STATUS.AWARDED || row.status === PR_STATUS.CANCELLED;
             const deleteDisabled = row.status !== PR_STATUS.PENDING_RFQ;
             const duplicateDisabled = row.status !== PR_STATUS.PENDING_RFQ || duplicatingId === row.id;
@@ -135,9 +138,11 @@ export function PrTable({
                     <MenuItem disabled={issueRfqDisabled} onClick={() => onIssueRfqRequested(row)}>
                       {t.rowMenu.issueRfq}
                     </MenuItem>
-                    <MenuItem disabled={isExporting} onClick={() => onExport(row)}>
-                      {t.rowMenu.export}
-                    </MenuItem>
+                    {!isLo ? (
+                      <MenuItem disabled={isExporting} onClick={() => onExport(row)}>
+                        {t.rowMenu.export}
+                      </MenuItem>
+                    ) : null}
                     <div className="my-1 border-t border-line" aria-hidden="true" />
                     <MenuItem tone="danger" disabled={deleteDisabled} onClick={() => onDeleteRequested(row)}>
                       {t.rowMenu.delete}

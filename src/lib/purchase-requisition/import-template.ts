@@ -2,7 +2,7 @@ import ExcelJS from "exceljs";
 
 import en from "@/locales/en.json";
 import { PR_CATEGORY, PR_LINE_ITEM_PRESET_COLUMN, PR_PRIORITY } from "@/lib/constants/purchase-requisition";
-import type { PrCategory } from "@/lib/constants/purchase-requisition";
+import type { PrTemplateCategory } from "@/lib/constants/purchase-requisition";
 import type { PrDropdownField } from "@/lib/data/purchase-requisition";
 import type { Vessel } from "@/lib/data/vessels";
 import { getPresetColumnsForCategory } from "@/lib/purchase-requisition/preset-columns";
@@ -87,7 +87,7 @@ function parseLegacyWorkbook(
   if (markerCategory !== PR_CATEGORY.STORES && markerCategory !== PR_CATEGORY.SPARES) {
     return { error: importT.parseError };
   }
-  const category: PrCategory = markerCategory;
+  const category: PrTemplateCategory = markerCategory;
   const isSpares = category === PR_CATEGORY.SPARES;
 
   const warnings: string[] = [];

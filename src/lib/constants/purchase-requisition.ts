@@ -21,16 +21,38 @@ export const DATE_PRESET = {
 // values — this does NOT replace pr_dropdown_fields/pr_dropdown_field_options
 // as the source of truth for the dropdown's actual label/option list (still
 // DB-driven via getPrDropdownFields()); it exists only so line-items-field.tsx
-// and buildCreateRequisitionSchema can branch on "is this Service vs
-// Stores/Spares" without a raw string literal. Values must match the seeded
-// pr_dropdown_field_options.value rows (see the dropdown cleanup migration).
-export const PR_CATEGORY = { SERVICE: "service", STORES: "stores", SPARES: "spares" } as const;
+// and buildCreateRequisitionSchema can branch on category behavior without a
+// raw string literal. Values must match the pr_dropdown_field_options.value
+// rows maintained by migrations.
+export const PR_CATEGORY = { SERVICE: "service", STORES: "stores", SPARES: "spares", LO: "lo" } as const;
+
+// Import templates (Stores/Spares/Service only — LO templates are deferred).
+export type PrTemplateCategory =
+  | typeof PR_CATEGORY.STORES
+  | typeof PR_CATEGORY.SPARES
+  | typeof PR_CATEGORY.SERVICE;
+
+// Vendor quote PDFs and PO PDFs both support all four categories (Stage 4
+// added LO to vendor quote PDFs; Stage 5 added LO to PO PDFs). These two
+// aliases remain separate so a future category can be added to one without
+// the other.
+export type PrCategoryWithCurrentPdfSupport =
+  | typeof PR_CATEGORY.STORES
+  | typeof PR_CATEGORY.SPARES
+  | typeof PR_CATEGORY.SERVICE
+  | typeof PR_CATEGORY.LO;
+
+export type PrCategoryWithCurrentPoPdfSupport =
+  | typeof PR_CATEGORY.STORES
+  | typeof PR_CATEGORY.SPARES
+  | typeof PR_CATEGORY.SERVICE
+  | typeof PR_CATEGORY.LO;
 
 // Stable, well-known keys for the category-driven preset line-item columns —
 // deliberately NOT crypto.randomUUID() like a genuinely user-added "+ Add
 // column" entry, so line-items-field.tsx can precisely add/remove exactly
-// these without touching a real custom column. REMARKS applies to all three
-// categories; APPROVED_QTY/UOM/ROB apply to Stores and Spares only (Service
+// these without touching a real custom column. REMARKS applies to all four
+// categories; APPROVED_QTY/UOM/ROB apply to Stores, Spares, and LO (Service
 // has no Qty concept at all — see the existing isService Qty-column-hiding
 // behavior in line-items-field.tsx); PART_NO is Spares-only, IMPA_CODE is
 // Stores-only, and AVAILABLE_ONBOARD is Service-only — see the

@@ -1,7 +1,7 @@
 import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
 
-import { PR_CATEGORY, type PrCategory } from "@/lib/constants/purchase-requisition";
+import { PR_CATEGORY, type PrTemplateCategory } from "@/lib/constants/purchase-requisition";
 import { getPrDropdownFields, getPurchaseRequisitionById } from "@/lib/data/purchase-requisition";
 import { getVessels } from "@/lib/data/vessels";
 import {
@@ -15,7 +15,7 @@ import { fillServiceVbaRequisitionTemplate } from "@/lib/purchase-requisition/ex
 import type { ExportRequisitionData } from "@/lib/purchase-requisition/export-template-vba-shared";
 import { requireApiActiveUser } from "@/lib/supabase/require-active-user";
 
-const TEMPLATE_BUFFER_READER: Record<PrCategory, () => Promise<Buffer>> = {
+const TEMPLATE_BUFFER_READER: Record<PrTemplateCategory, () => Promise<Buffer>> = {
   [PR_CATEGORY.STORES]: readStoresTemplateBuffer,
   [PR_CATEGORY.SPARES]: readSparesTemplateBuffer,
   [PR_CATEGORY.SERVICE]: readServiceTemplateBuffer,
@@ -24,19 +24,19 @@ const TEMPLATE_BUFFER_READER: Record<PrCategory, () => Promise<Buffer>> = {
 // Exact sheet names each template's own VBA source authors them with — see
 // import-template.ts's own dispatcher, which detects a format by this same
 // sheet name.
-const SHEET_NAME: Record<PrCategory, string> = {
+const SHEET_NAME: Record<PrTemplateCategory, string> = {
   [PR_CATEGORY.STORES]: "Stores Requisition Form",
   [PR_CATEGORY.SPARES]: "Spares Requisition Form",
   [PR_CATEGORY.SERVICE]: "Service Requisition Form",
 };
 
-const FILL_TEMPLATE: Record<PrCategory, (sheet: ExcelJS.Worksheet, data: ExportRequisitionData) => void> = {
+const FILL_TEMPLATE: Record<PrTemplateCategory, (sheet: ExcelJS.Worksheet, data: ExportRequisitionData) => void> = {
   [PR_CATEGORY.STORES]: fillStoresVbaRequisitionTemplate,
   [PR_CATEGORY.SPARES]: fillSparesVbaRequisitionTemplate,
   [PR_CATEGORY.SERVICE]: fillServiceVbaRequisitionTemplate,
 };
 
-function isPrCategory(value: string): value is PrCategory {
+function isPrCategory(value: string): value is PrTemplateCategory {
   return value === PR_CATEGORY.STORES || value === PR_CATEGORY.SPARES || value === PR_CATEGORY.SERVICE;
 }
 

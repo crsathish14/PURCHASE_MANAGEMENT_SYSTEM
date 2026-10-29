@@ -16,6 +16,8 @@ export const ROUTES = {
   PURCHASE_ORDER_FORM: `/${defaultLocale}/purchase-order`,
   PURCHASE_ORDER_THANK_YOU: `/${defaultLocale}/purchase-order/thank-you`,
   INVOICE_LOG: `/${defaultLocale}/invoice-log`,
+  PURCHASE_ORDER_INVOICE_FORM: `/${defaultLocale}/purchase-order-invoice`,
+  PURCHASE_ORDER_INVOICE_THANK_YOU: `/${defaultLocale}/purchase-order-invoice/thank-you`,
   DELIVERY_NOTES: `/${defaultLocale}/delivery-notes`,
   VENDORS: `/${defaultLocale}/vendors`,
   VESSELS: `/${defaultLocale}/vessels`,
@@ -31,4 +33,8 @@ export function quoteFormPath(token: string): string {
 
 export function purchaseOrderFormPath(token: string): string {
   return `${ROUTES.PURCHASE_ORDER_FORM}/${token}`;
+}
+
+export function purchaseOrderInvoiceFormPath(token: string): string {
+  return `${ROUTES.PURCHASE_ORDER_INVOICE_FORM}/${token}`;
 }

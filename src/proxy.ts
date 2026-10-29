@@ -113,7 +113,8 @@ export async function proxy(request: NextRequest) {
   const isPublicPath =
     PUBLIC_PATHS.has(pathname) ||
     pathname.startsWith(`${ROUTES.QUOTE_FORM}/`) ||
-    pathname.startsWith(`${ROUTES.PURCHASE_ORDER_FORM}/`);
+    pathname.startsWith(`${ROUTES.PURCHASE_ORDER_FORM}/`) ||
+    pathname.startsWith(`${ROUTES.PURCHASE_ORDER_INVOICE_FORM}/`);
 
   if (!isPublicPath) {
     if (!user) {

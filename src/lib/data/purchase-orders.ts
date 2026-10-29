@@ -10,6 +10,7 @@ export type PurchaseOrderListRow = {
   title: string | null;
   vesselLabel: string | null;
   vendorName: string;
+  vendorId: string | null;
   quoteReference: string | null;
   totalQuotedAmount: number;
   quoteSubmittedAt: string;
@@ -24,6 +25,9 @@ export type PurchaseOrderFilters = {
   datePreset?: DatePreset;
   startDate?: string;
   endDate?: string;
+  proformaDatePreset?: DatePreset;
+  proformaStartDate?: string;
+  proformaEndDate?: string;
 };
 
 export type PurchaseOrderDraftItemInput = {
@@ -246,6 +250,9 @@ export async function getPurchaseOrders({
   datePreset,
   startDate,
   endDate,
+  proformaDatePreset,
+  proformaStartDate,
+  proformaEndDate,
 }: {
   page: number;
   pageSize: number;
@@ -259,6 +266,9 @@ export async function getPurchaseOrders({
     p_date_preset: datePreset ?? null,
     p_start_date: startDate ?? null,
     p_end_date: endDate ?? null,
+    p_proforma_date_preset: proformaDatePreset ?? null,
+    p_proforma_start_date: proformaStartDate ?? null,
+    p_proforma_end_date: proformaEndDate ?? null,
     p_page: page,
     p_page_size: pageSize,
   });
@@ -272,6 +282,7 @@ export async function getPurchaseOrders({
     title: row.pr_title,
     vesselLabel: row.vessel_label,
     vendorName: row.vendor_name,
+    vendorId: row.vendor_id ?? null,
     quoteReference: row.quote_reference,
     totalQuotedAmount: row.total_quoted_amount,
     quoteSubmittedAt: row.quote_submitted_at,

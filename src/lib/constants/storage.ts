@@ -57,3 +57,26 @@ export const MAX_PURCHASE_ORDER_PROFORMA_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB, 
 // configure, the *upload* signed URL's expiry — createSignedUploadUrl fixes
 // that at 2 hours server-side, not configurable via this SDK.
 export const SIGNED_DISPLAY_URL_TTL_SECONDS = 60 * 60; // 1 hour
+
+// Invoice request documents: one mandatory PDF invoice + optional Word/Excel
+// supporting documents. No size limit is enforced client-side; the bucket
+// limit was removed via migration 20261028040000.
+export const PO_INVOICE_DOCUMENT_PATH_PREFIX = "po-invoice-documents";
+export const INVOICE_DOCUMENT_INVOICE_MIME_TYPE = "application/pdf" as const;
+export const SUPPORTING_DOC_MIME_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+] as const;
+export type SupportingDocMimeType = (typeof SUPPORTING_DOC_MIME_TYPES)[number];
+export const MAX_SUPPORTING_DOCS = 5;
+
+export const SUPPORTING_DOC_EXTENSIONS: Record<SupportingDocMimeType, string> = {
+  "application/pdf": "pdf",
+  "application/msword": "doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/vnd.ms-excel": "xls",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+};

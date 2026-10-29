@@ -5,6 +5,7 @@ import { PR_CATEGORY } from "@/lib/constants/purchase-requisition";
 import { getRfqQuoteDetailsByToken } from "@/lib/data/rfq-quote";
 import { createClient } from "@/lib/supabase/server";
 import {
+  submitLoVendorQuoteSchema,
   submitServiceVendorQuoteSchema,
   submitSparesVendorQuoteSchema,
   submitStoresVendorQuoteSchema,
@@ -34,13 +35,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   if (!detail || detail.isExpired || detail.submittedAt) {
     return NextResponse.json({ error: { message: t.linkInvalid } }, { status: 409 });
   }
-
   const schema =
     detail.category === PR_CATEGORY.SPARES
       ? submitSparesVendorQuoteSchema
       : detail.category === PR_CATEGORY.SERVICE
         ? submitServiceVendorQuoteSchema
-        : submitStoresVendorQuoteSchema;
+        : detail.category === PR_CATEGORY.LO
+          ? submitLoVendorQuoteSchema
+          : submitStoresVendorQuoteSchema;
 
   let body: unknown;
   try {

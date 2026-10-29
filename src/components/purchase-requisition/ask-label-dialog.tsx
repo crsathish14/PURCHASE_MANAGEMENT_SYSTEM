@@ -58,7 +58,7 @@ export function AskLabelDialog({ open, onClose, title, onSubmit }: AskLabelDialo
         noValidate
       >
         <div className="mb-5">
-          <Label htmlFor="ask-label-input" error={!!errors.label}>
+          <Label htmlFor="ask-label-input" error={!!errors.label} required>
             {t.label}
           </Label>
           <Input

@@ -9,8 +9,8 @@ import { pdfStyles } from "./styles";
 // the route handler from QuoteComparisonData and passed uniformly to
 // whichever category's Document component is selected — Stores' own
 // template simply never renders an Equipment Details section with these,
-// but keeping the shape identical across all three is what lets the route's
-// Record<PrCategory, typeof StoresQuotePdf> dispatch map typecheck cleanly.
+// but keeping the shape identical lets the route pass one context type to
+// every category-specific PDF component.
 export type RfqQuotePdfPrContext = {
   prNumber: string;
   vesselLabel: string | null;

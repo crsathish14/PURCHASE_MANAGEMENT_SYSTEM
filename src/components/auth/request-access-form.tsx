@@ -84,7 +84,7 @@ export function RequestAccessForm() {
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="mb-4">
-          <Label htmlFor="ra-full-name" error={!!errors.fullName}>
+          <Label htmlFor="ra-full-name" error={!!errors.fullName} required>
             {t.fullName}
           </Label>
           <Input
@@ -97,7 +97,7 @@ export function RequestAccessForm() {
         </div>
 
         <div className="mb-4">
-          <Label htmlFor="ra-email" error={!!errors.workEmail}>
+          <Label htmlFor="ra-email" error={!!errors.workEmail} required>
             {t.workEmail}
           </Label>
           <Input
@@ -110,7 +110,7 @@ export function RequestAccessForm() {
         </div>
 
         <div className="mb-4">
-          <Label htmlFor="ra-password" error={!!errors.password}>
+          <Label htmlFor="ra-password" error={!!errors.password} required>
             {t.password}
           </Label>
           <PasswordInput id="ra-password" error={errors.password?.message} {...register("password")} />
@@ -118,7 +118,7 @@ export function RequestAccessForm() {
         </div>
 
         <div className="mb-1">
-          <Label htmlFor="ra-confirm-password" error={!!errors.confirmPassword}>
+          <Label htmlFor="ra-confirm-password" error={!!errors.confirmPassword} required>
             {t.confirmPassword}
           </Label>
           <PasswordInput

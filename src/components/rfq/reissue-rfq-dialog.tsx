@@ -260,7 +260,7 @@ export function ReissueRfqDialog({
 
       <form id="reissue-rfq-link-form" onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="mb-4">
-          <Label htmlFor="reissue-vendor-id" error={!!errors.vendorId}>
+          <Label htmlFor="reissue-vendor-id" error={!!errors.vendorId} required={!vendorId}>
             {issueT.vendorName}
           </Label>
           {vendorId ? (
@@ -295,7 +295,7 @@ export function ReissueRfqDialog({
         </div>
 
         <div className="mb-4">
-          <Label htmlFor="reissue-vendor-email" error={!!errors.vendorEmail}>
+          <Label htmlFor="reissue-vendor-email" error={!!errors.vendorEmail} required>
             {issueT.vendorEmail}
           </Label>
           <Select
@@ -318,7 +318,9 @@ export function ReissueRfqDialog({
         </div>
 
         <div className="mb-4">
-          <Label error={!!errors.expiresAt}>{issueT.expiresAt}</Label>
+          <Label error={!!errors.expiresAt} required>
+            {issueT.expiresAt}
+          </Label>
           <div className="flex gap-2.5">
             <Input
               type="date"
@@ -341,7 +343,7 @@ export function ReissueRfqDialog({
         </div>
 
         <div>
-          <Label htmlFor="reissue-message" error={!!errors.message}>
+          <Label htmlFor="reissue-message" error={!!errors.message} required>
             {issueT.message}
           </Label>
           <Textarea id="reissue-message" rows={5} error={errors.message?.message} {...register("message")} />
