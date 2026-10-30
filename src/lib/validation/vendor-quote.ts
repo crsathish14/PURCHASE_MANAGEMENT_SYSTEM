@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import en from "@/locales/en.json";
+import { PR_CATEGORY } from "@/lib/constants/purchase-requisition";
 
 const t = en.vendorQuote.storesForm.errors;
 
@@ -175,3 +176,54 @@ export const submitLoVendorQuoteSchema = z.object({
 });
 
 export type SubmitLoVendorQuoteInput = z.infer<typeof submitLoVendorQuoteSchema>;
+
+// Blank values for each category's vendor-editable line item fields. The form
+// only ever holds one page of line items, so a row the vendor never opened
+// exists only on the server — the submit route fills it in from these before
+// validating, and each form seeds its page rows from the same constants.
+export const BLANK_STORES_ITEM_FIELDS = {
+  offeredDescription: "",
+  offeredImpaCode: "",
+  unitPrice: "",
+  deliveryLeadTime: "",
+  remarks: "",
+};
+
+export const BLANK_SPARES_ITEM_FIELDS = {
+  offeredDescription: "",
+  offeredPartNo: "",
+  itemType: "",
+  unitPrice: "",
+  deliveryLeadTime: "",
+  remarks: "",
+};
+
+export const BLANK_SERVICE_ITEM_FIELDS = {
+  estimatedDuration: "",
+  sparesConsumablesIncluded: "",
+  unitPrice: "",
+  remarks: "",
+};
+
+export const BLANK_LO_ITEM_FIELDS = {
+  offeredDescription: "",
+  unitPrice: "",
+  deliveryLeadTime: "",
+  remarks: "",
+};
+
+// Which submit schema and blank item shape apply to a requisition's category.
+// An unrecognized or missing category falls through to Stores, matching the
+// submit RPC's own fallback.
+export function getVendorQuoteSchemaConfig(category: string | null) {
+  switch (category) {
+    case PR_CATEGORY.SPARES:
+      return { schema: submitSparesVendorQuoteSchema, blankItemFields: BLANK_SPARES_ITEM_FIELDS };
+    case PR_CATEGORY.SERVICE:
+      return { schema: submitServiceVendorQuoteSchema, blankItemFields: BLANK_SERVICE_ITEM_FIELDS };
+    case PR_CATEGORY.LO:
+      return { schema: submitLoVendorQuoteSchema, blankItemFields: BLANK_LO_ITEM_FIELDS };
+    default:
+      return { schema: submitStoresVendorQuoteSchema, blankItemFields: BLANK_STORES_ITEM_FIELDS };
+  }
+}

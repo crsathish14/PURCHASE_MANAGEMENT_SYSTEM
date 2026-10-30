@@ -673,6 +673,56 @@ PDF feature.
   to actually be a day count. Column header updated to "Estimated Duration (In Days)" to match the
   existing "Delivery Lead Time (In Days)" convention.
 
+- **Large quotes: server-side pagination, autosaved draft, and an expiry countdown** (all four category
+  forms — Stores, Spares, Service, LO — share them; a quote can have 200+ line items). The browser only
+  ever holds **one page** of line items; the backend pages them.
+  - **Data flow** (`20261030020000_rfq_quote_server_pagination.sql`): `get_rfq_quote_details_by_token` is
+    now **header-only** (it returns `line_item_count`, not line items — the earlier description of it
+    returning every line item no longer holds). `get_rfq_quote_line_items_by_token(p_token, p_offset,
+    p_limit)` returns one page (ordered `sort_order, id` everywhere in the migration), each row with the
+    vendor's saved draft entry merged in as `draft`, plus `total_count` and `other_pages_total` — the
+    draft total of every line item *outside* the page (Service = Unit Price; others = Approved Qty × Unit
+    Price, the same rule as `submit_rfq_quotation`) so the grand total is right while other pages aren't
+    loaded. TS side: `getRfqQuoteDetailsByToken` (header), `getRfqQuoteLineItemsPage` (page; signs only
+    that page's reference + draft photos), `GET api/quote/[token]/items?page=&pageSize=` (sizes 10/25/50,
+    default 25, `src/lib/vendor-quote/pagination.ts`; out-of-range → default). The page SSRs page 1 only.
+  - **Draft** (`20261030010000_rfq_quote_drafts.sql` + the pagination migration): one `jsonb` row per RFQ
+    link (`on delete cascade`, so a reissue discards it), shaped `{ header, items: { [lineItemId]: { fields,
+    photos } } }`. RLS on with no policies/grants — reachable only through security-definer RPCs that refuse
+    an unknown/expired/submitted link. A draft **never submits anything**. `save_rfq_quote_draft(token,
+    header, items)` *replaces* the header and **merges items per line item** (and per key within an item),
+    so a save for the visible page — or for one late photo upload on another page — never erases other
+    pages. Unknown line item ids are dropped in SQL. The shape is category-agnostic
+    (`src/lib/vendor-quote/draft.ts`); `applyDraftHeader` overlays only keys the form already has.
+  - **Route/security**: `PUT api/quote/[token]/draft` validates with `buildQuoteDraftSaveSchema(token)` and
+    deliberately does not load the quote (it fires every few seconds). Each photo `storagePath` must sit
+    under `rfq-quote-item-photos/<token>/<lineItemId>/` (`isOwnPhotoPath`) — mandatory because page loads
+    sign those paths with the admin client; without it a vendor could draft an arbitrary path and be handed
+    a signed URL. `photos/sign` now asks the cheap `is_rfq_quote_line_item` RPC instead of loading the quote.
+  - **Paging** (`use-quote-line-item-pages.ts`, `LineItemsPager` reusing `PrPager` via its
+    `pageSizeOptions` prop): react-hook-form's `items` is **the current page only**. Changing page first
+    `saveNow()`s (and refuses to leave if that fails — the form's copy of the page is about to be
+    discarded), fetches the next page, then `reset`s `items` while keeping the header
+    (`runSilently` stops that reset from counting as an edit). Photos live in `photosById` keyed by line
+    item id and outlive page changes; a row on screen only sends `photos` if it's tracked, never `[]`
+    for an untracked row (that would wipe the server copy).
+  - **Autosave** (`use-quote-draft.ts`): `watch(callback)`, 2.5s debounce, saves serialized in a promise
+    chain (no racing/reordering), flush on tab hide (plain `fetch` — `keepalive` caps bodies at 64KB).
+  - **Submit** carries no quote data: the form flushes its draft (`saveNow({force:true})`), then
+    `POST api/quote/[token]/submit` assembles **every** line item server-side from the stored draft
+    (`get_rfq_quote_submission_by_token`; untouched rows filled from `BLANK_*_ITEM_FIELDS` in
+    `validation/vendor-quote.ts`), validates the whole quote with the category schema, and calls the
+    unchanged `submit_rfq_quotation`. A failing row returns `error.firstErrorItemIndex`; the form jumps to
+    that page and runs `trigger()` to show the field errors. The client resolver therefore only validates
+    the header and the visible page — the full check is server-side.
+  - `VendorItemPhotosField.onChange` is a **functional update** (`(prev) => next`): the field unmounts on
+    every page change, so an upload finishing afterwards must not overwrite photos with a stale `value`;
+    its unmount-time `URL.revokeObjectURL` of finished photos was removed for the same reason.
+  - **Expiry countdown**: `ExpiryCountdown` (above the form, rendered by the quote page) shows days/hours/
+    minutes (never seconds) from `detail.expiresAt`, red under a day, "expired" at zero. It, and the draft's
+    saved time, render nothing until the client takes over (`useMinuteTick` returns `null` on the server)
+    since "now" and the browser's timezone differ between server and client and would fail hydration.
+
 ## 18. Requested Quote page (RFQ progress tracking)
 
 A staff-facing list of PRs that have had an RFQ issued to at least one vendor, showing per-PR quote

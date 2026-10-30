@@ -1118,6 +1118,14 @@ export type Database = {
         Args: { p_token: string };
         Returns: { success: boolean }[];
       };
+      get_rfq_quote_draft: {
+        Args: { p_token: string };
+        Returns: { header: Json; saved_at: string }[];
+      };
+      save_rfq_quote_draft: {
+        Args: { p_token: string; p_header: Json; p_items: Json };
+        Returns: { success: boolean; saved_at: string | null }[];
+      };
       get_rfq_quote_details_by_token: {
         Args: { p_token: string };
         Returns: {
@@ -1141,8 +1149,20 @@ export type Database = {
           equipment_model: string | null;
           equipment_specifications: string | null;
           equipment_other_details: string | null;
-          line_items: Json;
+          line_item_count: number;
         }[];
+      };
+      get_rfq_quote_line_items_by_token: {
+        Args: { p_token: string; p_offset: number; p_limit: number };
+        Returns: { total_count: number; other_pages_total: number; line_items: Json }[];
+      };
+      get_rfq_quote_submission_by_token: {
+        Args: { p_token: string };
+        Returns: { header: Json; items: Json }[];
+      };
+      is_rfq_quote_line_item: {
+        Args: { p_token: string; p_line_item_id: string };
+        Returns: boolean;
       };
       submit_rfq_quotation: {
         Args: {

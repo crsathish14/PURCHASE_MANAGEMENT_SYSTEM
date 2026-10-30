@@ -27,7 +27,11 @@ export type VendorItemPhotosFieldProps = {
   token: string;
   lineItemId: string;
   value: VendorPhotoValue[];
-  onChange: (next: VendorPhotoValue[]) => void;
+  // A functional update, not a replacement value: the vendor form paginates its
+  // line items, so this field can unmount (page change) while an upload is in
+  // flight. The upload then completes against a stale `value`, and a plain
+  // replacement would drop any photo added to the same item in the meantime.
+  onChange: (update: (prev: VendorPhotoValue[]) => VendorPhotoValue[]) => void;
 };
 
 type PendingTile =
@@ -62,19 +66,10 @@ export function VendorItemPhotosField({ token, lineItemId, value, onChange }: Ve
     };
   }, [pendingPreviewUrls]);
 
-  // value's own preview URLs are only ever revoked on final unmount — each
-  // line item's field stays mounted for the vendor form's whole lifetime
-  // (line items never get added/removed after the page loads), so there's no
-  // earlier point where these would otherwise leak.
-  const valueRef = useRef(value);
-  useEffect(() => {
-    valueRef.current = value;
-  }, [value]);
-  useEffect(() => {
-    return () => {
-      valueRef.current.forEach((photo) => URL.revokeObjectURL(photo.previewUrl));
-    };
-  }, []);
+  // value's own preview URLs are deliberately not revoked on unmount: the
+  // form paginates its line items, so this field unmounts on every page change
+  // while the photo stays in the form's state and must keep rendering when the
+  // vendor comes back. They live until the page does (or the photo is removed).
 
   async function runUpload(clientId: string, file: File, mimeType: AllowedPhotoMimeType) {
     try {
@@ -94,7 +89,8 @@ export function VendorItemPhotosField({ token, lineItemId, value, onChange }: Ve
         contentType: uploadContentType,
       });
 
-      onChange([...value, { ...photo, previewUrl: URL.createObjectURL(uploadBlob) }]);
+      const uploaded = { ...photo, previewUrl: URL.createObjectURL(uploadBlob) };
+      onChange((prev) => [...prev, uploaded]);
       setPending((prev) => {
         const tile = prev.find((p) => p.clientId === clientId);
         if (tile) URL.revokeObjectURL(tile.previewUrl);
@@ -151,7 +147,7 @@ export function VendorItemPhotosField({ token, lineItemId, value, onChange }: Ve
   function removeDone(index: number) {
     const removed = value[index];
     if (removed) URL.revokeObjectURL(removed.previewUrl);
-    onChange(value.filter((_, i) => i !== index));
+    onChange((prev) => prev.filter((_, i) => i !== index));
   }
 
   function handlePick(event: React.ChangeEvent<HTMLInputElement>) {
