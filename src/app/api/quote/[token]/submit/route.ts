@@ -1,15 +1,10 @@
 import { NextResponse } from "next/server";
 
 import en from "@/locales/en.json";
-import { PR_CATEGORY } from "@/lib/constants/purchase-requisition";
 import { getRfqQuoteDetailsByToken } from "@/lib/data/rfq-quote";
+import { getRfqQuoteSubmissionByToken } from "@/lib/data/rfq-quote-draft";
 import { createClient } from "@/lib/supabase/server";
-import {
-  submitLoVendorQuoteSchema,
-  submitServiceVendorQuoteSchema,
-  submitSparesVendorQuoteSchema,
-  submitStoresVendorQuoteSchema,
-} from "@/lib/validation/vendor-quote";
+import { getVendorQuoteSchemaConfig } from "@/lib/validation/vendor-quote";
 
 const t = en.vendorQuote;
 
@@ -20,41 +15,72 @@ const t = en.vendorQuote;
 // quotation in that same transaction. No src/proxy.ts change needed either:
 // /api/* paths are already fully exempted from the page-gating logic before
 // it runs.
-export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
+//
+// The request carries no quote data. The form only ever holds one page of
+// line items, so before submitting it flushes its draft (header + the visible
+// page) to the server, and this route assembles the FULL quote from that
+// stored draft — every line item, including rows the vendor never opened —
+// then validates all of it with the same schema the form uses.
+export async function POST(_request: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
 
-  // Fetched first so the right category's schema can be picked (Stores,
-  // Spares, and Service each have a genuinely different item shape) — this
-  // also means an invalid/expired/already-submitted link now cleanly 409s
-  // here regardless of payload shape, rather than sometimes surfacing a
-  // generic 400 from a failed schema parse first. submit_rfq_quotation's own
-  // atomic `update ... where submitted_at is null` remains the sole
-  // authoritative concurrency/single-submission gate either way — this is
-  // an advisory/UX-only early check, not a replacement for it.
+  // Advisory/UX-only early check — submit_rfq_quotation's own atomic
+  // `update ... where submitted_at is null` remains the sole authoritative
+  // concurrency/single-submission gate either way.
   const detail = await getRfqQuoteDetailsByToken(token);
   if (!detail || detail.isExpired || detail.submittedAt) {
     return NextResponse.json({ error: { message: t.linkInvalid } }, { status: 409 });
   }
-  const schema =
-    detail.category === PR_CATEGORY.SPARES
-      ? submitSparesVendorQuoteSchema
-      : detail.category === PR_CATEGORY.SERVICE
-        ? submitServiceVendorQuoteSchema
-        : detail.category === PR_CATEGORY.LO
-          ? submitLoVendorQuoteSchema
-          : submitStoresVendorQuoteSchema;
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: { message: t.submitError } }, { status: 400 });
+  const submission = await getRfqQuoteSubmissionByToken(token);
+  if (!submission) {
+    return NextResponse.json({ error: { message: t.linkInvalid } }, { status: 409 });
   }
 
-  const parsed = schema.safeParse(body);
+  const { schema, blankItemFields } = getVendorQuoteSchemaConfig(detail.category);
+
+  const parsed = schema.safeParse({
+    // The link's own vendor identity is the form's pre-filled default, so it
+    // stands in when the vendor never edited those fields.
+    quotationNo: "",
+    refNo: "",
+    vendorName: detail.vendorName,
+    vendorContactPerson: "",
+    vendorContactNo: "",
+    vendorEmail: detail.vendorEmail,
+    vendorOtherDetails: "",
+    quotationValidity: "",
+    paymentTerms: "",
+    deliveryTerms: "",
+    remarksNotes: "",
+    ...submission.header,
+    items: submission.items.map((item) => ({
+      ...blankItemFields,
+      ...item.fields,
+      lineItemId: item.lineItemId,
+      photos: item.photos,
+    })),
+  });
+
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
-    return NextResponse.json({ error: { message: firstIssue?.message ?? t.submitError } }, { status: 400 });
+    // The lowest-numbered failing row, so the form can jump to the page that
+    // holds it (the failing row is usually on a page the vendor isn't viewing).
+    let firstErrorItemIndex: number | null = null;
+    for (const issue of parsed.error.issues) {
+      if (issue.path[0] === "items" && typeof issue.path[1] === "number") {
+        firstErrorItemIndex =
+          firstErrorItemIndex === null ? issue.path[1] : Math.min(firstErrorItemIndex, issue.path[1]);
+      }
+    }
+    const baseMessage = firstIssue?.message ?? t.submitError;
+    const message =
+      firstErrorItemIndex === null
+        ? baseMessage
+        : t.pagination.itemError
+            .replace("{number}", String(firstErrorItemIndex + 1))
+            .replace("{message}", parsed.error.issues.find((i) => i.path[1] === firstErrorItemIndex)?.message ?? baseMessage);
+    return NextResponse.json({ error: { message, firstErrorItemIndex } }, { status: 400 });
   }
 
   const input = parsed.data;

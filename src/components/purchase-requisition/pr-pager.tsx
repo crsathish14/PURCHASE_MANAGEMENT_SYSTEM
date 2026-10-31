@@ -5,7 +5,7 @@ import en from "@/locales/en.json";
 
 const t = en.staff.poRequests.pager;
 
-const PAGE_SIZE_OPTIONS = [10, 20, 50];
+const DEFAULT_PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 export type PrPagerProps = {
   page: number;
@@ -13,9 +13,19 @@ export type PrPagerProps = {
   total: number;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
+  // Defaults to the PR list's own 10/20/50; other lists with a different
+  // sensible range (e.g. the vendor quote form's line items) pass their own.
+  pageSizeOptions?: number[];
 };
 
-export function PrPager({ page, pageSize, total, onPageChange, onPageSizeChange }: PrPagerProps) {
+export function PrPager({
+  page,
+  pageSize,
+  total,
+  onPageChange,
+  onPageSizeChange,
+  pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
+}: PrPagerProps) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, total);
@@ -33,7 +43,7 @@ export function PrPager({ page, pageSize, total, onPageChange, onPageSizeChange 
             value={pageSize}
             onChange={(event) => onPageSizeChange(Number(event.target.value))}
           >
-            {PAGE_SIZE_OPTIONS.map((size) => (
+            {pageSizeOptions.map((size) => (
               <option key={size} value={size}>
                 {size}
               </option>

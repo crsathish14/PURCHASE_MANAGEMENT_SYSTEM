@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 
 import en from "@/locales/en.json";
 import { PR_CATEGORY } from "@/lib/constants/purchase-requisition";
-import { getRfqQuoteDetailsByToken } from "@/lib/data/rfq-quote";
+import { getRfqQuoteDetailsByToken, getRfqQuoteLineItemsPage } from "@/lib/data/rfq-quote";
+import { getRfqQuoteDraftByToken } from "@/lib/data/rfq-quote-draft";
+import { ExpiryCountdown } from "@/components/vendor-quote/expiry-countdown";
 import { LinkExpired, type LinkInvalidReason } from "@/components/vendor-quote/link-expired";
+import { QUOTE_LINE_ITEM_DEFAULT_PAGE_SIZE } from "@/lib/vendor-quote/pagination";
 import { LoQuoteForm } from "@/components/vendor-quote/lo-quote-form";
 import { QuoteForm } from "@/components/vendor-quote/quote-form";
 import { ServiceQuoteForm } from "@/components/vendor-quote/service-quote-form";
@@ -41,6 +44,18 @@ export default async function QuoteFormPage({ params }: { params: Promise<{ toke
     category === PR_CATEGORY.SERVICE ||
     category === PR_CATEGORY.LO;
 
+  // Only the four real forms have line items to page through and a draft to
+  // restore; the generic stub has neither, and an unusable link has no form.
+  // Just the FIRST page of line items is loaded here — the form fetches the
+  // rest a page at a time.
+  const [initialPage, initialDraft] =
+    invalidReason || !widePage
+      ? [null, null]
+      : await Promise.all([
+          getRfqQuoteLineItemsPage(token, 1, QUOTE_LINE_ITEM_DEFAULT_PAGE_SIZE),
+          getRfqQuoteDraftByToken(token),
+        ]);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-mist px-6 py-10">
       <div
@@ -48,16 +63,28 @@ export default async function QuoteFormPage({ params }: { params: Promise<{ toke
           widePage ? "max-w-6xl" : "max-w-105"
         }`}
       >
-        {invalidReason || !detail ? (
+        {invalidReason || !detail || (widePage && !initialPage) ? (
           <LinkExpired reason={invalidReason ?? "not_found"} />
-        ) : category === PR_CATEGORY.STORES ? (
-          <StoresQuoteForm token={token} detail={detail} />
-        ) : category === PR_CATEGORY.SPARES ? (
-          <SparesQuoteForm token={token} detail={detail} />
-        ) : category === PR_CATEGORY.SERVICE ? (
-          <ServiceQuoteForm token={token} detail={detail} />
-        ) : category === PR_CATEGORY.LO ? (
-          <LoQuoteForm token={token} detail={detail} />
+        ) : initialPage && category === PR_CATEGORY.STORES ? (
+          <>
+            <ExpiryCountdown expiresAt={detail.expiresAt} />
+            <StoresQuoteForm token={token} detail={detail} initialPage={initialPage} initialDraft={initialDraft} />
+          </>
+        ) : initialPage && category === PR_CATEGORY.SPARES ? (
+          <>
+            <ExpiryCountdown expiresAt={detail.expiresAt} />
+            <SparesQuoteForm token={token} detail={detail} initialPage={initialPage} initialDraft={initialDraft} />
+          </>
+        ) : initialPage && category === PR_CATEGORY.SERVICE ? (
+          <>
+            <ExpiryCountdown expiresAt={detail.expiresAt} />
+            <ServiceQuoteForm token={token} detail={detail} initialPage={initialPage} initialDraft={initialDraft} />
+          </>
+        ) : initialPage && category === PR_CATEGORY.LO ? (
+          <>
+            <ExpiryCountdown expiresAt={detail.expiresAt} />
+            <LoQuoteForm token={token} detail={detail} initialPage={initialPage} initialDraft={initialDraft} />
+          </>
         ) : (
           <QuoteForm token={token} prNumber={detail.prNumber} />
         )}

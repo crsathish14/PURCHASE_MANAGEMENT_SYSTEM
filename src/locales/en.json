@@ -903,6 +903,29 @@
     "notFoundDescription": "We couldn't find this quotation link. Double check the link you were sent, or contact the purchase officer who sent it.",
     "alreadySubmittedDescription": "A quotation has already been submitted using this link.",
     "expiredDescription": "This link has expired. Contact the purchase officer for a new one.",
+    "draft": {
+      "idle": "Your entries are saved automatically as a draft.",
+      "saving": "Saving draft…",
+      "saved": "Draft saved {time}",
+      "error": "Couldn't save your draft. We'll retry on your next change.",
+      "saveError": "Couldn't save the draft.",
+      "tooLarge": "The draft is too large to save."
+    },
+    "pagination": {
+      "loadError": "Couldn't load that page of line items. Try again.",
+      "saveFirst": "Couldn't save your entries on this page, so we didn't leave it. Try again.",
+      "itemError": "Line item {number}: {message}",
+      "saveBeforeSubmit": "Couldn't save your entries, so nothing was submitted. Try again."
+    },
+    "expiry": {
+      "label": "This quotation link expires in",
+      "expiredLabel": "This quotation link has",
+      "expired": "expired",
+      "lessThanMinute": "less than a minute",
+      "days": "{count}d",
+      "hours": "{count}h",
+      "minutes": "{count}m"
+    },
     "storesForm": {
       "pdfHeader": {
         "documentTitle": "STORE QUOTATION"

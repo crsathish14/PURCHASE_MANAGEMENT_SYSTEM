@@ -9,7 +9,7 @@ import {
   RFQ_QUOTE_ITEM_PHOTO_PATH_PREFIX,
   STORAGE_BUCKET,
 } from "@/lib/constants/storage";
-import { getRfqQuoteDetailsByToken } from "@/lib/data/rfq-quote";
+import { getRfqQuoteDetailsByToken, isRfqQuoteLineItem } from "@/lib/data/rfq-quote";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const t = en.vendorQuote;
@@ -54,7 +54,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   if (!detail || detail.isExpired || detail.submittedAt) {
     return NextResponse.json({ error: { message: t.linkInvalid } }, { status: 409 });
   }
-  if (!detail.lineItems.some((item) => item.lineItemId === lineItemId)) {
+  if (!(await isRfqQuoteLineItem(token, lineItemId))) {
     return NextResponse.json({ error: { message: "Invalid upload request." } }, { status: 400 });
   }
 

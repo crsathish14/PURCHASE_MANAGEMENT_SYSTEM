@@ -6,16 +6,21 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Button, Input, RequiredMark } from "@/components/atoms";
 import en from "@/locales/en.json";
-import type { RfqQuoteDetail, RfqQuoteLineItem } from "@/lib/data/rfq-quote";
+import type { RfqQuoteDetail, RfqQuoteLineItem, RfqQuoteLineItemsPage } from "@/lib/data/rfq-quote";
 import { formatCurrencyUsd } from "@/lib/format-currency";
-import { submitStoresVendorQuoteSchema, type SubmitStoresVendorQuoteInput } from "@/lib/validation/vendor-quote";
+import { BLANK_STORES_ITEM_FIELDS, submitStoresVendorQuoteSchema, type SubmitStoresVendorQuoteInput } from "@/lib/validation/vendor-quote";
+import { applyDraftHeader, type QuoteDraftState } from "@/lib/vendor-quote/draft";
 import { toast } from "@/store/toast-store";
 import { displayValue } from "./format-display-value";
 import { ItemPhotos } from "./item-photos";
+import { LineItemsPager } from "./line-items-pager";
+import { QuoteDraftStatus } from "./quote-draft-status";
 import { QuotationSummarySection } from "./quotation-summary-section";
 import { RfqDetailsSection } from "./rfq-details-section";
+import { mergeLoadedPhotos, useQuoteDraftAutosave, type PhotosById } from "./use-quote-draft";
+import { buildPageItems, useQuoteLineItemPages } from "./use-quote-line-item-pages";
 import { VendorDetailsSection } from "./vendor-details-section";
-import { VendorItemPhotosField, type VendorPhotoValue } from "./vendor-item-photos-field";
+import { VendorItemPhotosField } from "./vendor-item-photos-field";
 
 const tCommon = en.vendorQuote;
 const t = en.vendorQuote.storesForm;
@@ -57,54 +62,80 @@ const sectionHeadingClass = "mb-3 font-display text-[15px] font-semibold text-in
 export type StoresQuoteFormProps = {
   token: string;
   detail: RfqQuoteDetail;
+  // The first page of line items, loaded on the server. Later pages are fetched
+  // as the vendor pages through them (see useQuoteLineItemPages).
+  initialPage: RfqQuoteLineItemsPage;
+  // The vendor's auto-saved header values, if they'd started this quote before.
+  initialDraft: QuoteDraftState | null;
 };
 
-export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
+export function StoresQuoteForm({ token, detail, initialPage, initialDraft }: StoresQuoteFormProps) {
   const [submitted, setSubmitted] = useState(false);
-  // Not RHF-registered (see vendor-item-photos-field.tsx) — photos are
-  // merged into each item's payload at submit time instead.
-  const [photosByIndex, setPhotosByIndex] = useState<Record<number, VendorPhotoValue[]>>({});
+  // Not RHF-registered (see vendor-item-photos-field.tsx). Tracked by line item
+  // id because the form holds one page of line items at a time, and saved to
+  // the draft along with everything else.
+  const [photosById, setPhotosById] = useState<PhotosById>(() => mergeLoadedPhotos({}, initialPage.lineItems));
 
+  // react-hook-form holds only the line items on screen (the first page here),
+  // seeded from the vendor's saved entries; the header is overlaid with the
+  // saved draft header. RHF reads defaultValues once, at construction.
   const defaultValues = useMemo<SubmitStoresVendorQuoteInput>(
-    () => ({
-      quotationNo: "",
-      refNo: "",
-      // The one case where a PR-adjacent value already exists for this exact
-      // purpose — the vendor identity the link was issued to — so it's
-      // pre-filled but still fully editable, per the spec's own carve-out.
-      vendorName: detail.vendorName,
-      vendorContactPerson: "",
-      vendorContactNo: "",
-      vendorEmail: detail.vendorEmail,
-      vendorOtherDetails: "",
-      quotationValidity: "",
-      paymentTerms: "",
-      deliveryTerms: "",
-      remarksNotes: "",
-      items: detail.lineItems.map((item) => ({
-        lineItemId: item.lineItemId,
-        offeredDescription: "",
-        offeredImpaCode: "",
-        unitPrice: "",
-        deliveryLeadTime: "",
-        remarks: "",
-        // Never actually read back from RHF state (see onSubmit) — kept here
-        // only so this object satisfies SubmitStoresVendorQuoteInput's shape.
-        photos: [],
-      })),
-    }),
-    [detail],
+    () =>
+      applyDraftHeader(
+        {
+          quotationNo: "",
+          refNo: "",
+          // The one case where a PR-adjacent value already exists for this exact
+          // purpose — the vendor identity the link was issued to — so it's
+          // pre-filled but still fully editable, per the spec's own carve-out.
+          vendorName: detail.vendorName,
+          vendorContactPerson: "",
+          vendorContactNo: "",
+          vendorEmail: detail.vendorEmail,
+          vendorOtherDetails: "",
+          quotationValidity: "",
+          paymentTerms: "",
+          deliveryTerms: "",
+          remarksNotes: "",
+          items: buildPageItems<SubmitStoresVendorQuoteInput["items"][number]>(initialPage.lineItems, BLANK_STORES_ITEM_FIELDS),
+        },
+        initialDraft?.header ?? null,
+      ),
+    [detail, initialPage, initialDraft],
   );
 
   const {
     register,
     handleSubmit,
     watch,
+    getValues,
+    reset,
+    trigger,
     formState: { errors, isSubmitting },
   } = useForm<SubmitStoresVendorQuoteInput>({
     resolver: zodResolver(submitStoresVendorQuoteSchema),
     mode: "onBlur",
     defaultValues,
+  });
+
+  const draft = useQuoteDraftAutosave({
+    token,
+    watch,
+    getValues,
+    photosById,
+    initialSavedAt: initialDraft?.savedAt ?? null,
+    enabled: !submitted,
+  });
+
+  const pages = useQuoteLineItemPages<SubmitStoresVendorQuoteInput>({
+    token,
+    initialPage,
+    blankFields: BLANK_STORES_ITEM_FIELDS,
+    getValues,
+    reset,
+    saveNow: draft.saveNow,
+    runSilently: draft.runSilently,
+    onLoaded: (lineItems) => setPhotosById((prev) => mergeLoadedPhotos(prev, lineItems)),
   });
 
   const [vendorName, quotationValidity, paymentTerms, deliveryTerms] = watch([
@@ -117,46 +148,37 @@ export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
   const hasErrors = Object.keys(errors).length > 0;
 
   // Deliberately NOT useMemo: react-hook-form's watch("items") does not
-  // reliably return a referentially-new array on every change (it appears to
-  // mutate/reuse the same array across renders), so a useMemo keyed on that
-  // reference silently never recomputes after the first render even though
-  // the values did change. Recomputing on every render instead — a cheap
-  // map + arithmetic over a handful of line items — trades a
-  // near-zero-cost recompute for actually being correct.
+  // reliably return a referentially-new array on every change, so a useMemo
+  // keyed on that reference silently never recomputes after the first render.
+  // Recomputed on every render instead — a cheap map + arithmetic over one
+  // page of line items.
   const watchedItems = watch("items");
-  const rowTotals = detail.lineItems.map((item, index) => {
+  const rowTotals = pages.lineItems.map((item, index) => {
     const approvedQty = parseApprovedQty(item.columns);
     const unitPriceRaw = watchedItems?.[index]?.unitPrice ?? "";
     return computeTotalPrice(approvedQty, unitPriceRaw);
   });
-  const grandTotal = rowTotals.reduce((sum: number, value) => sum + (value ?? 0), 0);
+  // Rows on other pages aren't loaded; the server totals them from the saved draft.
+  const grandTotal = pages.otherPagesTotal + rowTotals.reduce((sum: number, value) => sum + (value ?? 0), 0);
 
-  async function onSubmit(data: SubmitStoresVendorQuoteInput) {
-    // Photos live in their own local state (not RHF-registered), so they're
-    // merged into each item's payload here rather than being part of `data`.
-    const payload = {
-      ...data,
-      items: data.items.map((item, index) => ({
-        ...item,
-        photos: (photosByIndex[index] ?? []).map(({ storagePath, fileName, contentType, sizeBytes }) => ({
-          storagePath,
-          fileName,
-          contentType,
-          sizeBytes,
-        })),
-      })),
-    };
+  // The form holds only the visible page, so submit works from the saved draft:
+  // flush it, then the server assembles every line item from it, validates the
+  // whole quote, and submits. A failing row is usually on a page the vendor
+  // isn't viewing — the server says which, and the form jumps there.
+  async function onSubmit() {
+    if (!(await draft.saveNow({ force: true }))) {
+      toast.error(tCommon.pagination.saveBeforeSubmit);
+      return;
+    }
 
     try {
-      const response = await fetch(`/api/quote/${token}/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const response = await fetch(`/api/quote/${token}/submit`, { method: "POST" });
       const responseBody = await response.json();
 
       if (!response.ok) {
         toast.error(responseBody?.error?.message ?? tCommon.submitError);
+        const failingIndex = responseBody?.error?.firstErrorItemIndex;
+        if (typeof failingIndex === "number" && (await pages.goToIndex(failingIndex))) await trigger();
         return;
       }
 
@@ -186,14 +208,19 @@ export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
         sectionHeadingClass={sectionHeadingClass}
       />
 
-      <section className="mt-8">
-        <h2 className={sectionHeadingClass}>{t.itemDetails.title}</h2>
+      <section ref={pages.sectionRef} className="mt-8">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4">
+          <h2 className={sectionHeadingClass}>{t.itemDetails.title}</h2>
+          <div className="mb-3">
+            <QuoteDraftStatus state={draft.state} />
+          </div>
+        </div>
         {/* Hidden inputs live outside the <table> entirely — a bare <input>
             isn't valid as a direct child of <tr> (only <td>/<th> are), so
             each row's fixed, never-edited lineItemId is registered here
             instead, matching how issue-rfq-dialog.tsx registers its own
             derived expiresAt value via a hidden input rather than a table cell. */}
-        {detail.lineItems.map((item, index) => (
+        {pages.lineItems.map((item, index) => (
           <input key={item.lineItemId} type="hidden" {...register(`items.${index}.lineItemId`)} />
         ))}
         <div className="overflow-x-auto rounded-lg border border-line">
@@ -222,9 +249,9 @@ export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
               </tr>
             </thead>
             <tbody>
-              {detail.lineItems.map((item, index) => (
+              {pages.lineItems.map((item, index) => (
                 <tr key={item.lineItemId} className="border-b border-line last:border-b-0">
-                  <td className={cellClass}>{index + 1}</td>
+                  <td className={cellClass}>{pages.start + index + 1}</td>
                   <td className={cellClass}>
                     <Input disabled value={item.description} />
                   </td>
@@ -277,8 +304,11 @@ export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
                     <VendorItemPhotosField
                       token={token}
                       lineItemId={item.lineItemId}
-                      value={photosByIndex[index] ?? []}
-                      onChange={(next) => setPhotosByIndex((prev) => ({ ...prev, [index]: next }))}
+                      value={photosById[item.lineItemId] ?? []}
+                      onChange={(update) => {
+                        setPhotosById((prev) => ({ ...prev, [item.lineItemId]: update(prev[item.lineItemId] ?? []) }));
+                        draft.notifyPhotosChanged(item.lineItemId);
+                      }}
                     />
                   </td>
                 </tr>
@@ -286,6 +316,7 @@ export function StoresQuoteForm({ token, detail }: StoresQuoteFormProps) {
             </tbody>
           </table>
         </div>
+        <LineItemsPager pages={pages} />
         <div className="mt-3 flex justify-end gap-2 text-[13.5px]">
           <span className="font-bold text-ink">{t.itemDetails.grandTotal}</span>
           <span className="font-mono text-ink">{formatCurrencyUsd(grandTotal)}</span>
