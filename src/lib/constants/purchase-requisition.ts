@@ -26,11 +26,12 @@ export const DATE_PRESET = {
 // rows maintained by migrations.
 export const PR_CATEGORY = { SERVICE: "service", STORES: "stores", SPARES: "spares", LO: "lo" } as const;
 
-// Import templates (Stores/Spares/Service only — LO templates are deferred).
+// Excel import/export templates: every category has a VBA workbook.
 export type PrTemplateCategory =
   | typeof PR_CATEGORY.STORES
   | typeof PR_CATEGORY.SPARES
-  | typeof PR_CATEGORY.SERVICE;
+  | typeof PR_CATEGORY.SERVICE
+  | typeof PR_CATEGORY.LO;
 
 // Vendor quote PDFs and PO PDFs both support all four categories (Stage 4
 // added LO to vendor quote PDFs; Stage 5 added LO to PO PDFs). These two

@@ -94,9 +94,8 @@ These files hold every value that would otherwise be a magic string:
   preset-column-set mapping itself lives
   in one place, `getPresetColumnsForCategory()` in `src/lib/purchase-requisition/preset-columns.ts`
   — `LineItemsField` (manual create/edit) and supported import-template parsers (§16) import it, so
-  their column definitions stay aligned. LO uses the Stores set without IMPA Code. Its import/export
-  templates are deferred; current template parsing and export remain limited to
-  Stores/Spares/Service.
+  their column definitions stay aligned. LO uses the Stores set without IMPA Code. Its import and export
+  templates exist (§16); `PrTemplateCategory` covers all four categories.
   `APPROVED_QTY` is office-only (filled in during review, never sourced from
   the import template) but is still part of this set, since the column must exist either way. It's
   manually editable in Create/Edit Requisition; the frontend-only “Approved Qty is same as Qty”
@@ -253,17 +252,27 @@ ship a real, persisted, VBA-driven workbook (the actual paper-form workflow) rat
 ExcelJS-generated one:
 
 LO (Lub Oil) is the fourth PR category. Its line-item preset matches Stores without IMPA Code. LO
-supports manual PR creation and RFQ issuance with a read-only vendor preview; quote submission and
-LO import/export templates are deferred. Spreadsheet
-template endpoints and parsers continue to support Stores, Spares, and Service. An existing imported
+supports manual PR creation, RFQ issuance, Excel import (download + upload parser) and Excel export.
+An existing imported
 PR may still be changed to LO before submission, and the manual form then switches to LO's preset.
-The PR row menu exposes Issue RFQ for LO. The PR Excel Export action remains hidden for LO until an
-LO export template is implemented.
+The PR row menu exposes Issue RFQ and Export for LO.
+
+The LO requisition workbook itself exists (`templates/requisition-form-lo.xlsm`, sheet `LO Requisition
+Form`, `readLoTemplateBuffer()`; readable VBA + setup guide in `templates/vba-source/lo/`) served by the download route
+(`?category=lo`, menu item `importMenu.downloadLoTemplate`, file `pms-lo-requisition-template.xlsm`) and
+parsed by `import-template-vba-lo.ts` (dispatched on the `LO Requisition Form` sheet name; category `lo`,
+preset columns UOM/ROB/Approved Qty/Remarks, photos imported like Stores). `requisition-form-lo.sample.xlsm`
+is a filled test fixture (3 line items, 2 + 8 photos). It is the Stores workbook with the IMPA/ISSA Code
+column dropped by merging Description across B:G (header rows and every line-item row), so every other
+column keeps its Stores position (QTY H, UOM I, ROB J, Remarks K:N, Supporting Photos O; first line
+item row 22) and the photo table, footer and macros are unchanged. The parser finds columns by header
+label like the other VBA parsers, with no IMPA column. Export uses `export-template-vba-lo.ts` (the Stores
+writer without IMPA; Approved Qty goes in the repurposed Supporting Photos column like Stores).
 
 **Each template-supported category — a persisted, VBA-driven workbook (the real paper-form workflow)**
-- `GET src/app/api/purchase-requisitions/import-template/route.ts?category=stores|spares|service`
+- `GET src/app/api/purchase-requisitions/import-template/route.ts?category=stores|spares|service|lo`
   streams a static `.xlsm` straight off disk (`readStoresTemplateBuffer()` /
-  `readSparesTemplateBuffer()` / `readServiceTemplateBuffer()` in
+  `readSparesTemplateBuffer()` / `readServiceTemplateBuffer()` / `readLoTemplateBuffer()` in
   `src/lib/purchase-requisition/templates/index.ts`) — each workbook has a real VBA macro project
   (Add Line Item button, Ctrl+V photo-paste into a "SUPPORTING PHOTOS" table, sheet protection),
   which ExcelJS (or any generic spreadsheet library) cannot safely author, so none is regenerated
@@ -276,6 +285,33 @@ LO export template is implemented.
   is ~4MB (real embedded photos, not tiny placeholders like the other two), checked in as-is rather
   than trimmed down. Regenerating any file means re-running its own setup guide's steps in Excel and
   replacing the binary.
+- **Photo and line-item removal (Stores, Spares, Service and LO — identical code in all four).** The protected sheet stops users selecting the
+  floating pictures, so each line item row carries three small buttons right of the table (column P
+  onward, not printed): Remove Last Photo / Remove All Photos / Remove Line Item
+  (`modImages.bas`: `RemoveLastPhoto` / `RemoveAllPhotos` / `RemoveLineItem`; button lifecycle in
+  `modLineItems.bas`: `CreateRowButtons`, `DeleteRowButtons`, `RebuildRowButtons`). A button finds its
+  line item from `Application.Caller` → its own `TopLeftCell.Row` (button names are random and unique —
+  they go stale as rows shift, so no row number can be in them). An emptied photo row is deleted, never
+  blanked — every scan stops at the first blank Sl No., so a blank row mid-table would orphan the rows
+  below — except the table's only data row, which is the formatting template and just has its Sl No.
+  cleared. Removing a line item renumbers every later Sl No. down by one in **both** tables (the import
+  parser joins photos to line items on Sl No.). The parser needs no change. All four workbooks share
+  the same `modImages`/`modLineItems`/`modSetup` (only `modConstants`' sheet name and first line-item
+  row differ, and `modSecurity`'s unlock list); an already-set-up template is updated by replacing
+  those modules and running `AddRowButtons` once.
+- **Ctrl+V accepts image files copied in File Explorer, not only image data** (Stores, Spares, Service — each
+  workbook carries its own copy of the same `modClipboardFile`/`ProcessPastedImage` code). `modClipboardFile`
+  reads the clipboard's `CF_HDROP` file list with the Win32 API; `ProcessPastedImage` loads each image
+  straight from disk and files it (multi-select supported, non-images skipped), and falls back to the
+  normal `Pictures.Paste` when the clipboard holds no file reference. **VBA gotcha that broke this once:**
+  `DragQueryFileW` (the wide API) must receive its buffer as a `LongPtr` via `StrPtr()` — declared
+  `ByVal ... As String`, VBA converts the argument to ANSI and the UTF-16 result comes back as
+  `C<nul>:<nul>...`, so the extension check never matched and the paste silently fell through to the
+  failing image-data path. Any new `...W` declaration needs the same treatment.
+- **The `.xlsm` is the source of truth; `vba-source/` can drift.** The Stores `.bas` files had fallen
+  behind the binary (`COL_PHOTOS` 15 vs 14, clipboard-file paste, `modClipboardFile`). When changing a
+  template's VBA, start from the binary's current modules (export them from Excel), apply the change,
+  and re-export into `vba-source/` so the two match again.
 - Each format is told apart by sheet name — `"Stores Requisition Form"` / `"Spares Requisition
   Form"` / `"Service Requisition Form"` — all three containing a "Vessel Name" label
   (`parseRequisitionTemplateFile`, the dispatcher in `import-template.ts`). The Stores sheet name
@@ -403,7 +439,7 @@ LO export template is implemented.
   `readLabeledValue`/`readDateValue` — write into the cell one column past a label's own merge span,
   instead of reading it) plus `expandLineItemRows` (see below) and `findLineItemPhotosColumn` (locates
   the line-items table's own "Supporting Photos" column, searched only within that table's header
-  row). Three thin per-category writers — `export-template-vba.ts` (Stores), `-spares.ts`, `-service.ts`
+  row). Four thin per-category writers — `export-template-vba.ts` (Stores), `-spares.ts`, `-service.ts`, `-lo.ts`
   — mirror `import-template-vba*.ts` exactly, reusing (not duplicating) each import parser's own
   previously-module-private `LABEL` const and `findLineItemColumns` function (now `export`ed for
   exactly this reuse) rather than re-deriving a second copy that could silently drift out of sync if a
@@ -416,7 +452,12 @@ LO export template is implemented.
   Requisitioned-by/Approved-by sign-off footer) down by the right amount, with their own merges intact
   — the one genuinely novel operation here, with no prior precedent anywhere in this codebase and a
   documented ExcelJS rough edge (README: "Splice vs Merge") that made this worth proving empirically
-  rather than trusting blindly.
+  rather than trusting blindly. **Merges are the exception**: `duplicateRow` copies styles but not
+  merges, so copied rows lost the template's wide Description/Remarks spans (every row after the first
+  rendered its text in one narrow column). `expandLineItemRows` therefore re-merges each copied row to
+  match the source row via `cell.merge(master)` — not `sheet.mergeCells()`, which checks ExcelJS's merge
+  index that `spliceRows` leaves at the pre-shift positions and throws a false "Cannot merge already
+  merged cells"; the writer builds the saved merges from the cells, so cell-level merging persists.
 - **Approved Qty has no cell in any category's template** (office-only, same reason it's already
   invisible to Import) but is included anyway, per product decision, by repurposing the now-otherwise-
   unused **Supporting Photos column** in the line-items table for Stores/Spares (its header cell is
@@ -480,8 +521,7 @@ for LO (no IMPA column in the PO PDF), and all three `hasQuantityFields` checks 
 `purchase-orders-view.tsx` and `issue-purchase-order-dialog.tsx`) include LO so quantity editing and
 issuance work the same as Stores. The vendor proforma flow (Stage 6) required no code changes — every
 token-based PO lookup, PDF retrieval, proforma signing/upload/submission, and staff retrieval path is
-already category-agnostic. The PR row's RFQ action is enabled; PR Excel Export remains hidden because
-LO templates are separate work.
+already category-agnostic. The PR row's RFQ action and Excel Export are enabled for LO.
 
 Two distinct "current PDF support" type aliases exist in `src/lib/constants/purchase-requisition.ts`,
 both now covering all four categories: `PrCategoryWithCurrentPdfSupport` (vendor quote PDFs, all four

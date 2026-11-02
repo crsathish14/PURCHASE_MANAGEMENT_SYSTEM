@@ -82,8 +82,8 @@ Private Sub EnsureInputCellsUnlocked(ws As Worksheet)
         ws.Cells(r, 8).Locked = False                  ' QTY Requested (H)
         ws.Cells(r, 9).Locked = False                  ' UOM (I)
         ws.Cells(r, 10).Locked = False                 ' ROB (J)
-        ws.Cells(r, 11).MergeArea.Locked = False      ' Remarks (K:M)
-        ws.Cells(r, COL_PHOTOS).MergeArea.Locked = False   ' Supporting Photos (N:O)
+        ws.Cells(r, 11).MergeArea.Locked = False      ' Remarks (K:N)
+        ws.Cells(r, COL_PHOTOS).MergeArea.Locked = False   ' Supporting Photos (O - single column, no longer merged)
         ' Column A (Sl No.) is deliberately never touched here.
     Next r
 

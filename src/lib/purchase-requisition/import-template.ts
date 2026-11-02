@@ -10,6 +10,7 @@ import type { CreateRequisitionFormValues } from "@/lib/validation/purchase-requ
 import { cellText, matchDropdownOption, type ParsedImportResult, type ParseImportError } from "./import-template-shared";
 import { parseVbaRequisitionTemplate } from "./import-template-vba";
 import { isVbaRequisitionSheet } from "./import-template-vba-shared";
+import { parseLoVbaRequisitionTemplate } from "./import-template-vba-lo";
 import { parseServiceVbaRequisitionTemplate } from "./import-template-vba-service";
 import { parseSparesVbaRequisitionTemplate } from "./import-template-vba-spares";
 
@@ -37,6 +38,9 @@ const VBA_SHEET_NAME = "Stores Requisition Form";
 // import-template-vba-service.ts.
 const SPARES_VBA_SHEET_NAME = "Spares Requisition Form";
 const SERVICE_VBA_SHEET_NAME = "Service Requisition Form";
+// LO (Lub Oil) is the Stores layout without the IMPA/ISSA Code column — see
+// import-template-vba-lo.ts.
+const LO_VBA_SHEET_NAME = "LO Requisition Form";
 
 // Scans every cell in the sheet for a known label and records whatever's in
 // the cell immediately to its right as that label's value — robust to the
@@ -241,6 +245,11 @@ export async function parseRequisitionTemplateFile(
   const serviceVbaSheet = workbook.getWorksheet(SERVICE_VBA_SHEET_NAME);
   if (serviceVbaSheet && isVbaRequisitionSheet(serviceVbaSheet)) {
     return parseServiceVbaRequisitionTemplate(workbook, serviceVbaSheet, dropdownFields, vessels, file.name);
+  }
+
+  const loVbaSheet = workbook.getWorksheet(LO_VBA_SHEET_NAME);
+  if (loVbaSheet && isVbaRequisitionSheet(loVbaSheet)) {
+    return parseLoVbaRequisitionTemplate(workbook, loVbaSheet, dropdownFields, vessels, file.name);
   }
 
   return { error: importT.parseError };

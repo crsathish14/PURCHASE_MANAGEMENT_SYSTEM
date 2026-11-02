@@ -44,3 +44,10 @@ Public Const IMG_PHOTO_COL_7 As Long = 14   ' N  (merged N:O)
 ' --- Add Line Item button ---
 Public Const BTN_NAME As String = "btnAddLineItem"
 Public Const BTN_CAPTION As String = "Add Line Item"
+
+' --- Per-line-item buttons (one set per line item row, in the columns just right of the table) ---
+Public Const BTN_ROW_PREFIX As String = "btnLI_"      ' every per-row button's name starts with this
+Public Const BTN_ROW_FIRST_COL As Long = 16            ' Column P - first column right of the table
+Public Const BTN_ROW_LAST_CAPTION As String = "Remove Last Photo"
+Public Const BTN_ROW_ALL_CAPTION As String = "Remove All Photos"
+Public Const BTN_ROW_ITEM_CAPTION As String = "Remove Line Item"

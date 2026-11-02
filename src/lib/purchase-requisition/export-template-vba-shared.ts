@@ -60,8 +60,44 @@ export function expandLineItemRows(
   count: number,
 ): number {
   const firstDataRow = headerRow + headerRowSpan;
-  if (count > 1) sheet.duplicateRow(firstDataRow, count - 1, true);
+  if (count > 1) {
+    sheet.duplicateRow(firstDataRow, count - 1, true);
+    replicateRowMerges(sheet, firstDataRow, count - 1);
+  }
   return firstDataRow;
+}
+
+// duplicateRow copies styles but not merges, so without this every row after
+// the first would show Description/Remarks in its single narrow column
+// instead of the template's wide merged spans (the VBA's own
+// InsertFormattedRow/ReplicateRowMerges exists for the same reason). Finds
+// each horizontal merge in the source row and merges the same columns in the
+// `copies` rows directly below it.
+function replicateRowMerges(sheet: ExcelJS.Worksheet, sourceRow: number, copies: number): void {
+  const row = sheet.getRow(sourceRow);
+  const spans: Array<{ left: number; right: number }> = [];
+  for (let col = 1; col <= sheet.columnCount; col += 1) {
+    const cell = row.getCell(col);
+    if (!cell.isMerged || cell.master.address !== cell.address) continue;
+    let right = col;
+    while (right + 1 <= sheet.columnCount && row.getCell(right + 1).master.address === cell.address) right += 1;
+    if (right > col) spans.push({ left: col, right });
+  }
+
+  // Merged at cell level (the way ExcelJS's own spliceRows re-merges shifted
+  // cells), not via sheet.mergeCells(): that checks the sheet's merge index,
+  // which spliceRows leaves pointing at the rows' pre-shift positions and so
+  // reports a false "Cannot merge already merged cells". The writer builds
+  // the saved merges from the cells themselves, so this is what persists.
+  for (let offset = 1; offset <= copies; offset += 1) {
+    for (const { left, right } of spans) {
+      const master = sheet.getCell(sourceRow + offset, left);
+      if (master.isMerged) continue;
+      for (let col = left + 1; col <= right; col += 1) {
+        sheet.getCell(sourceRow + offset, col).merge(master);
+      }
+    }
+  }
 }
 
 // Locates the line-items table's own "Supporting Photos" column, searched

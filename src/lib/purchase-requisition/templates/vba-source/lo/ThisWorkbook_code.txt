@@ -1,0 +1,22 @@
+' =================================================================
+' PASTE THIS INTO: ThisWorkbook (double-click "ThisWorkbook" in the
+' VBA Project pane - do NOT put this in a standard module)
+' =================================================================
+Option Explicit
+
+Private Sub Workbook_Open()
+    ApplyFormProtection      ' re-apply UserInterfaceOnly protection every session
+    BindPasteHandler
+End Sub
+
+Private Sub Workbook_Activate()
+    BindPasteHandler
+End Sub
+
+Private Sub Workbook_Deactivate()
+    UnbindPasteHandler       ' don't affect Ctrl+V in the client's other open workbooks
+End Sub
+
+Private Sub Workbook_BeforeClose(Cancel As Boolean)
+    UnbindPasteHandler
+End Sub
