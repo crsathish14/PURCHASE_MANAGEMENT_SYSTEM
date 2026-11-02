@@ -234,7 +234,7 @@ a dev server when practical, not just that it compiles.
 
 1. Add copy to `en.json`.
 2. Add any new paths to `ROUTES` (`src/lib/routes.ts`) — several already exist as placeholders from
-   the nav (`PIPELINE`, `PO_REQUESTS`, `RFQ_LIST`, ...).
+   the nav (`PO_REQUESTS`, `RFQ_LIST`, ...).
 3. Build with `atoms/` (+ new feature-folder components under `src/components/<feature>/` for
    anything reusable within that feature but not generic enough for `atoms/`).
 4. Route under `[lang]/` — page/layout only, no component logic inline.

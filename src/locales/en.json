@@ -126,7 +126,6 @@
   "staff": {
     "nav": {
       "dashboard": "Dashboard",
-      "pipeline": "Pipeline",
       "poRequests": "Purchase Requisition",
       "rfq": "Requested Quote",
       "purchaseOrders": "Purchase Orders",
@@ -134,7 +133,6 @@
       "deliveryNotes": "Delivery Notes",
       "vendors": "Vendors",
       "vessels": "Vessels",
-      "reports": "Reports",
       "settings": "Settings"
     },
     "roleLabels": {

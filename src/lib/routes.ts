@@ -9,7 +9,6 @@ export const ROUTES = {
   CHANGE_PASSWORD: `/${defaultLocale}/change-password`,
   DASHBOARD: `/${defaultLocale}/dashboard`,
   TEAM_ACCESS: `/${defaultLocale}/team-access`,
-  PIPELINE: `/${defaultLocale}/pipeline`,
   PO_REQUESTS: `/${defaultLocale}/po-requests`,
   RFQ_LIST: `/${defaultLocale}/rfq-list`,
   PURCHASE_ORDERS: `/${defaultLocale}/purchase-orders`,
@@ -21,7 +20,6 @@ export const ROUTES = {
   DELIVERY_NOTES: `/${defaultLocale}/delivery-notes`,
   VENDORS: `/${defaultLocale}/vendors`,
   VESSELS: `/${defaultLocale}/vessels`,
-  REPORTS: `/${defaultLocale}/reports`,
   QUOTE_FORM: `/${defaultLocale}/quote`,
 } as const;
 
