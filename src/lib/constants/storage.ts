@@ -80,3 +80,11 @@ export const SUPPORTING_DOC_EXTENSIONS: Record<SupportingDocMimeType, string> = 
   "application/vnd.ms-excel": "xls",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
 };
+
+// Staff-uploaded delivery / service notes: PDF only, up to MAX_DELIVERY_NOTES_PER_REQUISITION
+// per requisition (also enforced by add_delivery_note). Full path:
+// `${DELIVERY_NOTE_PATH_PREFIX}/${requisitionId}/${uuid}.pdf`, built by
+// api/delivery-notes/sign. No size limit, matching the bucket (file_size_limit = null).
+export const DELIVERY_NOTE_PATH_PREFIX = "delivery-notes";
+export const DELIVERY_NOTE_MIME_TYPE = "application/pdf" as const;
+export const MAX_DELIVERY_NOTES_PER_REQUISITION = 5;

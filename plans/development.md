@@ -1355,7 +1355,35 @@ The `InvoiceDocumentsModal` uses the fetch-before-open pattern (data fetched in 
 handler, passed as `docs` + `loadError` props) — not a useEffect with setState, consistent with how
 `rfq-links-dialog.tsx` works and required by the `react-hooks/set-state-in-effect` lint rule.
 
-## 20. Keeping this file current
+## 20. Delivery Notes
+
+Staff upload **delivery / service notes** (PDF, up to `MAX_DELIVERY_NOTES_PER_REQUISITION` = 5 per
+requisition) for awarded requisitions whose vendor proforma invoice is received. The page is
+`/en/delivery-notes` (`ROUTES.DELIVERY_NOTES`); one flow and one label, "delivery or service note", for
+every category. Uploading changes no PR/PO status.
+
+- **Tables / RPCs** (`20261102010000_delivery_notes.sql`): `delivery_notes` (FK to the requisition,
+  `select to authenticated` RLS only — writes go through RPCs). `add_delivery_note` (locks the requisition
+  row, requires `proforma_received_at`, enforces the 5-note cap with `55001`, `55000` not eligible, and
+  re-checks the path starts with `delivery-notes/<requisitionId>/`), `delete_delivery_note` (returns the
+  storage path), `search_delivery_note_candidates` (awarded + proforma received + **no** note — this is
+  the Invoice Log's three statuses minus those already with a note), and `search_delivery_notes`
+  (requisitions with ≥1 note, notes aggregated as jsonb, date filter on the latest upload). Deleting a
+  requisition's last note returns it to the candidates list.
+- **Upload**: the shared sign → `uploadToSignedUrl` → register pattern (§11). `POST api/delivery-notes/sign`
+  builds `delivery-notes/<requisitionId>/<uuid>.pdf` server-side and refuses early at the cap;
+  `POST api/delivery-notes` verifies the object exists and starts with `%PDF-` (discarding it otherwise, and
+  on any RPC failure), then calls `add_delivery_note`. `DELETE api/delivery-notes/[id]` deletes the row, then
+  the Storage object (a failed removal is logged, not surfaced). `GET api/delivery-notes/[id]/file` streams
+  the PDF inline. `GET api/delivery-notes/candidates` and `GET api/delivery-notes` are the two paged lists.
+- **UI** (`src/components/delivery-notes/`): `DeliveryNotesView` (page; Invoice Log–style toolbar, with the
+  status filter hidden by passing no `statusOptions` to `RfqToolbar`), `AddDeliveryNoteDialog` (the header
+  CTA: page 1 is preloaded by the click handler per the fetch-then-open rule; search + 10/20/50 paging;
+  choosing a row switches the same dialog to the uploader), `DeliveryNotesDialog` (per-requisition view /
+  delete / add another, keeping its own notes copy so it survives list refetches), `DeleteDeliveryNoteDialog`,
+  and the shared `DeliveryNoteUploader`.
+
+## 21. Keeping this file current
 
 This file is auto-loaded into every session via `CLAUDE.md`'s `@plans/development.md` import — it's
 only useful if it matches what the code actually does. Update the relevant section **in the same

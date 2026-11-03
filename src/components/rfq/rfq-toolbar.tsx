@@ -162,14 +162,17 @@ export function RfqToolbar({
           />
         </div>
 
-        <FilterMultiselect
-          label={copy.status}
-          options={statusOptions}
-          selected={draftStatuses}
-          onChange={setDraftStatuses}
-          allLabel={copy.all}
-          nSelectedLabel={nSelectedLabel}
-        />
+        {/* Pages with no meaningful status (Delivery Notes) pass no options. */}
+        {statusOptions.length > 0 ? (
+          <FilterMultiselect
+            label={copy.status}
+            options={statusOptions}
+            selected={draftStatuses}
+            onChange={setDraftStatuses}
+            allLabel={copy.all}
+            nSelectedLabel={nSelectedLabel}
+          />
+        ) : null}
         <FilterMultiselect
           label={copy.vessel}
           options={vesselOptions}

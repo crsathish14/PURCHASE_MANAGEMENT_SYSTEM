@@ -331,6 +331,110 @@
         }
       }
     },
+    "deliveryNotes": {
+      "title": "Delivery Notes",
+      "subtitle": "Delivery and service notes uploaded for orders whose proforma invoice has been received.",
+      "addNote": "Add delivery or service note",
+      "columns": {
+        "prRef": "PR Ref",
+        "requisitionNumber": "Requisition No.",
+        "title": "Title",
+        "vessel": "Vessel",
+        "category": "Category",
+        "vendor": "Vendor",
+        "notes": "Notes",
+        "uploaded": "Last uploaded"
+      },
+      "manageNotes": "View notes",
+      "manageNotesFor": "View delivery or service notes for {prNumber}",
+      "empty": "No delivery or service notes uploaded yet.",
+      "noResults": "No delivery notes match your search and filters.",
+      "loadError": "Couldn't load delivery notes.",
+      "toolbar": {
+        "searchPlaceholder": "Search PR ref, requisition no., or title",
+        "status": "Status",
+        "vessel": "Vessel",
+        "category": "Category",
+        "date": "Uploaded date",
+        "all": "All",
+        "any": "Any",
+        "nSelected": "{count} selected",
+        "submit": "Submit",
+        "clear": "Clear",
+        "removeFilter": "Remove {label} filter",
+        "dateOptions": {
+          "last1Month": "Last 1 month",
+          "last3Months": "Last 3 months",
+          "last6Months": "Last 6 months",
+          "custom": "Custom date",
+          "startDate": "Start date",
+          "endDate": "End date"
+        }
+      },
+      "addDialog": {
+        "title": "Add delivery or service note",
+        "subtitle": "Pick a requisition whose proforma invoice has been received and that has no delivery or service note yet.",
+        "searchPlaceholder": "Search PR ref, requisition no., or title",
+        "columns": {
+          "prRef": "PR Ref",
+          "requisitionNumber": "Requisition No.",
+          "title": "Title",
+          "vessel": "Vessel",
+          "category": "Category",
+          "vendor": "Vendor"
+        },
+        "selectFor": "Upload a delivery or service note for {prNumber}",
+        "empty": "No requisitions are waiting for a delivery or service note.",
+        "noResults": "No requisitions match your search.",
+        "loadError": "Couldn't load requisitions.",
+        "close": "Close",
+        "back": "Back",
+        "uploadTitle": "Upload delivery or service note",
+        "uploadSubtitle": "Attach the signed note for {prNumber} as a PDF."
+      },
+      "uploader": {
+        "choosePdf": "Choose PDF",
+        "chooseAnother": "Choose a different PDF",
+        "noFileChosen": "No file chosen",
+        "upload": "Upload",
+        "uploading": "Uploading…",
+        "notPdf": "Only PDF files can be uploaded.",
+        "uploadError": "Couldn't upload this file. Try again.",
+        "uploaded": "Delivery or service note uploaded."
+      },
+      "notesDialog": {
+        "title": "Delivery or service notes",
+        "subtitle": "{prNumber} · {count} of {max} notes",
+        "view": "View",
+        "viewFile": "View {fileName}",
+        "delete": "Delete",
+        "deleteFile": "Delete {fileName}",
+        "uploadedOn": "Uploaded {date}",
+        "addAnother": "Add another note",
+        "maxReached": "This requisition has reached the maximum of {max} notes. Delete one to add another.",
+        "close": "Close"
+      },
+      "deleteDialog": {
+        "title": "Delete note",
+        "message": "Delete \"{fileName}\"? This permanently removes the file.",
+        "lastNoteWarning": " It is the only note for {prNumber}, which will return to the list of requisitions waiting for a note.",
+        "cancel": "Cancel",
+        "confirm": "Delete",
+        "deleted": "Delivery or service note deleted."
+      },
+      "api": {
+        "invalidRequest": "Invalid request.",
+        "notPdf": "Only PDF files can be uploaded.",
+        "fileMissing": "The uploaded file couldn't be found. Try uploading it again.",
+        "notEligible": "This requisition isn't ready for a delivery note.",
+        "maxReached": "A requisition can have at most 5 delivery or service notes.",
+        "saveError": "Couldn't save this delivery note.",
+        "uploadError": "Couldn't prepare this upload. Try again.",
+        "deleteError": "Couldn't delete this delivery note.",
+        "notFound": "Delivery note not found.",
+        "viewError": "Couldn't open this delivery note."
+      }
+    },
     "teamAccess": {
       "title": "Team & access",
       "subtitle": "Manage who can sign in to Vessel PMS and what they can do.",
