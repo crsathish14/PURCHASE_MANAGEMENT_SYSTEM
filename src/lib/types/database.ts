@@ -720,6 +720,7 @@ export type Database = {
           proforma_invoice_path: string | null;
           proforma_invoice_file_name: string | null;
           proforma_received_at: string | null;
+          paid_at: string | null;
         };
         Insert: {
           id?: string;
@@ -735,6 +736,7 @@ export type Database = {
           proforma_invoice_path?: string | null;
           proforma_invoice_file_name?: string | null;
           proforma_received_at?: string | null;
+          paid_at?: string | null;
         };
         Update: never;
         Relationships: [
@@ -1290,6 +1292,10 @@ export type Database = {
         };
         Returns: boolean;
       };
+      mark_purchase_order_paid: {
+        Args: { p_requisition_id: string };
+        Returns: string;
+      };
       get_purchase_order_invoice_link_token: {
         Args: { p_requisition_id: string };
         Returns: string;
@@ -1309,6 +1315,8 @@ export type Database = {
       search_delivery_note_candidates: {
         Args: {
           p_search: string | null;
+          p_urgencies: string[] | null;
+          p_sort: string | null;
           p_page: number;
           p_page_size: number;
         };
@@ -1320,6 +1328,7 @@ export type Database = {
           vessel_label: string | null;
           category_label: string | null;
           vendor_name: string | null;
+          urgency: string;
           total_count: number;
         }[];
       };

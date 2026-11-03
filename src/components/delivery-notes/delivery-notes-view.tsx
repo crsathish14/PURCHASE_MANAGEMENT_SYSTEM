@@ -14,8 +14,8 @@ import type { PrDropdownField } from "@/lib/data/purchase-requisition";
 import { toast } from "@/store/toast-store";
 import {
   AddDeliveryNoteDialog,
-  CANDIDATE_DEFAULT_PAGE_SIZE,
   fetchCandidatePage,
+  INITIAL_CANDIDATE_QUERY,
   type CandidatePage,
 } from "./add-delivery-note-dialog";
 import { DeliveryNotesDialog } from "./delivery-notes-dialog";
@@ -200,7 +200,7 @@ export function DeliveryNotesView({
     setOpeningAdd(true);
     try {
       setAddCandidates(
-        await fetchCandidatePage({ page: 1, pageSize: CANDIDATE_DEFAULT_PAGE_SIZE, search: "" }),
+        await fetchCandidatePage(INITIAL_CANDIDATE_QUERY),
       );
     } catch (error) {
       toast.error(error instanceof Error ? error.message : en.staff.deliveryNotes.addDialog.loadError);

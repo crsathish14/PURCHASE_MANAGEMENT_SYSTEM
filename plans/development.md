@@ -125,7 +125,7 @@ These files hold every value that would otherwise be a magic string:
   new table shape.
 
 - `src/lib/constants/purchase-order.ts` — `PURCHASE_ORDER_STATUS` (`PENDING_PO`, `PO_ISSUED`,
-  `PROFORMA_RECEIVED`, `INVOICE_REQUESTED`, `INVOICE_RECEIVED`), the page-level status for an awarded
+  `PROFORMA_RECEIVED`, `PAID`, `INVOICE_REQUESTED`, `INVOICE_RECEIVED`), the page-level status for an awarded
   quote progressing through issuance, proforma receipt, invoice request, and invoice receipt. This is
   distinct from the requisition's terminal `PR_STATUS.AWARDED` value.
 
@@ -1290,8 +1290,15 @@ Rev. No. and Code No. are not shown, and line-item Lead Time is centered. The qu
 supplier address field, so the PDF leaves Supplier Address as a placeholder.
 The download filename is `{prNumber}-Purchase-Order.pdf`.
 
-Once the proforma is received, staff can request the vendor's invoice from the Invoice Log tab
-(`/en/invoice-log`, `ROUTES.INVOICE_LOG`). The tab lists all PRs with status `PROFORMA_RECEIVED`,
+Once the proforma is received, staff first record payment (made outside the app) and then request the
+vendor's invoice from the Invoice Log tab (`/en/invoice-log`, `ROUTES.INVOICE_LOG`). A `PROFORMA_RECEIVED`
+row shows a **Paid** CTA (confirm dialog, `MarkPaidDialog`) instead of Request Invoice; it POSTs to
+`/api/purchase-orders/[id]/paid`, which calls the `mark_purchase_order_paid` RPC
+(`20261103010000_purchase_order_paid.sql`) to set `purchase_order_issuances.paid_at` (one-way, refused
+with `55001` if already paid or an invoice link exists). The status becomes `PAID` and the row's CTA
+becomes Request Invoice; `request_purchase_order_invoice` now rejects (`55000`) a PO whose `paid_at` is
+null. `search_purchase_orders` ranks `invoice_received > invoice_requested > paid > proforma_received`.
+The tab lists all PRs with status `PROFORMA_RECEIVED`, `PAID`,
 `INVOICE_REQUESTED`, or `INVOICE_RECEIVED`, showing PR Ref, Requisition No., Title, Vessel, Vendor,
 Total, and Status. Each row always shows a "View Proforma" link (same `/api/purchase-orders/[id]/proforma`
 stream endpoint). The list has server-side search (PR Ref, Requisition No., Title) and filters
@@ -1305,7 +1312,10 @@ filter on `issuance.proforma_received_at`, sent by the client as `proformaDatePr
 
 - **`INVOICE_REQUESTED`** — staff clicked "Request Invoice" on a `PROFORMA_RECEIVED` row, which
   opens a modal (`RequestInvoiceDialog`) with locked vendor name, editable email, and an editable
-  message template. Submitting POSTs to `/api/purchase-orders/[id]/invoice-request`, which calls the
+  message template. The email choices are the saved vendor's `mail` list, looked up by the awarded link's
+  `vendor_id`; RFQ links issued before vendor ids were stored have `vendor_id = null`, so the Invoice Log falls
+  back to the one vendor whose name matches exactly (none if the name is ambiguous or unmatched, which shows
+  the "update the vendor record" error). Submitting POSTs to `/api/purchase-orders/[id]/invoice-request`, which calls the
   `request_purchase_order_invoice(p_requisition_id, p_vendor_email, p_message)` security-definer RPC.
   That RPC inserts a `purchase_order_invoice_links` row and returns the access token. The row's CTA
   becomes "Copy Link" — clicking it GETs the same route (no body), which calls
@@ -1344,7 +1354,7 @@ and `purchase_order_invoice_documents` (one row per file, `document_type in ('in
 `invoice_received` (link submitted) and `invoice_requested` (link exists, not submitted yet) above
 the existing `proforma_received`/`po_issued`/`pending_po` levels.
 
-**`PURCHASE_ORDER_STATUS`** now has five values: `PENDING_PO`, `PO_ISSUED`, `PROFORMA_RECEIVED`,
+**`PURCHASE_ORDER_STATUS`** now has six values: `PENDING_PO`, `PO_ISSUED`, `PROFORMA_RECEIVED`, `PAID`,
 `INVOICE_REQUESTED`, `INVOICE_RECEIVED`. `PO_INVOICE_DOCUMENT_PATH_PREFIX = "po-invoice-documents"`
 is the storage path namespace constant (`src/lib/constants/storage.ts`). `ROUTES.INVOICE_LOG`,
 `ROUTES.PURCHASE_ORDER_INVOICE_FORM`, `ROUTES.PURCHASE_ORDER_INVOICE_THANK_YOU`, and
@@ -1376,6 +1386,21 @@ every category. Uploading changes no PR/PO status.
   on any RPC failure), then calls `add_delivery_note`. `DELETE api/delivery-notes/[id]` deletes the row, then
   the Storage object (a failed removal is logged, not surfaced). `GET api/delivery-notes/[id]/file` streams
   the PDF inline. `GET api/delivery-notes/candidates` and `GET api/delivery-notes` are the two paged lists.
+- **Picker urgency, status filter and sort** (`20261103020000_delivery_note_candidate_urgency.sql`,
+  `drop function` + `create function` — the signature and `returns table` both changed).
+  `search_delivery_note_candidates(p_search, p_urgencies, p_sort, p_page, p_page_size)` derives each row's
+  `urgency` in SQL: **danger** = the vendor's tax invoice is received (`purchase_order_invoice_links.submitted_at`),
+  **warning** = paid (`purchase_order_issuances.paid_at`, so invoice-requested-but-not-received stays warning),
+  **normal** = proforma received but not paid. The values live in `src/lib/constants/delivery-note.ts`
+  (`DELIVERY_NOTE_URGENCY`, `DELIVERY_NOTE_CANDIDATE_SORT`) — never compare against raw strings, and never derive
+  urgency client-side. `p_urgencies` filters before paging and `count(*) over()` runs after it, so totals match;
+  an empty/null array means all. `p_sort = 'urgency'` orders danger → warning → normal, newest proforma first
+  within each; anything else keeps the natural newest-proforma-first order. The `GET api/delivery-notes/candidates`
+  query params are `urgency` (CSV, unknown values dropped) and `sort` (`default|urgency`). The dialog shows a
+  Status badge column (rust/amber/slate, with a tinted row and coloured left edge for danger/warning), a
+  Status multiselect and an "Urgent first" toggle; filter and sort changes apply immediately and reset to page 1.
+  `Menu` portals its panel into `document.body` at `z-20`, which is *behind* a `Dialog` (`z-30`), so any
+  `Menu`/`FilterMultiselect` placed inside a dialog must pass `zIndexClassName="z-40"` (below the `z-50` toaster).
 - **UI** (`src/components/delivery-notes/`): `DeliveryNotesView` (page; Invoice Log–style toolbar, with the
   status filter hidden by passing no `statusOptions` to `RfqToolbar`), `AddDeliveryNoteDialog` (the header
   CTA: page 1 is preloaded by the click handler per the fetch-then-open rule; search + 10/20/50 paging;

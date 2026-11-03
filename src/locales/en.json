@@ -170,6 +170,7 @@
         "pending_po": "Pending PO",
         "po_issued": "PO Issued",
         "proforma_received": "Proforma Received",
+        "paid": "Paid",
         "invoice_requested": "Invoice Requested",
         "invoice_received": "Invoice Received"
       },
@@ -278,6 +279,16 @@
       "viewFor": "View proforma for {prNumber}",
       "empty": "No proforma invoices received yet.",
       "loadError": "Couldn't load invoice log.",
+      "markPaid": "Paid",
+      "markPaidDone": "Marked as paid.",
+      "markPaidError": "Couldn't mark this purchase order as paid.",
+      "markPaidDialog": {
+        "title": "Mark as Paid",
+        "message": "Confirm that payment for {prNumber} to {vendorName} has been made. You can then request the tax invoice. This can't be undone.",
+        "confirm": "Mark as Paid",
+        "confirming": "Saving…",
+        "cancel": "Cancel"
+      },
       "requestInvoice": "Request Invoice",
       "copyInvoiceLink": "Copy Link",
       "viewInvoice": "View Invoice",
@@ -376,6 +387,7 @@
         "subtitle": "Pick a requisition whose proforma invoice has been received and that has no delivery or service note yet.",
         "searchPlaceholder": "Search PR ref, requisition no., or title",
         "columns": {
+          "status": "Status",
           "prRef": "PR Ref",
           "requisitionNumber": "Requisition No.",
           "title": "Title",
@@ -383,9 +395,27 @@
           "category": "Category",
           "vendor": "Vendor"
         },
+        "statusFilter": {
+          "label": "Status",
+          "all": "All",
+          "nSelected": "{count} selected"
+        },
+        "urgency": {
+          "danger": "Danger",
+          "warning": "Warning",
+          "normal": "Normal"
+        },
+        "urgencyOptions": {
+          "danger": "Danger — tax invoice received",
+          "warning": "Warning — paid",
+          "normal": "Normal — proforma received, not paid yet"
+        },
+        "sortByUrgency": "Urgent first",
+        "sortByUrgencyHint": "Show danger first, then warning, then the rest",
+        "legend": "Danger: tax invoice received. Warning: paid. Both still need a delivery or service note.",
         "selectFor": "Upload a delivery or service note for {prNumber}",
         "empty": "No requisitions are waiting for a delivery or service note.",
-        "noResults": "No requisitions match your search.",
+        "noResults": "No requisitions match your search or filters.",
         "loadError": "Couldn't load requisitions.",
         "close": "Close",
         "back": "Back",

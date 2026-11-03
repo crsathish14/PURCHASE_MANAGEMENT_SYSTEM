@@ -27,6 +27,7 @@ const STATUS_TONE: Record<PurchaseOrderStatus, BadgeTone> = {
   [PURCHASE_ORDER_STATUS.PENDING_PO]: "amber",
   [PURCHASE_ORDER_STATUS.PO_ISSUED]: "moss",
   [PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED]: "teal",
+  [PURCHASE_ORDER_STATUS.PAID]: "moss",
   [PURCHASE_ORDER_STATUS.INVOICE_REQUESTED]: "amber",
   [PURCHASE_ORDER_STATUS.INVOICE_RECEIVED]: "moss",
 };
@@ -37,7 +38,11 @@ const STATUS_OPTIONS = Object.values(PURCHASE_ORDER_STATUS).map((value) => ({
 const dateFormatter = new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" });
 
 function isIssuedStatus(status: PurchaseOrderStatus | undefined): boolean {
-  return status === PURCHASE_ORDER_STATUS.PO_ISSUED || status === PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED;
+  return (
+    status === PURCHASE_ORDER_STATUS.PO_ISSUED ||
+    status === PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED ||
+    status === PURCHASE_ORDER_STATUS.PAID
+  );
 }
 
 type ListParams = {
@@ -406,7 +411,9 @@ export function PurchaseOrdersView({
   const isIssued =
     Boolean(quoteDetail && issuedRequisitionIds.has(quoteDetail.requisitionId)) ||
     isIssuedStatus(selectedRow?.status);
-  const proformaReceived = selectedRow?.status === PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED;
+  const proformaReceived =
+    selectedRow?.status === PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED ||
+    selectedRow?.status === PURCHASE_ORDER_STATUS.PAID;
   const purchaseOrderEditor: PurchaseOrderQuantityEditor | undefined = hasQuantityFields
     ? {
         quantities: neededPoQuantities,

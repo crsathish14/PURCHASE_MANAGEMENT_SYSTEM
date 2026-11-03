@@ -4,6 +4,7 @@ export const PURCHASE_ORDER_STATUS = {
   PENDING_PO: "pending_po",
   PO_ISSUED: "po_issued",
   PROFORMA_RECEIVED: "proforma_received",
+  PAID: "paid",
   INVOICE_REQUESTED: "invoice_requested",
   INVOICE_RECEIVED: "invoice_received",
 } as const;

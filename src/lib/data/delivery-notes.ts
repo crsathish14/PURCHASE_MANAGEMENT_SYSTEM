@@ -1,3 +1,10 @@
+import {
+  DELIVERY_NOTE_CANDIDATE_SORT,
+  DELIVERY_NOTE_URGENCY,
+  isDeliveryNoteUrgency,
+  type DeliveryNoteCandidateSort,
+  type DeliveryNoteUrgency,
+} from "@/lib/constants/delivery-note";
 import type { DatePreset } from "@/lib/constants/purchase-requisition";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/types/database";
@@ -29,6 +36,7 @@ export type DeliveryNoteCandidateRow = {
   vesselLabel: string | null;
   categoryLabel: string | null;
   vendorName: string | null;
+  urgency: DeliveryNoteUrgency;
 };
 
 export type DeliveryNoteFilters = {
@@ -41,19 +49,26 @@ export type DeliveryNoteFilters = {
 };
 
 // Awarded requisitions with a received proforma invoice and no delivery note
-// yet — the "Add delivery or service note" picker. Paged server-side.
+// yet — the "Add delivery or service note" picker. Filtered, sorted and paged
+// server-side; each row carries its urgency (danger / warning / normal).
 export async function getDeliveryNoteCandidates({
   page,
   pageSize,
   search,
+  urgencies,
+  sort,
 }: {
   page: number;
   pageSize: number;
   search?: string;
+  urgencies?: DeliveryNoteUrgency[];
+  sort?: DeliveryNoteCandidateSort;
 }): Promise<{ rows: DeliveryNoteCandidateRow[]; total: number }> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("search_delivery_note_candidates", {
     p_search: search?.trim() ? search.trim() : null,
+    p_urgencies: urgencies?.length ? urgencies : null,
+    p_sort: sort ?? DELIVERY_NOTE_CANDIDATE_SORT.DEFAULT,
     p_page: page,
     p_page_size: pageSize,
   });
@@ -68,6 +83,7 @@ export async function getDeliveryNoteCandidates({
     vesselLabel: row.vessel_label,
     categoryLabel: row.category_label,
     vendorName: row.vendor_name,
+    urgency: isDeliveryNoteUrgency(row.urgency) ? row.urgency : DELIVERY_NOTE_URGENCY.NORMAL,
   }));
 
   return { rows, total: data?.[0]?.total_count ?? 0 };

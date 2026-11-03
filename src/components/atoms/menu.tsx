@@ -49,6 +49,10 @@ export type MenuProps = {
   // both to keep the existing fully-uncontrolled behavior.
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  // The panel is portaled into document.body, so a Menu opened from inside a
+  // Dialog (default z-30) renders *behind* the dialog's overlay at the default
+  // z-20 and can't be clicked. Pass a higher class (e.g. "z-40") there.
+  zIndexClassName?: string;
 };
 
 export function Menu({
@@ -59,6 +63,7 @@ export function Menu({
   closeOnContentClick = true,
   open: controlledOpen,
   onOpenChange,
+  zIndexClassName = "z-20",
 }: MenuProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = controlledOpen !== undefined;
@@ -127,7 +132,7 @@ export function Menu({
             <div
               ref={panelRef}
               style={{ position: "absolute", top: position.top, left: position.left }}
-              className="z-20 w-48 rounded-md border border-line bg-paper py-1.5 shadow-(--shadow-e2)"
+              className={`${zIndexClassName} w-48 rounded-md border border-line bg-paper py-1.5 shadow-(--shadow-e2)`}
               onClick={(event) => {
                 // Stop here, not just close the menu: this panel is portaled
                 // into document.body, but React bubbles synthetic events
