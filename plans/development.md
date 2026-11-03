@@ -1290,6 +1290,19 @@ Rev. No. and Code No. are not shown, and line-item Lead Time is centered. The qu
 supplier address field, so the PDF leaves Supplier Address as a placeholder.
 The download filename is `{prNumber}-Purchase-Order.pdf`.
 
+**Read-only after issue, and Reissue.** Any row past `PENDING_PO` (issued, proforma received, paid,
+invoice requested/received) opens read-only in the detail modal — quantities disabled, no Save/Issue
+CTAs (`isIssuedStatus` in `purchase-orders-view.tsx`). A `PROFORMA_RECEIVED` row additionally shows
+**Reissue PO** (confirm dialog, `ReissuePurchaseOrderDialog`), which POSTs `/api/purchase-orders/[id]/reissue`
+→ `reissue_purchase_order` RPC (`20261103030000_reissue_purchase_order.sql`, body replaced by
+`20261103040000_reissue_purchase_order_keeps_issuance.sql`). The RPC keeps the issuance (and its snapshot
+and token) and only clears `proforma_invoice_path`/`proforma_invoice_file_name`/`proforma_received_at`, so
+the status derives back to `PO_ISSUED`, quantities stay locked, and the same vendor link works again
+(every token lookup keys off `proforma_received_at is null`) — the vendor uploads a new proforma. It
+returns the old proforma's Storage path and the route removes the object via the admin client (a failed
+removal is logged, not surfaced). Refused with `55000` unless the proforma was received, and `55001` once
+the PO is paid, an invoice was requested, or a delivery note exists.
+
 Once the proforma is received, staff first record payment (made outside the app) and then request the
 vendor's invoice from the Invoice Log tab (`/en/invoice-log`, `ROUTES.INVOICE_LOG`). A `PROFORMA_RECEIVED`
 row shows a **Paid** CTA (confirm dialog, `MarkPaidDialog`) instead of Request Invoice; it POSTs to

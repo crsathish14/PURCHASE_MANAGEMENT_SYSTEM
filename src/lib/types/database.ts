@@ -1292,6 +1292,10 @@ export type Database = {
         };
         Returns: boolean;
       };
+      reissue_purchase_order: {
+        Args: { p_requisition_id: string };
+        Returns: string;
+      };
       mark_purchase_order_paid: {
         Args: { p_requisition_id: string };
         Returns: string;

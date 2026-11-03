@@ -209,6 +209,16 @@
       "saveDraft": "Save",
       "issuePo": "Issue PO",
       "poIssued": "PO Issued",
+      "reissuePo": "Reissue PO",
+      "reissued": "Purchase Order reissued. Waiting for the vendor to upload a new proforma invoice.",
+      "reissueError": "Couldn't reissue this Purchase Order.",
+      "reissueDialog": {
+        "title": "Reissue Purchase Order",
+        "message": "Reissuing the Purchase Order for {prNumber} permanently deletes the proforma invoice received from {vendorName}. The Purchase Order returns to PO Issued and the vendor can upload a new proforma invoice using the same link.",
+        "cancel": "Cancel",
+        "confirm": "Reissue PO",
+        "confirming": "Reissuing…"
+      },
       "draftSaved": "Purchase Order draft saved.",
       "draftSaveError": "Couldn't save this Purchase Order draft.",
       "invalidDraft": "Enter a valid non-negative quantity for every item.",

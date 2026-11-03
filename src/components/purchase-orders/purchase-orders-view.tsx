@@ -21,6 +21,7 @@ import { RfqPager } from "@/components/rfq/rfq-pager";
 import { RfqToolbar } from "@/components/rfq/rfq-toolbar";
 import { CompareQuotesModal } from "@/components/rfq/compare-quotes-modal";
 import { IssuePurchaseOrderDialog } from "@/components/purchase-orders/issue-purchase-order-dialog";
+import { ReissuePurchaseOrderDialog } from "@/components/purchase-orders/reissue-purchase-order-dialog";
 
 const t = en.staff.purchaseOrders;
 const STATUS_TONE: Record<PurchaseOrderStatus, BadgeTone> = {
@@ -37,12 +38,14 @@ const STATUS_OPTIONS = Object.values(PURCHASE_ORDER_STATUS).map((value) => ({
 }));
 const dateFormatter = new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" });
 
+// Everything past Pending PO: the issued snapshot is authoritative, so the form is read-only.
 function isIssuedStatus(status: PurchaseOrderStatus | undefined): boolean {
-  return (
-    status === PURCHASE_ORDER_STATUS.PO_ISSUED ||
-    status === PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED ||
-    status === PURCHASE_ORDER_STATUS.PAID
-  );
+  return status !== undefined && status !== PURCHASE_ORDER_STATUS.PENDING_PO;
+}
+
+// The vendor's one-time PO link is retired as soon as the proforma arrives.
+function isProformaReceivedStatus(status: PurchaseOrderStatus | undefined): boolean {
+  return isIssuedStatus(status) && status !== PURCHASE_ORDER_STATUS.PO_ISSUED;
 }
 
 type ListParams = {
@@ -97,6 +100,8 @@ export function PurchaseOrdersView({
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
   const [issuedLink, setIssuedLink] = useState<string | null>(null);
   const [issuedRequisitionIds, setIssuedRequisitionIds] = useState<Set<string>>(() => new Set());
+  const [reissueDialogOpen, setReissueDialogOpen] = useState(false);
+  const [reissuing, setReissuing] = useState(false);
 
   const [appliedSearch, setAppliedSearch] = useState(initialFilters.search);
   const [appliedStatuses, setAppliedStatuses] = useState<string[]>(initialFilters.statuses);
@@ -372,6 +377,33 @@ export function PurchaseOrdersView({
     }
   }
 
+  async function handleReissue() {
+    if (!quoteDetail) return;
+
+    const requisitionId = quoteDetail.requisitionId;
+    setReissuing(true);
+    try {
+      const response = await fetch(`/api/purchase-orders/${requisitionId}/reissue`, { method: "POST" });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        toast.error(payload?.error?.message ?? t.reissueError);
+        return;
+      }
+
+      // The PO stays issued; reopening the row refetches its (now active again) vendor link.
+      setIssuedLink(null);
+      setReissueDialogOpen(false);
+      setQuoteDetail(null);
+      toast.success(t.reissued);
+      void fetchList({ page, pageSize, ...appliedParams });
+    } catch {
+      toast.error(t.reissueError);
+    } finally {
+      setReissuing(false);
+    }
+  }
+
   async function handleDownloadPurchaseOrderPdf() {
     if (!quoteDetail) return;
 
@@ -411,9 +443,9 @@ export function PurchaseOrdersView({
   const isIssued =
     Boolean(quoteDetail && issuedRequisitionIds.has(quoteDetail.requisitionId)) ||
     isIssuedStatus(selectedRow?.status);
-  const proformaReceived =
-    selectedRow?.status === PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED ||
-    selectedRow?.status === PURCHASE_ORDER_STATUS.PAID;
+  const proformaReceived = isProformaReceivedStatus(selectedRow?.status);
+  // Only before payment is recorded / an invoice requested — see reissue_purchase_order.
+  const canReissue = selectedRow?.status === PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED;
   const purchaseOrderEditor: PurchaseOrderQuantityEditor | undefined = hasQuantityFields
     ? {
         quantities: neededPoQuantities,
@@ -561,6 +593,11 @@ export function PurchaseOrdersView({
                 >
                   {t.download}
                 </Button>
+                {canReissue ? (
+                  <Button type="button" variant="secondary" onClick={() => setReissueDialogOpen(true)}>
+                    {t.reissuePo}
+                  </Button>
+                ) : null}
               </>
             ) : (
               <>
@@ -576,6 +613,16 @@ export function PurchaseOrdersView({
         }
         onAwardClick={() => undefined}
       />
+      {reissueDialogOpen && quoteDetail?.vendors[0] ? (
+        <ReissuePurchaseOrderDialog
+          open={reissueDialogOpen}
+          onClose={() => setReissueDialogOpen(false)}
+          onConfirm={() => void handleReissue()}
+          prNumber={quoteDetail.prNumber}
+          vendorName={quoteDetail.vendors[0].vendorName}
+          loading={reissuing}
+        />
+      ) : null}
       {issueDialogOpen && quoteDetail?.vendors[0] ? (
         <IssuePurchaseOrderDialog
           open={issueDialogOpen}
