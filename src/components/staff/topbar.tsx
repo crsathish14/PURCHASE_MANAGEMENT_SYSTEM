@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Bell, ChevronDown, Menu, Plus, Search } from "lucide-react";
+import { ChevronDown, Menu } from "lucide-react";
 
 import { Avatar, Button } from "@/components/atoms";
 import en from "@/locales/en.json";
@@ -14,9 +14,9 @@ import type { UserRole } from "@/lib/types/database";
 
 const t = en.staff.topbar;
 
-// Ref: Design-docs/app/dashboard.html (.topbar, .search, .icon-btn, .split-btn,
-// .avatar-btn). Search and the notification bell are static/inert — no real
-// search index or notification data exists yet, this is visual shell only.
+// Ref: Design-docs/app/dashboard.html (.topbar, .avatar-btn). The topbar holds
+// only the mobile menu toggle and the avatar menu; search, the notification
+// bell and the New button were removed as not needed.
 export function Topbar({
   onMenuClick,
   fullName,
@@ -57,26 +57,7 @@ export function Topbar({
         <Menu size={18} strokeWidth={1.7} aria-hidden="true" />
       </Button>
 
-      <div className="hidden flex-1 items-center gap-2 rounded-md border border-line bg-paper px-3 py-2 text-[13px] text-slate-lt md:flex">
-        <Search size={16} strokeWidth={1.7} aria-hidden="true" />
-        <span className="flex-1 truncate">{t.searchPlaceholder}</span>
-        <kbd className="rounded border border-line px-1.5 py-0.5 text-[10.5px] text-slate-lt">⌘K</kbd>
-      </div>
-
       <div className="ml-auto flex items-center gap-2">
-        <Button variant="icon" aria-label="Notifications" className="relative">
-          <Bell size={18} strokeWidth={1.7} aria-hidden="true" />
-          <span
-            aria-hidden="true"
-            className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-rust"
-          />
-        </Button>
-
-        <Button variant="primary" size="sm">
-          <Plus size={14} strokeWidth={2} aria-hidden="true" />
-          {t.new}
-        </Button>
-
         <div className="relative" ref={menuRef}>
           <button
             type="button"

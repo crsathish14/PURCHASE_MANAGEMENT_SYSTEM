@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 
-// These VBA-driven workbooks (see vba-source/stores/, vba-source/spares/, and
-// vba-source/service/ for the readable macro code and setup guides — three
+// These VBA-driven workbooks (see vba-source/stores/, vba-source/spares/,
+// vba-source/service/, and vba-source/lo/ for the readable macro code and setup guides — four
 // independent VBA projects, no shared state) can't be authored by ExcelJS the
 // way a plain
 // generated template can — the binary VBA project component isn't something
@@ -20,4 +20,10 @@ export async function readSparesTemplateBuffer(): Promise<Buffer> {
 
 export async function readServiceTemplateBuffer(): Promise<Buffer> {
   return readFile(new URL("./requisition-form-service.xlsm", import.meta.url));
+}
+
+// LO (Lub Oil): the Stores workbook without the IMPA/ISSA Code column (see
+// vba-source/lo/).
+export async function readLoTemplateBuffer(): Promise<Buffer> {
+  return readFile(new URL("./requisition-form-lo.xlsm", import.meta.url));
 }

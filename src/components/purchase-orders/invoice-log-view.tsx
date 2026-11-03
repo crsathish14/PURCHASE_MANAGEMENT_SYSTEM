@@ -13,7 +13,10 @@ import { formatCurrencyUsd } from "@/lib/format-currency";
 import { toast } from "@/store/toast-store";
 import { RfqPager } from "@/components/rfq/rfq-pager";
 import { RfqToolbar } from "@/components/rfq/rfq-toolbar";
+import { MarkPaidDialog } from "./mark-paid-dialog";
+import { PrLinksDialog } from "./pr-links-dialog";
 import { RequestInvoiceDialog } from "./request-invoice-dialog";
+import { RerequestInvoiceDialog } from "./rerequest-invoice-dialog";
 import { InvoiceDocumentsModal, type InvoiceDocumentItem } from "./invoice-documents-modal";
 
 const t = en.staff.invoiceLog;
@@ -21,12 +24,14 @@ const STATUS_TONE: Record<PurchaseOrderStatus, BadgeTone> = {
   [PURCHASE_ORDER_STATUS.PENDING_PO]: "amber",
   [PURCHASE_ORDER_STATUS.PO_ISSUED]: "moss",
   [PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED]: "teal",
+  [PURCHASE_ORDER_STATUS.PAID]: "moss",
   [PURCHASE_ORDER_STATUS.INVOICE_REQUESTED]: "amber",
   [PURCHASE_ORDER_STATUS.INVOICE_RECEIVED]: "moss",
 };
 
 const INVOICE_LOG_STATUSES = [
   PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED,
+  PURCHASE_ORDER_STATUS.PAID,
   PURCHASE_ORDER_STATUS.INVOICE_REQUESTED,
   PURCHASE_ORDER_STATUS.INVOICE_RECEIVED,
 ];
@@ -75,7 +80,7 @@ type ViewInvoiceTarget = {
 };
 
 type CopyResult = { data?: { link: string }; error?: { message: string } };
-type VendorsResult = { data?: { id: string; mail: string[] }[]; error?: { message: string } };
+type VendorsResult = { data?: { id: string; name: string; mail: string[] }[]; error?: { message: string } };
 type DocsResult = { data?: InvoiceDocumentItem[]; error?: { message: string } };
 
 export function InvoiceLogView({
@@ -96,6 +101,11 @@ export function InvoiceLogView({
   const [loading, setLoading] = useState(false);
   const requestIdRef = useRef(0);
 
+  const [linksTarget, setLinksTarget] = useState<PurchaseOrderListRow | null>(null);
+  const [markPaidTarget, setMarkPaidTarget] = useState<PurchaseOrderListRow | null>(null);
+  const [markingPaid, setMarkingPaid] = useState(false);
+  const [rerequestTarget, setRerequestTarget] = useState<PurchaseOrderListRow | null>(null);
+  const [rerequesting, setRerequesting] = useState(false);
   const [requestInvoiceTarget, setRequestInvoiceTarget] = useState<RequestInvoiceTarget | null>(null);
   const [viewInvoiceTarget, setViewInvoiceTarget] = useState<ViewInvoiceTarget | null>(null);
   const [copyingLinkId, setCopyingLinkId] = useState<string | null>(null);
@@ -147,7 +157,7 @@ export function InvoiceLogView({
     appliedCategories.length > 0 ||
     appliedProformaDatePreset !== null;
 
-  // When no status filter is applied, lock to the 3 invoice-log statuses so
+  // When no status filter is applied, lock to the invoice-log statuses so
   // pending_po / po_issued rows never appear here regardless of filter state.
   function resolveStatusParam(selected: string[]): string {
     return (selected.length > 0 ? selected : INVOICE_LOG_STATUSES).join(",");
@@ -295,17 +305,67 @@ export function InvoiceLogView({
 
   async function handleOpenRequestInvoice(row: PurchaseOrderListRow) {
     let emails: string[] = [];
-    if (row.vendorId) {
-      try {
-        const res = await fetch("/api/vendors");
-        const payload = (await res.json().catch(() => null)) as VendorsResult | null;
-        const vendor = payload?.data?.find((v) => v.id === row.vendorId);
-        emails = vendor?.mail ?? [];
-      } catch {
-        // proceed with empty list; the dialog shows an error message
-      }
+    try {
+      const res = await fetch("/api/vendors");
+      const payload = (await res.json().catch(() => null)) as VendorsResult | null;
+      const vendors = payload?.data ?? [];
+      // RFQ links issued before vendor ids were stored have no vendorId; fall back
+      // to the vendor with exactly this name, but only when it is unambiguous.
+      const byName = vendors.filter(
+        (v) => v.name.trim().toLowerCase() === row.vendorName.trim().toLowerCase(),
+      );
+      const vendor = row.vendorId
+        ? vendors.find((v) => v.id === row.vendorId)
+        : byName.length === 1
+          ? byName[0]
+          : undefined;
+      emails = vendor?.mail ?? [];
+    } catch {
+      // proceed with empty list; the dialog shows an error message
     }
     setRequestInvoiceTarget({ id: row.id, vendorName: row.vendorName, vendorEmails: emails });
+  }
+
+  async function handleMarkPaidConfirmed() {
+    if (!markPaidTarget) return;
+    setMarkingPaid(true);
+    try {
+      const response = await fetch(`/api/purchase-orders/${markPaidTarget.id}/paid`, { method: "POST" });
+      const payload = (await response.json().catch(() => null)) as { error?: { message: string } } | null;
+      if (!response.ok) {
+        toast.error(payload?.error?.message ?? t.markPaidError);
+        return;
+      }
+      toast.success(t.markPaidDone);
+      setMarkPaidTarget(null);
+      void fetchList({ page, pageSize, ...appliedParams });
+    } catch {
+      toast.error(t.markPaidError);
+    } finally {
+      setMarkingPaid(false);
+    }
+  }
+
+  async function handleRerequestConfirmed() {
+    if (!rerequestTarget) return;
+    setRerequesting(true);
+    try {
+      const response = await fetch(`/api/purchase-orders/${rerequestTarget.id}/invoice-rerequest`, {
+        method: "POST",
+      });
+      const payload = (await response.json().catch(() => null)) as { error?: { message: string } } | null;
+      if (!response.ok) {
+        toast.error(payload?.error?.message ?? t.rerequestInvoiceError);
+        return;
+      }
+      toast.success(t.rerequestInvoiceDone);
+      setRerequestTarget(null);
+      void fetchList({ page, pageSize, ...appliedParams });
+    } catch {
+      toast.error(t.rerequestInvoiceError);
+    } finally {
+      setRerequesting(false);
+    }
   }
 
   function handleRequestInvoiceSuccess() {
@@ -370,8 +430,24 @@ export function InvoiceLogView({
                   </tr>
                 ) : (
                   rows.map((row) => (
-                    <tr key={row.id} className="border-b border-line last:border-b-0">
-                      <td className="whitespace-nowrap px-4 py-3 font-mono text-ink">{row.prNumber}</td>
+                    <tr
+                      key={row.id}
+                      className="cursor-pointer border-b border-line last:border-b-0 hover:bg-mist"
+                      onClick={() => setLinksTarget(row)}
+                    >
+                      <td className="whitespace-nowrap px-4 py-3 font-mono text-ink">
+                        <button
+                          type="button"
+                          aria-label={t.prLinksDialog.openRowFor.replace("{prNumber}", row.prNumber)}
+                          className="font-mono underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-harbor"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setLinksTarget(row);
+                          }}
+                        >
+                          {row.prNumber}
+                        </button>
+                      </td>
                       <td className="whitespace-nowrap px-4 py-3 font-mono text-ink">
                         {row.requisitionNumber ?? "—"}
                       </td>
@@ -386,7 +462,7 @@ export function InvoiceLogView({
                           {en.staff.purchaseOrders.statusLabels[row.status]}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" onClick={(event) => event.stopPropagation()}>
                         <div className="flex flex-wrap items-center gap-2">
                           <a
                             href={`/api/purchase-orders/${row.id}/proforma`}
@@ -399,6 +475,10 @@ export function InvoiceLogView({
                           </a>
 
                           {row.status === PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED ? (
+                            <button type="button" className={ctaClass} onClick={() => setMarkPaidTarget(row)}>
+                              {t.markPaid}
+                            </button>
+                          ) : row.status === PURCHASE_ORDER_STATUS.PAID ? (
                             <button
                               type="button"
                               className={ctaClass}
@@ -432,6 +512,12 @@ export function InvoiceLogView({
                               )}
                             </button>
                           ) : null}
+
+                          {row.status === PURCHASE_ORDER_STATUS.INVOICE_RECEIVED ? (
+                            <button type="button" className={ctaClass} onClick={() => setRerequestTarget(row)}>
+                              {t.rerequestInvoice}
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -452,6 +538,32 @@ export function InvoiceLogView({
           </div>
         </div>
       </section>
+
+      {linksTarget ? (
+        <PrLinksDialog open onClose={() => setLinksTarget(null)} prNumber={linksTarget.prNumber} />
+      ) : null}
+
+      {markPaidTarget ? (
+        <MarkPaidDialog
+          open
+          onClose={() => setMarkPaidTarget(null)}
+          onConfirm={() => void handleMarkPaidConfirmed()}
+          prNumber={markPaidTarget.prNumber}
+          vendorName={markPaidTarget.vendorName}
+          loading={markingPaid}
+        />
+      ) : null}
+
+      {rerequestTarget ? (
+        <RerequestInvoiceDialog
+          open
+          onClose={() => setRerequestTarget(null)}
+          onConfirm={() => void handleRerequestConfirmed()}
+          prNumber={rerequestTarget.prNumber}
+          vendorName={rerequestTarget.vendorName}
+          loading={rerequesting}
+        />
+      ) : null}
 
       {requestInvoiceTarget ? (
         <RequestInvoiceDialog

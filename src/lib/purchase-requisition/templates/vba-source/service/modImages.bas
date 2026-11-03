@@ -132,49 +132,75 @@ Fail:
     TryPasteFromClipboard = (ws.Shapes.Count > countBefore)
 End Function
 
-' Pastes the clipboard image, files it into the correct slot of the
+' Pastes the clipboard image(s), files each into the correct slot of the
 ' SUPPORTING PHOTOS table for this line item's Sl No., and leaves the
-' Supporting Photos input cell clean (the picture is MOVED, not
-' copied, so there is nothing left behind to remove separately).
+' Supporting Photos input cell showing the running photo count (each picture
+' is MOVED into the table, so nothing is left behind to remove separately).
+' Handles both ways a client puts a photo on the clipboard: copying the
+' picture itself (image data), or copying one or more image FILES in File
+' Explorer (a file reference - see modClipboardFile).
 Private Sub ProcessPastedImage(ws As Worksheet, inputCell As Range)
     Dim slNo As Variant
     Dim shp As Shape
-    Dim destCell As Range
     Dim countBefore As Long
     Dim pasteErrNum As Long
     Dim pasteErrDesc As String
     Dim i As Long
     Dim currentStep As String
-    Dim filePath As String
+    Dim filePaths As Collection
+    Dim filePath As Variant
+    Dim filedCount As Long
+    Dim failedList As String
+    Dim totalCount As Long
 
     currentStep = "starting"
     On Error GoTo StepErrHandler
 
+    ' Checked first, so nothing is loaded or pasted that cannot be filed.
+    currentStep = "reading this line item's Sl No."
+    slNo = ws.Cells(inputCell.Row, COL_SLNO).Value
+    If slNo = "" Then
+        MsgBox "This line item has no Sl No. yet - the image could not be filed.", vbCritical
+        Exit Sub
+    End If
+
+    Application.ScreenUpdating = False   ' many files = many rows/shapes; HandlePaste redraws once at the end
     countBefore = ws.Shapes.Count
 
-    ' If the clipboard holds a FILE reference (e.g. a file copied
-    ' straight from a File Explorer folder listing, rather than the
-    ' opened image itself), there is no actual picture data on the
-    ' clipboard at all - copying a file only ever puts a path there,
-    ' in every Windows application, not just Excel. Detect that case
-    ' via the Win32 clipboard API (modClipboardFile) and load the
-    ' image directly from disk instead - this also has the nice side
-    ' effect of using the full-resolution original file rather than
-    ' whatever preview bitmap a given copy operation might provide.
-    currentStep = "checking for a file reference on the clipboard"
-    filePath = modClipboardFile.GetClipboardFilePath()
+    ' If the clipboard holds FILE references (files copied straight from a
+    ' File Explorer folder listing, rather than the opened image itself),
+    ' there is no actual picture data on the clipboard at all - copying a
+    ' file only ever puts its path there, in every Windows application, not
+    ' just Excel. Detect that case via the Win32 clipboard API
+    ' (modClipboardFile) and load each image directly from disk instead -
+    ' this also has the nice side effect of using the full-resolution
+    ' original file rather than whatever preview bitmap a given copy
+    ' operation might provide.
+    currentStep = "checking for file references on the clipboard"
+    Set filePaths = modClipboardFile.GetClipboardImageFilePaths()
 
-    If Len(filePath) > 0 And modClipboardFile.IsImageFilePath(filePath) Then
-        currentStep = "loading the image file from disk"
-        inputCell.ClearContents
-        Set shp = TryLoadPictureFromFile(ws, filePath, pasteErrNum, pasteErrDesc)
+    If filePaths.Count > 0 Then
+        For Each filePath In filePaths
+            currentStep = "loading the image file " & CStr(filePath)
+            pasteErrNum = 0
+            pasteErrDesc = ""
+            Set shp = TryLoadPictureFromFile(ws, CStr(filePath), pasteErrNum, pasteErrDesc)
 
-        If shp Is Nothing Then
-            If inputCell.Value <> "" Then inputCell.ClearContents
-            MsgBox "Could not load the image file directly (error " & pasteErrNum & ": " & pasteErrDesc & _
-                   "). Try opening the image and copying it instead, then paste again.", vbExclamation
-            Exit Sub
+            If shp Is Nothing Then
+                failedList = failedList & vbCrLf & "  " & Mid$(CStr(filePath), InStrRev(CStr(filePath), "\") + 1) & _
+                             " (error " & pasteErrNum & ": " & pasteErrDesc & ")"
+            Else
+                currentStep = "filing the image file " & CStr(filePath)
+                FilePictureInSlot ws, shp, CLng(slNo)
+                filedCount = filedCount + 1
+            End If
+        Next filePath
+
+        If Len(failedList) > 0 Then
+            MsgBox "These image files could not be loaded:" & failedList & vbCrLf & vbCrLf & _
+                   "Try opening the image and copying it instead, then paste again.", vbExclamation
         End If
+        If filedCount = 0 Then Exit Sub   ' the cell keeps showing the previous photo count
 
     Else
         ' Fall back to a normal clipboard image-data paste (the client
@@ -214,33 +240,14 @@ Private Sub ProcessPastedImage(ws As Worksheet, inputCell As Range)
                 ws.Shapes(i).Delete
             End If
         Next i
+
+        currentStep = "filing the pasted image"
+        FilePictureInSlot ws, shp, CLng(slNo)
     End If
-
-    ' --- From here on, shp holds the picture regardless of which path above was used ---
-
-    currentStep = "reading this line item's Sl No."
-    slNo = ws.Cells(inputCell.Row, COL_SLNO).Value
-    If slNo = "" Then
-        shp.Delete
-        MsgBox "This line item has no Sl No. yet - the image could not be filed.", vbCritical
-        Exit Sub
-    End If
-
-    currentStep = "finding (or creating) the destination photo slot"
-    Set destCell = GetNextImageSlot(ws, CLng(slNo))
-
-    currentStep = "resizing the picture to fit its destination cell"
-    FitPictureToCell shp, destCell
-
-    currentStep = "positioning the picture"
-    shp.Left = destCell.Left + (destCell.Width - shp.Width) / 2
-    shp.Top = destCell.Top + (destCell.Height - shp.Height) / 2
-    shp.Placement = xlMoveAndSize   ' shifts correctly if rows are inserted above it later
 
     ' Show a running count of photos filed for this line item so the
     ' client can see at a glance how many have been added.
     currentStep = "updating the photo count shown in the input cell"
-    Dim totalCount As Long
     totalCount = CountImagesForSL(ws, CLng(slNo))
     inputCell.Value = totalCount & IIf(totalCount = 1, " photo", " photos")
 
@@ -259,6 +266,19 @@ StepErrHandler:
     ' rather than a generic error bubbling up to HandlePaste's outer
     ' handler with no indication of where it actually happened.
     MsgBox "Paste processing failed while " & currentStep & ":" & vbCrLf & Err.Description, vbCritical
+End Sub
+
+' Resizes shp to fit its destination photo slot (the next free one for this
+' Sl No., creating a continuation row if the current one is full), centres it
+' there, and anchors it so it moves with its row.
+Private Sub FilePictureInSlot(ws As Worksheet, shp As Shape, ByVal slNo As Long)
+    Dim destCell As Range
+
+    Set destCell = GetNextImageSlot(ws, slNo)
+    FitPictureToCell shp, destCell
+    shp.Left = destCell.Left + (destCell.Width - shp.Width) / 2
+    shp.Top = destCell.Top + (destCell.Height - shp.Height) / 2
+    shp.Placement = xlMoveAndSize   ' shifts correctly if rows are inserted above it later
 End Sub
 
 ' Counts how many images have been filed under a given Sl No. across
@@ -477,6 +497,313 @@ Private Sub ReplicateRowMerges(ws As Worksheet, templateRow As Long, targetRow A
     Loop
 End Sub
 
+'===================================================================
+' LINE ITEM / PHOTO REMOVAL
+' Bound to the three buttons that sit to the right of EVERY line item row
+' ("Remove Last Photo", "Remove All Photos", "Remove Line Item"). Each
+' button acts on the line item in its own row: Application.Caller gives the
+' clicked button's name, and the row that button is anchored in is the line
+' item. (Run from Alt+F8 instead, they fall back to the active cell's row.)
+' Pictures are floating shapes the user cannot select on the protected
+' sheet, so removal has to be done by code.
+'
+' Rules these routines rely on:
+'   - A photo-table row whose Sl No. cell is blank ENDS the table for every
+'     scan in this module (they all loop "Do While Sl No <> """). So an
+'     emptied row is DELETED, never just blanked - blanking a row in the
+'     middle would hide every row below it.
+'   - The one exception is the table's only data row: it is the formatting
+'     template for InsertFormattedRow, so it is kept and only its Sl No. is
+'     cleared (the table's original empty state).
+'   - The "N photos" counter in the line item row is only ever written at
+'     paste time, so it is rewritten here after every photo removal.
+'   - Removing a line item renumbers every later Sl No. down by one in BOTH
+'     tables, so photos stay joined to their line item (the import parser
+'     joins them on Sl No.).
+'===================================================================
+
+' Removes the most recently filed photo of the line item (highest slot on
+' its last photo row), like an undo for the last Ctrl+V.
+Public Sub RemoveLastPhoto()
+    Dim ws As Worksheet
+    Dim lineRow As Long, slNo As Long
+    Dim firstRow As Long, lastRow As Long, r As Long, i As Long
+    Dim slotCols As Variant
+    Dim shp As Shape
+    Dim removed As Boolean
+
+    Set ws = ThisWorkbook.Worksheets(SHEET_NAME)
+    Application.ScreenUpdating = False
+    On Error GoTo ErrHandler
+
+    If Not GetTargetLineItem(ws, lineRow, slNo) Then GoTo CleanExit
+
+    GetPhotoRowRange ws, slNo, firstRow, lastRow
+    If firstRow = 0 Then
+        MsgBox "Line item " & slNo & " has no photos to remove.", vbInformation
+        GoTo CleanExit
+    End If
+
+    slotCols = PhotoSlotColumns()
+    For r = lastRow To firstRow Step -1
+        For i = UBound(slotCols) To 0 Step -1
+            Set shp = FindPictureAt(ws, r, CLng(slotCols(i)))
+            If Not shp Is Nothing Then
+                shp.Delete
+                removed = True
+                Exit For
+            End If
+        Next i
+        If removed Then Exit For
+    Next r
+
+    TidyPhotoRows ws, slNo
+    UpdatePhotoCounter ws, lineRow, slNo
+
+    If Not removed Then MsgBox "Line item " & slNo & " has no photos to remove.", vbInformation
+
+CleanExit:
+    ApplyFormProtection
+    Application.ScreenUpdating = True
+    Exit Sub
+
+ErrHandler:
+    MsgBox "Could not remove the photo: " & Err.Description, vbExclamation
+    Resume CleanExit
+End Sub
+
+' Removes every photo of the line item (after a confirmation) and the
+' photo-table rows that held them.
+Public Sub RemoveAllPhotos()
+    Dim ws As Worksheet
+    Dim lineRow As Long, slNo As Long
+    Dim photoCount As Long
+
+    Set ws = ThisWorkbook.Worksheets(SHEET_NAME)
+    Application.ScreenUpdating = False
+    On Error GoTo ErrHandler
+
+    If Not GetTargetLineItem(ws, lineRow, slNo) Then GoTo CleanExit
+
+    photoCount = CountImagesForSL(ws, slNo)
+    If photoCount = 0 Then
+        MsgBox "Line item " & slNo & " has no photos to remove.", vbInformation
+        GoTo CleanExit
+    End If
+
+    Application.ScreenUpdating = True   ' so the prompt is not shown over a frozen screen
+    If MsgBox("Remove all " & photoCount & IIf(photoCount = 1, " photo", " photos") & _
+              " from line item " & slNo & "? This cannot be undone.", _
+              vbYesNo + vbQuestion, "Remove All Photos") = vbNo Then GoTo CleanExit
+    Application.ScreenUpdating = False
+
+    DeletePhotosForLineItem ws, slNo
+    UpdatePhotoCounter ws, lineRow, slNo
+
+CleanExit:
+    ApplyFormProtection
+    Application.ScreenUpdating = True
+    Exit Sub
+
+ErrHandler:
+    MsgBox "Could not remove the photos: " & Err.Description, vbExclamation
+    Resume CleanExit
+End Sub
+
+' Removes the whole line item (after a confirmation): its photos, its
+' photo-table rows, and its row in the line-item table, then closes the
+' numbering gap in both tables. The only remaining line item cannot be
+' removed (the form always keeps at least one row, which is also the
+' formatting template AddLineItem clones).
+Public Sub RemoveLineItem()
+    Dim ws As Worksheet
+    Dim lineRow As Long, slNo As Long, lastRow As Long
+    Dim photoCount As Long
+    Dim msg As String
+
+    Set ws = ThisWorkbook.Worksheets(SHEET_NAME)
+    Application.ScreenUpdating = False
+    On Error GoTo ErrHandler
+
+    If Not GetTargetLineItem(ws, lineRow, slNo) Then GoTo CleanExit
+
+    If GetLastLineItemRow(ws) = LINEITEM_FIRST_ROW Then
+        MsgBox "A requisition needs at least one line item, so the only line item cannot be removed.", vbInformation
+        GoTo CleanExit
+    End If
+
+    photoCount = CountImagesForSL(ws, slNo)
+    msg = "Remove line item " & slNo
+    If photoCount > 0 Then msg = msg & " and its " & photoCount & IIf(photoCount = 1, " photo", " photos")
+    msg = msg & "? This cannot be undone."
+
+    Application.ScreenUpdating = True
+    If MsgBox(msg, vbYesNo + vbQuestion, "Remove Line Item") = vbNo Then GoTo CleanExit
+    Application.ScreenUpdating = False
+
+    DeletePhotosForLineItem ws, slNo
+    DeleteRowButtons ws, lineRow
+    ws.Rows(lineRow).Delete Shift:=xlUp   ' buttons/pictures below shift up with their rows
+    RenumberAfterRemoval ws, slNo
+
+    ' Leave the selection on a line item that still exists.
+    lastRow = GetLastLineItemRow(ws)
+    If lineRow > lastRow Then lineRow = lastRow
+    On Error Resume Next
+    If ActiveSheet Is ws Then ws.Cells(lineRow, 2).Select
+    On Error GoTo ErrHandler
+
+CleanExit:
+    ApplyFormProtection
+    Application.ScreenUpdating = True
+    Exit Sub
+
+ErrHandler:
+    MsgBox "Could not remove the line item: " & Err.Description, vbExclamation
+    Resume CleanExit
+End Sub
+
+' Resolves the line item the user means. Preferred: the row of the button
+' that was clicked (Application.Caller). Fallback, when run any other way
+' (Alt+F8): the row of the active cell. The row must lie inside the
+' line-item table; otherwise the user is told and False is returned.
+Private Function GetTargetLineItem(ws As Worksheet, ByRef lineRow As Long, ByRef slNo As Long) As Boolean
+    Dim callerName As String
+
+    lineRow = 0
+    On Error Resume Next
+    callerName = CStr(Application.Caller)
+    If Len(callerName) > 0 Then lineRow = ws.Shapes(callerName).TopLeftCell.Row
+    If lineRow = 0 And ActiveSheet Is ws Then lineRow = ActiveCell.Row
+    On Error GoTo 0
+
+    If lineRow < LINEITEM_FIRST_ROW Or lineRow > GetLastLineItemRow(ws) Then
+        MsgBox "Click any cell in the line item you want to change, then try again.", vbInformation
+        Exit Function
+    End If
+
+    slNo = CLng(ws.Cells(lineRow, COL_SLNO).Value)
+    GetTargetLineItem = True
+End Function
+
+' Deletes every picture filed under slNo and the photo-table rows that
+' held them (no prompts, no counter update - callers do those).
+Private Sub DeletePhotosForLineItem(ws As Worksheet, slNo As Long)
+    Dim firstRow As Long, lastRow As Long, r As Long, i As Long
+    Dim slotCols As Variant
+    Dim shp As Shape
+
+    GetPhotoRowRange ws, slNo, firstRow, lastRow
+    If firstRow > 0 Then
+        slotCols = PhotoSlotColumns()
+        For r = firstRow To lastRow
+            For i = 0 To UBound(slotCols)
+                Set shp = FindPictureAt(ws, r, CLng(slotCols(i)))
+                If Not shp Is Nothing Then shp.Delete
+            Next i
+        Next r
+    End If
+
+    TidyPhotoRows ws, slNo
+End Sub
+
+' After line item removedSl is gone, every later Sl No. moves down by one -
+' in the line-item table and in the photo table - so numbering stays
+' contiguous and each photo row still matches its line item.
+Private Sub RenumberAfterRemoval(ws As Worksheet, removedSl As Long)
+    Dim r As Long
+
+    r = LINEITEM_FIRST_ROW
+    Do While ws.Cells(r, COL_SLNO).Value <> ""
+        If CLng(ws.Cells(r, COL_SLNO).Value) > removedSl Then ws.Cells(r, COL_SLNO).Value = CLng(ws.Cells(r, COL_SLNO).Value) - 1
+        r = r + 1
+    Loop
+
+    r = GetImageTableFirstDataRow(ws)
+    Do While ws.Cells(r, COL_SLNO).Value <> ""
+        If CLng(ws.Cells(r, COL_SLNO).Value) > removedSl Then ws.Cells(r, COL_SLNO).Value = CLng(ws.Cells(r, COL_SLNO).Value) - 1
+        r = r + 1
+    Loop
+End Sub
+
+' First and last SUPPORTING PHOTOS row filed under slNo (0 / 0 if none).
+' A line item's rows are always contiguous (continuation rows are inserted
+' right after its own last row).
+Private Sub GetPhotoRowRange(ws As Worksheet, slNo As Long, ByRef firstRow As Long, ByRef lastRow As Long)
+    Dim r As Long
+
+    firstRow = 0
+    lastRow = 0
+    r = GetImageTableFirstDataRow(ws)
+    Do While ws.Cells(r, COL_SLNO).Value <> ""
+        If ws.Cells(r, COL_SLNO).Value = slNo Then
+            If firstRow = 0 Then firstRow = r
+            lastRow = r
+        End If
+        r = r + 1
+    Loop
+End Sub
+
+' The picture whose top-left corner sits in the given slot cell, if any.
+Private Function FindPictureAt(ws As Worksheet, r As Long, ByVal c As Long) As Shape
+    Dim shp As Shape
+    For Each shp In ws.Shapes
+        If shp.Type = msoPicture Or shp.Type = msoLinkedPicture Then
+            If Not shp.TopLeftCell Is Nothing Then
+                If shp.TopLeftCell.Row = r And shp.TopLeftCell.Column = c Then
+                    Set FindPictureAt = shp
+                    Exit Function
+                End If
+            End If
+        End If
+    Next shp
+End Function
+
+Private Function RowPhotoCount(ws As Worksheet, r As Long) As Long
+    Dim slotCols As Variant, i As Long
+    slotCols = PhotoSlotColumns()
+    For i = 0 To UBound(slotCols)
+        If Not IsSlotEmpty(ws, r, slotCols(i)) Then RowPhotoCount = RowPhotoCount + 1
+    Next i
+End Function
+
+' Removes slNo's photo rows that no longer hold any picture (see the rules
+' in the section header above for why they are deleted, not blanked).
+Private Sub TidyPhotoRows(ws As Worksheet, slNo As Long)
+    Dim templateRow As Long, tableLast As Long, r As Long
+
+    templateRow = GetImageTableFirstDataRow(ws)
+    tableLast = templateRow - 1
+    Do While ws.Cells(tableLast + 1, COL_SLNO).Value <> ""
+        tableLast = tableLast + 1
+    Loop
+
+    For r = tableLast To templateRow Step -1   ' bottom-up so deletes never shift unvisited rows
+        If ws.Cells(r, COL_SLNO).Value = slNo Then
+            If RowPhotoCount(ws, r) = 0 Then
+                If tableLast = templateRow Then
+                    ws.Cells(r, COL_SLNO).MergeArea.ClearContents   ' only row left: keep it as the template
+                Else
+                    ws.Rows(r).Delete Shift:=xlUp
+                    tableLast = tableLast - 1
+                End If
+            End If
+        End If
+    Next r
+End Sub
+
+' Rewrites the "N photos" text in the line item's Supporting Photos cell
+' (blank when it has none).
+Private Sub UpdatePhotoCounter(ws As Worksheet, lineRow As Long, slNo As Long)
+    Dim cnt As Long
+    cnt = CountImagesForSL(ws, slNo)
+    If cnt = 0 Then
+        ws.Cells(lineRow, COL_PHOTOS).Value = ""
+    Else
+        ws.Cells(lineRow, COL_PHOTOS).Value = cnt & IIf(cnt = 1, " photo", " photos")
+    End If
+End Sub
+
 ' ONE-TIME DIAGNOSTIC/CLEANUP - run this manually from Alt+F8 (or F5 in the
 ' VBA editor with the cursor inside it) if a Supporting Photos cell becomes
 ' unselectable. This can happen if a picture was ever pasted while the
@@ -592,3 +919,7 @@ Private Function RectsOverlap(ByVal l1 As Double, ByVal t1 As Double, ByVal w1 A
                                ByVal l2 As Double, ByVal t2 As Double, ByVal w2 As Double, ByVal h2 As Double) As Boolean
     RectsOverlap = Not (l1 + w1 <= l2 Or l2 + w2 <= l1 Or t1 + h1 <= t2 Or t2 + h2 <= t1)
 End Function
+
+
+
+

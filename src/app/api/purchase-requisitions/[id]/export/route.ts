@@ -5,11 +5,13 @@ import { PR_CATEGORY, type PrTemplateCategory } from "@/lib/constants/purchase-r
 import { getPrDropdownFields, getPurchaseRequisitionById } from "@/lib/data/purchase-requisition";
 import { getVessels } from "@/lib/data/vessels";
 import {
+  readLoTemplateBuffer,
   readServiceTemplateBuffer,
   readSparesTemplateBuffer,
   readStoresTemplateBuffer,
 } from "@/lib/purchase-requisition/templates";
 import { fillStoresVbaRequisitionTemplate } from "@/lib/purchase-requisition/export-template-vba";
+import { fillLoVbaRequisitionTemplate } from "@/lib/purchase-requisition/export-template-vba-lo";
 import { fillSparesVbaRequisitionTemplate } from "@/lib/purchase-requisition/export-template-vba-spares";
 import { fillServiceVbaRequisitionTemplate } from "@/lib/purchase-requisition/export-template-vba-service";
 import type { ExportRequisitionData } from "@/lib/purchase-requisition/export-template-vba-shared";
@@ -19,6 +21,7 @@ const TEMPLATE_BUFFER_READER: Record<PrTemplateCategory, () => Promise<Buffer>> 
   [PR_CATEGORY.STORES]: readStoresTemplateBuffer,
   [PR_CATEGORY.SPARES]: readSparesTemplateBuffer,
   [PR_CATEGORY.SERVICE]: readServiceTemplateBuffer,
+  [PR_CATEGORY.LO]: readLoTemplateBuffer,
 };
 
 // Exact sheet names each template's own VBA source authors them with — see
@@ -28,16 +31,23 @@ const SHEET_NAME: Record<PrTemplateCategory, string> = {
   [PR_CATEGORY.STORES]: "Stores Requisition Form",
   [PR_CATEGORY.SPARES]: "Spares Requisition Form",
   [PR_CATEGORY.SERVICE]: "Service Requisition Form",
+  [PR_CATEGORY.LO]: "LO Requisition Form",
 };
 
 const FILL_TEMPLATE: Record<PrTemplateCategory, (sheet: ExcelJS.Worksheet, data: ExportRequisitionData) => void> = {
   [PR_CATEGORY.STORES]: fillStoresVbaRequisitionTemplate,
   [PR_CATEGORY.SPARES]: fillSparesVbaRequisitionTemplate,
   [PR_CATEGORY.SERVICE]: fillServiceVbaRequisitionTemplate,
+  [PR_CATEGORY.LO]: fillLoVbaRequisitionTemplate,
 };
 
 function isPrCategory(value: string): value is PrTemplateCategory {
-  return value === PR_CATEGORY.STORES || value === PR_CATEGORY.SPARES || value === PR_CATEGORY.SERVICE;
+  return (
+    value === PR_CATEGORY.STORES ||
+    value === PR_CATEGORY.SPARES ||
+    value === PR_CATEGORY.SERVICE ||
+    value === PR_CATEGORY.LO
+  );
 }
 
 // GET /api/purchase-requisitions/[id]/export — downloads this PR's own data

@@ -16,6 +16,7 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const INVOICE_LOG_STATUSES = [
   PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED,
+  PURCHASE_ORDER_STATUS.PAID,
   PURCHASE_ORDER_STATUS.INVOICE_REQUESTED,
   PURCHASE_ORDER_STATUS.INVOICE_RECEIVED,
 ] as const;
@@ -62,7 +63,7 @@ export default async function InvoiceLogPage({
   const pageSize = PAGE_SIZE_OPTIONS.includes(rawPageSize) ? rawPageSize : DEFAULT_PAGE_SIZE;
   const search = getStr(sp, "q");
   const rawStatuses = getCsv(sp, "status").filter((s): s is PurchaseOrderStatus => VALID_INVOICE_STATUSES.has(s));
-  // Always restrict to the 3 invoice-log statuses — never let pending_po/po_issued slip in.
+  // Always restrict to the invoice-log statuses — never let pending_po/po_issued slip in.
   const statuses = rawStatuses.length ? rawStatuses : [...INVOICE_LOG_STATUSES];
   const vessels = getCsv(sp, "vessel");
   const categories = getCsv(sp, "category");

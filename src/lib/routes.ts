@@ -9,7 +9,6 @@ export const ROUTES = {
   CHANGE_PASSWORD: `/${defaultLocale}/change-password`,
   DASHBOARD: `/${defaultLocale}/dashboard`,
   TEAM_ACCESS: `/${defaultLocale}/team-access`,
-  PIPELINE: `/${defaultLocale}/pipeline`,
   PO_REQUESTS: `/${defaultLocale}/po-requests`,
   RFQ_LIST: `/${defaultLocale}/rfq-list`,
   PURCHASE_ORDERS: `/${defaultLocale}/purchase-orders`,
@@ -21,7 +20,6 @@ export const ROUTES = {
   DELIVERY_NOTES: `/${defaultLocale}/delivery-notes`,
   VENDORS: `/${defaultLocale}/vendors`,
   VESSELS: `/${defaultLocale}/vessels`,
-  REPORTS: `/${defaultLocale}/reports`,
   QUOTE_FORM: `/${defaultLocale}/quote`,
 } as const;
 
@@ -37,4 +35,10 @@ export function purchaseOrderFormPath(token: string): string {
 
 export function purchaseOrderInvoiceFormPath(token: string): string {
   return `${ROUTES.PURCHASE_ORDER_INVOICE_FORM}/${token}`;
+}
+
+// A staff list page opened already filtered to one PR: those pages' `q`
+// search matches the PR reference.
+export function pathWithPrSearch(route: string, prNumber: string): string {
+  return `${route}?${new URLSearchParams({ q: prNumber }).toString()}`;
 }

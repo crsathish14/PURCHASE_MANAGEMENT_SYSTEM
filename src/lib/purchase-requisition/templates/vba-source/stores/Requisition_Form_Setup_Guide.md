@@ -15,10 +15,11 @@ won't work together.
 |---|---|
 | `Stores Requisition Form Template.xlsx` | Your corrected layout, with date validation and correct unlocked cells applied. Not yet macro-enabled. |
 | `modConstants.bas` | All configuration values - sheet name, columns, photo limit, etc. |
-| `modSetup.bas` | One-time `RunInitialSetup` routine + button creation |
+| `modSetup.bas` | One-time `RunInitialSetup` routine + button creation (Add Line Item and the per-line-item Remove buttons); `AddRowButtons` for already-set-up templates |
 | `modSecurity.bas` | Protection settings, self-healing cell unlocking, Ctrl+V key binding |
-| `modLineItems.bas` | `AddLineItem` (the button's logic) - unchanged from v1, fully generic |
-| `modImages.bas` | Paste detection, photo filing logic, diagnostics |
+| `modLineItems.bas` | `AddLineItem` (the button's logic) + creation/cleanup of each line item row's Remove buttons |
+| `modImages.bas` | Paste detection, photo filing logic, photo and line-item removal (`RemoveLastPhoto` / `RemoveAllPhotos` / `RemoveLineItem`), diagnostics |
+| `modClipboardFile.bas` | Win32 clipboard helper: lets Ctrl+V file photos copied as *files* in File Explorer (one or several), not just image data |
 | `ThisWorkbook_code.txt` | Code to paste into the `ThisWorkbook` object - unchanged from v1 |
 
 ## What changed in this template vs. the original
@@ -63,6 +64,49 @@ break it again.
    sheet.
 4. Save, close, reopen once to confirm protection and Ctrl+V survive a
    real session, then hand off.
+
+**Updating a template that was already set up** (it has the Add Line Item
+button but not the per-line-item Remove buttons): replace the `modConstants`,
+`modSetup`, `modImages` and `modLineItems` code with the new versions, then
+run **`AddRowButtons`** once (Alt+F8) and save. Do not re-run
+`RunInitialSetup` for this.
+
+## Adding photos (Ctrl+V)
+
+Click a line item's Supporting Photos cell and press Ctrl+V. Two ways to get a
+photo onto the clipboard both work:
+
+- **Open the image, right-click, Copy** - the picture data is pasted.
+- **Select image file(s) in File Explorer and Ctrl+C** - the files are loaded
+  from disk. Select several at once and every image is filed (non-image files in
+  the selection are skipped; files that fail to load are listed in one message).
+
+## Removing photos and line items
+
+Pictures are floating shapes and the sheet is protected, so the client cannot
+select or delete them. Every line item row therefore has three small buttons
+in the columns just right of the table (column P onward; they are not
+printed). Each acts on **its own row**:
+
+- **Remove Last Photo** - removes the most recently filed photo of that line
+  item (like an undo for the last Ctrl+V). No confirmation.
+- **Remove All Photos** - removes every photo of that line item, after a
+  Yes/No confirmation showing how many will go.
+- **Remove Line Item** - removes the line item, its photos and its photo-table
+  rows, after a Yes/No confirmation, then renumbers every later Sl No. down by
+  one in **both** tables so photos stay matched to their line item. The only
+  remaining line item can't be removed.
+
+The buttons find their row from their own position (`Application.Caller`), so
+the client doesn't need to select anything first. `AddLineItem` creates a set
+for each new row; removing a line item deletes its set, and the buttons below
+move up with their rows. If a macro is run from Alt+F8 instead, it uses the
+active cell's row.
+
+Photo removal deletes a photo row that becomes empty (never just blanks its
+Sl No. - every scan in `modImages` stops at the first blank Sl No., so a blank
+row mid-table would hide the rows below it), keeps the table's only data row
+as the formatting template, and refreshes the "N photos" counter.
 
 ## If something looks broken again
 
@@ -109,3 +153,17 @@ Same as before, adjusted for the new capacity:
 | 7 | Enter an invalid date | Rejected by Excel's native validation |
 | 8 | Leave every field blank, click Add Line Item | New row is still created |
 | 9 | Close and reopen the file | Protection and Ctrl+V still active without rerunning setup |
+| 10 | Paste 3 images into Sl No. 1, click **Remove Last Photo** on its row | Photo 3 disappears, cell shows "2 photos" |
+| 11 | Paste 8 images into Sl No. 1, then **Remove Last Photo** | The continuation row is deleted; Sl No. 1 has 7 photos, cell shows "7 photos" |
+| 12 | With photos on Sl No. 1 and 2, **Remove All Photos** on Sl No. 1 and confirm | Sl No. 1's photo rows are gone, Sl No. 2's photos and row are intact, Sl No. 1's counter is blank |
+| 13 | **Remove All Photos** on the only line item that has photos | Photo table returns to its empty state; pasting a new photo works and is filed correctly |
+| 14 | Remove a photo from Sl No. 1, then paste a new one | New photo fills the freed slot, counter correct |
+| 15 | Click **Add Line Item** | The new row has its own three Remove buttons |
+| 16 | With 3 line items that each have photos, **Remove Line Item** on Sl No. 2 and confirm | Two line items, numbered 1 and 2; the old Sl No. 3 is now 2 and keeps its photos and "N photos" text; no buttons left behind; Add Line Item moved up one row |
+| 17 | **Remove Line Item** on Sl No. 1 | The remaining item becomes Sl No. 1 and keeps its photos |
+| 18 | **Remove Line Item** on the only line item | Message that it can't be removed; nothing changes |
+| 19 | Click **Add Line Item** after removals | Numbering continues from the last Sl No.; new row has buttons |
+| 20 | Copy ONE image file in File Explorer (path containing spaces), click a Supporting Photos cell, Ctrl+V | The photo is filed in Photo 1; cell shows "1 photo" |
+| 21 | In File Explorer select 3 images plus 1 non-image file (e.g. a .txt), Ctrl+C, Ctrl+V | The 3 images are filed (in Explorer's order); the .txt is ignored |
+| 22 | Copy an image file whose name has accented/non-English characters, then Ctrl+V | Filed normally |
+| 23 | Open an image, right-click, Copy, Ctrl+V | Still filed (image-data paste) |

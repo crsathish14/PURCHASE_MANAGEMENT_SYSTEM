@@ -1,9 +1,7 @@
 import {
-  BarChart3,
   Building2,
   ClipboardList,
   type LucideIcon,
-  Kanban,
   LayoutDashboard,
   PackageCheck,
   Receipt,
@@ -24,13 +22,12 @@ export type NavItem = {
   icon: LucideIcon;
 };
 
-// Mirrors Design-docs/app/dashboard.html's sidebar exactly: same 11 items,
-// same order, same two groups split by a divider before Reports. Routes
+// Mirrors Design-docs/app/dashboard.html's sidebar: same items and order, with
+// the secondary group split by a divider. Routes
 // other than /en/dashboard don't exist yet — they resolve to the existing
 // [lang]/not-found.tsx page until each module gets built.
 export const NAV_ITEMS: NavItem[] = [
   { label: nav.dashboard, href: ROUTES.DASHBOARD, icon: LayoutDashboard },
-  { label: nav.pipeline, href: ROUTES.PIPELINE, icon: Kanban },
   { label: nav.poRequests, href: ROUTES.PO_REQUESTS, icon: ClipboardList },
   { label: nav.rfq, href: ROUTES.RFQ_LIST, icon: Send },
   { label: nav.purchaseOrders, href: ROUTES.PURCHASE_ORDERS, icon: ShoppingCart },
@@ -41,6 +38,5 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 export const NAV_ITEMS_SECONDARY: NavItem[] = [
-  { label: nav.reports, href: ROUTES.REPORTS, icon: BarChart3 },
   { label: nav.settings, href: ROUTES.TEAM_ACCESS, icon: Settings },
 ];

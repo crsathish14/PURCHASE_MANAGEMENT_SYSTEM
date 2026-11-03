@@ -109,3 +109,24 @@ End Sub
 Public Sub UnbindPasteHandler()
     Application.OnKey "^v"   ' restores Excel's native paste everywhere else
 End Sub
+
+' Called via Application.OnTime from the worksheet's Worksheet_Change
+' event (see SpareRequisitionFormSheet_code.txt) - deliberately NOT
+' run synchronously from inside that event, because clearing a merged
+' cell from within its own Change event can itself throw "We can't do
+' that to a merged cell" while Excel is still finishing the commit of
+' the edit that triggered the event. Running via OnTime defers this
+' to just after that settles.
+Public Sub FixInvalidDateEntry()
+    Dim ws As Worksheet
+    Dim dateCell As Range
+
+    Set ws = ThisWorkbook.Worksheets(SHEET_NAME)
+    Set dateCell = ws.Range("C13")   ' anchor of the Date input (merged C13:G13)
+
+    If Not IsEmpty(dateCell.Value) And Not IsDate(dateCell.Value) Then
+        Application.EnableEvents = False   ' prevent this correction from re-triggering the Change event
+        Application.EnableEvents = True
+        MsgBox "Please enter a valid date (e.g. 29-Aug-2026).", vbExclamation, "Invalid Date"
+    End If
+End Sub

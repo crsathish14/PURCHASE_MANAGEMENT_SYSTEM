@@ -90,6 +90,17 @@ export async function issuePurchaseOrder({
   return data;
 }
 
+// Returns the discarded proforma's Storage path so the caller can delete the object.
+export async function reissuePurchaseOrder(requisitionId: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("reissue_purchase_order", {
+    p_requisition_id: requisitionId,
+  });
+
+  if (error) throw error;
+  return data;
+}
+
 export async function getPurchaseOrderIssueToken(requisitionId: string): Promise<string | null> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("get_purchase_order_issue_token", {

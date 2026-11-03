@@ -720,6 +720,7 @@ export type Database = {
           proforma_invoice_path: string | null;
           proforma_invoice_file_name: string | null;
           proforma_received_at: string | null;
+          paid_at: string | null;
         };
         Insert: {
           id?: string;
@@ -735,6 +736,7 @@ export type Database = {
           proforma_invoice_path?: string | null;
           proforma_invoice_file_name?: string | null;
           proforma_received_at?: string | null;
+          paid_at?: string | null;
         };
         Update: never;
         Relationships: [
@@ -857,6 +859,34 @@ export type Database = {
             columns: ["invoice_link_id"];
             isOneToOne: false;
             referencedRelation: "purchase_order_invoice_links";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      delivery_notes: {
+        Row: {
+          id: string;
+          requisition_id: string;
+          storage_path: string;
+          original_filename: string;
+          uploaded_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          requisition_id: string;
+          storage_path: string;
+          original_filename: string;
+          uploaded_by?: string | null;
+          created_at?: string;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "delivery_notes_requisition_id_fkey";
+            columns: ["requisition_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_requisitions";
             referencedColumns: ["id"];
           },
         ];
@@ -1262,9 +1292,78 @@ export type Database = {
         };
         Returns: boolean;
       };
+      reissue_purchase_order: {
+        Args: { p_requisition_id: string };
+        Returns: string;
+      };
+      mark_purchase_order_paid: {
+        Args: { p_requisition_id: string };
+        Returns: string;
+      };
+      rerequest_purchase_order_invoice: {
+        Args: { p_requisition_id: string };
+        Returns: string[];
+      };
       get_purchase_order_invoice_link_token: {
         Args: { p_requisition_id: string };
         Returns: string;
+      };
+      add_delivery_note: {
+        Args: {
+          p_requisition_id: string;
+          p_storage_path: string;
+          p_original_filename: string;
+        };
+        Returns: string;
+      };
+      delete_delivery_note: {
+        Args: { p_id: string };
+        Returns: string;
+      };
+      search_delivery_note_candidates: {
+        Args: {
+          p_search: string | null;
+          p_urgencies: string[] | null;
+          p_sort: string | null;
+          p_page: number;
+          p_page_size: number;
+        };
+        Returns: {
+          id: string;
+          pr_number: string;
+          requisition_number: string | null;
+          pr_title: string | null;
+          vessel_label: string | null;
+          category_label: string | null;
+          vendor_name: string | null;
+          urgency: string;
+          total_count: number;
+        }[];
+      };
+      search_delivery_notes: {
+        Args: {
+          p_search: string | null;
+          p_vessels: string[] | null;
+          p_categories: string[] | null;
+          p_date_preset: string | null;
+          p_start_date: string | null;
+          p_end_date: string | null;
+          p_page: number;
+          p_page_size: number;
+        };
+        Returns: {
+          id: string;
+          pr_number: string;
+          requisition_number: string | null;
+          pr_title: string | null;
+          vessel_label: string | null;
+          category_label: string | null;
+          vendor_name: string | null;
+          note_count: number;
+          last_uploaded_at: string;
+          notes: Json;
+          total_count: number;
+        }[];
       };
     };
     Enums: {

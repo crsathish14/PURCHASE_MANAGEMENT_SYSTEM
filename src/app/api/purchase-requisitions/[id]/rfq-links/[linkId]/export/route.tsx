@@ -13,6 +13,7 @@ import { LoQuotePdf } from "@/lib/rfq-quote-pdf/lo-quote-pdf";
 import { ServiceQuotePdf } from "@/lib/rfq-quote-pdf/service-quote-pdf";
 import { SparesQuotePdf } from "@/lib/rfq-quote-pdf/spares-quote-pdf";
 import { StoresQuotePdf } from "@/lib/rfq-quote-pdf/stores-quote-pdf";
+import { rfqPageUrlForPr } from "@/lib/pdf-page-link";
 import { requireApiActiveUser } from "@/lib/supabase/require-active-user";
 
 const t = en.staff.requestedQuote.linksDialog;
@@ -78,6 +79,7 @@ export async function GET(
       equipmentModel: data.equipmentModel,
       equipmentSpecifications: data.equipmentSpecifications,
       equipmentOtherDetails: data.equipmentOtherDetails,
+      pageUrl: rfqPageUrlForPr(data.prNumber),
     };
 
     const PdfDocument = PDF_DOCUMENT_BY_CATEGORY[category];

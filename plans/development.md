@@ -94,9 +94,8 @@ These files hold every value that would otherwise be a magic string:
   preset-column-set mapping itself lives
   in one place, `getPresetColumnsForCategory()` in `src/lib/purchase-requisition/preset-columns.ts`
   — `LineItemsField` (manual create/edit) and supported import-template parsers (§16) import it, so
-  their column definitions stay aligned. LO uses the Stores set without IMPA Code. Its import/export
-  templates are deferred; current template parsing and export remain limited to
-  Stores/Spares/Service.
+  their column definitions stay aligned. LO uses the Stores set without IMPA Code. Its import and export
+  templates exist (§16); `PrTemplateCategory` covers all four categories.
   `APPROVED_QTY` is office-only (filled in during review, never sourced from
   the import template) but is still part of this set, since the column must exist either way. It's
   manually editable in Create/Edit Requisition; the frontend-only “Approved Qty is same as Qty”
@@ -126,7 +125,7 @@ These files hold every value that would otherwise be a magic string:
   new table shape.
 
 - `src/lib/constants/purchase-order.ts` — `PURCHASE_ORDER_STATUS` (`PENDING_PO`, `PO_ISSUED`,
-  `PROFORMA_RECEIVED`, `INVOICE_REQUESTED`, `INVOICE_RECEIVED`), the page-level status for an awarded
+  `PROFORMA_RECEIVED`, `PAID`, `INVOICE_REQUESTED`, `INVOICE_RECEIVED`), the page-level status for an awarded
   quote progressing through issuance, proforma receipt, invoice request, and invoice receipt. This is
   distinct from the requisition's terminal `PR_STATUS.AWARDED` value.
 
@@ -235,7 +234,7 @@ a dev server when practical, not just that it compiles.
 
 1. Add copy to `en.json`.
 2. Add any new paths to `ROUTES` (`src/lib/routes.ts`) — several already exist as placeholders from
-   the nav (`PIPELINE`, `PO_REQUESTS`, `RFQ_LIST`, ...).
+   the nav (`PO_REQUESTS`, `RFQ_LIST`, ...).
 3. Build with `atoms/` (+ new feature-folder components under `src/components/<feature>/` for
    anything reusable within that feature but not generic enough for `atoms/`).
 4. Route under `[lang]/` — page/layout only, no component logic inline.
@@ -253,17 +252,27 @@ ship a real, persisted, VBA-driven workbook (the actual paper-form workflow) rat
 ExcelJS-generated one:
 
 LO (Lub Oil) is the fourth PR category. Its line-item preset matches Stores without IMPA Code. LO
-supports manual PR creation and RFQ issuance with a read-only vendor preview; quote submission and
-LO import/export templates are deferred. Spreadsheet
-template endpoints and parsers continue to support Stores, Spares, and Service. An existing imported
+supports manual PR creation, RFQ issuance, Excel import (download + upload parser) and Excel export.
+An existing imported
 PR may still be changed to LO before submission, and the manual form then switches to LO's preset.
-The PR row menu exposes Issue RFQ for LO. The PR Excel Export action remains hidden for LO until an
-LO export template is implemented.
+The PR row menu exposes Issue RFQ and Export for LO.
+
+The LO requisition workbook itself exists (`templates/requisition-form-lo.xlsm`, sheet `LO Requisition
+Form`, `readLoTemplateBuffer()`; readable VBA + setup guide in `templates/vba-source/lo/`) served by the download route
+(`?category=lo`, menu item `importMenu.downloadLoTemplate`, file `pms-lo-requisition-template.xlsm`) and
+parsed by `import-template-vba-lo.ts` (dispatched on the `LO Requisition Form` sheet name; category `lo`,
+preset columns UOM/ROB/Approved Qty/Remarks, photos imported like Stores). `requisition-form-lo.sample.xlsm`
+is a filled test fixture (3 line items, 2 + 8 photos). It is the Stores workbook with the IMPA/ISSA Code
+column dropped by merging Description across B:G (header rows and every line-item row), so every other
+column keeps its Stores position (QTY H, UOM I, ROB J, Remarks K:N, Supporting Photos O; first line
+item row 22) and the photo table, footer and macros are unchanged. The parser finds columns by header
+label like the other VBA parsers, with no IMPA column. Export uses `export-template-vba-lo.ts` (the Stores
+writer without IMPA; Approved Qty goes in the repurposed Supporting Photos column like Stores).
 
 **Each template-supported category — a persisted, VBA-driven workbook (the real paper-form workflow)**
-- `GET src/app/api/purchase-requisitions/import-template/route.ts?category=stores|spares|service`
+- `GET src/app/api/purchase-requisitions/import-template/route.ts?category=stores|spares|service|lo`
   streams a static `.xlsm` straight off disk (`readStoresTemplateBuffer()` /
-  `readSparesTemplateBuffer()` / `readServiceTemplateBuffer()` in
+  `readSparesTemplateBuffer()` / `readServiceTemplateBuffer()` / `readLoTemplateBuffer()` in
   `src/lib/purchase-requisition/templates/index.ts`) — each workbook has a real VBA macro project
   (Add Line Item button, Ctrl+V photo-paste into a "SUPPORTING PHOTOS" table, sheet protection),
   which ExcelJS (or any generic spreadsheet library) cannot safely author, so none is regenerated
@@ -276,6 +285,33 @@ LO export template is implemented.
   is ~4MB (real embedded photos, not tiny placeholders like the other two), checked in as-is rather
   than trimmed down. Regenerating any file means re-running its own setup guide's steps in Excel and
   replacing the binary.
+- **Photo and line-item removal (Stores, Spares, Service and LO — identical code in all four).** The protected sheet stops users selecting the
+  floating pictures, so each line item row carries three small buttons right of the table (column P
+  onward, not printed): Remove Last Photo / Remove All Photos / Remove Line Item
+  (`modImages.bas`: `RemoveLastPhoto` / `RemoveAllPhotos` / `RemoveLineItem`; button lifecycle in
+  `modLineItems.bas`: `CreateRowButtons`, `DeleteRowButtons`, `RebuildRowButtons`). A button finds its
+  line item from `Application.Caller` → its own `TopLeftCell.Row` (button names are random and unique —
+  they go stale as rows shift, so no row number can be in them). An emptied photo row is deleted, never
+  blanked — every scan stops at the first blank Sl No., so a blank row mid-table would orphan the rows
+  below — except the table's only data row, which is the formatting template and just has its Sl No.
+  cleared. Removing a line item renumbers every later Sl No. down by one in **both** tables (the import
+  parser joins photos to line items on Sl No.). The parser needs no change. All four workbooks share
+  the same `modImages`/`modLineItems`/`modSetup` (only `modConstants`' sheet name and first line-item
+  row differ, and `modSecurity`'s unlock list); an already-set-up template is updated by replacing
+  those modules and running `AddRowButtons` once.
+- **Ctrl+V accepts image files copied in File Explorer, not only image data** (Stores, Spares, Service — each
+  workbook carries its own copy of the same `modClipboardFile`/`ProcessPastedImage` code). `modClipboardFile`
+  reads the clipboard's `CF_HDROP` file list with the Win32 API; `ProcessPastedImage` loads each image
+  straight from disk and files it (multi-select supported, non-images skipped), and falls back to the
+  normal `Pictures.Paste` when the clipboard holds no file reference. **VBA gotcha that broke this once:**
+  `DragQueryFileW` (the wide API) must receive its buffer as a `LongPtr` via `StrPtr()` — declared
+  `ByVal ... As String`, VBA converts the argument to ANSI and the UTF-16 result comes back as
+  `C<nul>:<nul>...`, so the extension check never matched and the paste silently fell through to the
+  failing image-data path. Any new `...W` declaration needs the same treatment.
+- **The `.xlsm` is the source of truth; `vba-source/` can drift.** The Stores `.bas` files had fallen
+  behind the binary (`COL_PHOTOS` 15 vs 14, clipboard-file paste, `modClipboardFile`). When changing a
+  template's VBA, start from the binary's current modules (export them from Excel), apply the change,
+  and re-export into `vba-source/` so the two match again.
 - Each format is told apart by sheet name — `"Stores Requisition Form"` / `"Spares Requisition
   Form"` / `"Service Requisition Form"` — all three containing a "Vessel Name" label
   (`parseRequisitionTemplateFile`, the dispatcher in `import-template.ts`). The Stores sheet name
@@ -403,7 +439,7 @@ LO export template is implemented.
   `readLabeledValue`/`readDateValue` — write into the cell one column past a label's own merge span,
   instead of reading it) plus `expandLineItemRows` (see below) and `findLineItemPhotosColumn` (locates
   the line-items table's own "Supporting Photos" column, searched only within that table's header
-  row). Three thin per-category writers — `export-template-vba.ts` (Stores), `-spares.ts`, `-service.ts`
+  row). Four thin per-category writers — `export-template-vba.ts` (Stores), `-spares.ts`, `-service.ts`, `-lo.ts`
   — mirror `import-template-vba*.ts` exactly, reusing (not duplicating) each import parser's own
   previously-module-private `LABEL` const and `findLineItemColumns` function (now `export`ed for
   exactly this reuse) rather than re-deriving a second copy that could silently drift out of sync if a
@@ -416,7 +452,12 @@ LO export template is implemented.
   Requisitioned-by/Approved-by sign-off footer) down by the right amount, with their own merges intact
   — the one genuinely novel operation here, with no prior precedent anywhere in this codebase and a
   documented ExcelJS rough edge (README: "Splice vs Merge") that made this worth proving empirically
-  rather than trusting blindly.
+  rather than trusting blindly. **Merges are the exception**: `duplicateRow` copies styles but not
+  merges, so copied rows lost the template's wide Description/Remarks spans (every row after the first
+  rendered its text in one narrow column). `expandLineItemRows` therefore re-merges each copied row to
+  match the source row via `cell.merge(master)` — not `sheet.mergeCells()`, which checks ExcelJS's merge
+  index that `spliceRows` leaves at the pre-shift positions and throws a false "Cannot merge already
+  merged cells"; the writer builds the saved merges from the cells, so cell-level merging persists.
 - **Approved Qty has no cell in any category's template** (office-only, same reason it's already
   invisible to Import) but is included anyway, per product decision, by repurposing the now-otherwise-
   unused **Supporting Photos column** in the line-items table for Stores/Spares (its header cell is
@@ -480,8 +521,7 @@ for LO (no IMPA column in the PO PDF), and all three `hasQuantityFields` checks 
 `purchase-orders-view.tsx` and `issue-purchase-order-dialog.tsx`) include LO so quantity editing and
 issuance work the same as Stores. The vendor proforma flow (Stage 6) required no code changes — every
 token-based PO lookup, PDF retrieval, proforma signing/upload/submission, and staff retrieval path is
-already category-agnostic. The PR row's RFQ action is enabled; PR Excel Export remains hidden because
-LO templates are separate work.
+already category-agnostic. The PR row's RFQ action and Excel Export are enabled for LO.
 
 Two distinct "current PDF support" type aliases exist in `src/lib/constants/purchase-requisition.ts`,
 both now covering all four categories: `PrCategoryWithCurrentPdfSupport` (vendor quote PDFs, all four
@@ -1250,8 +1290,34 @@ Rev. No. and Code No. are not shown, and line-item Lead Time is centered. The qu
 supplier address field, so the PDF leaves Supplier Address as a placeholder.
 The download filename is `{prNumber}-Purchase-Order.pdf`.
 
-Once the proforma is received, staff can request the vendor's invoice from the Invoice Log tab
-(`/en/invoice-log`, `ROUTES.INVOICE_LOG`). The tab lists all PRs with status `PROFORMA_RECEIVED`,
+**Page links at the end of generated PDFs.** The vendor quote PDF (§18) and the staff Purchase Order PDF end
+with a clickable link to the Requested Quote / Purchase Orders page filtered to that PR
+(`rfqPageUrlForPr` / `purchaseOrdersPageUrlForPr` in `src/lib/pdf-page-link.ts`: `NEXT_PUBLIC_SITE_URL` + route +
+`?q=<prNumber>`, since both list pages search PR reference via `q`). Copy: `en.common.pdfPageLinks`. The
+vendor's token-based PO download omits it (`pageUrl` is optional) because a vendor has no staff access.
+
+**Read-only after issue, and Reissue.** Any row past `PENDING_PO` (issued, proforma received, paid,
+invoice requested/received) opens read-only in the detail modal — quantities disabled, no Save/Issue
+CTAs (`isIssuedStatus` in `purchase-orders-view.tsx`). A `PROFORMA_RECEIVED` row additionally shows
+**Reissue PO** (confirm dialog, `ReissuePurchaseOrderDialog`), which POSTs `/api/purchase-orders/[id]/reissue`
+→ `reissue_purchase_order` RPC (`20261103030000_reissue_purchase_order.sql`, body replaced by
+`20261103040000_reissue_purchase_order_keeps_issuance.sql`). The RPC keeps the issuance (and its snapshot
+and token) and only clears `proforma_invoice_path`/`proforma_invoice_file_name`/`proforma_received_at`, so
+the status derives back to `PO_ISSUED`, quantities stay locked, and the same vendor link works again
+(every token lookup keys off `proforma_received_at is null`) — the vendor uploads a new proforma. It
+returns the old proforma's Storage path and the route removes the object via the admin client (a failed
+removal is logged, not surfaced). Refused with `55000` unless the proforma was received, and `55001` once
+the PO is paid, an invoice was requested, or a delivery note exists.
+
+Once the proforma is received, staff first record payment (made outside the app) and then request the
+vendor's invoice from the Invoice Log tab (`/en/invoice-log`, `ROUTES.INVOICE_LOG`). A `PROFORMA_RECEIVED`
+row shows a **Paid** CTA (confirm dialog, `MarkPaidDialog`) instead of Request Invoice; it POSTs to
+`/api/purchase-orders/[id]/paid`, which calls the `mark_purchase_order_paid` RPC
+(`20261103010000_purchase_order_paid.sql`) to set `purchase_order_issuances.paid_at` (one-way, refused
+with `55001` if already paid or an invoice link exists). The status becomes `PAID` and the row's CTA
+becomes Request Invoice; `request_purchase_order_invoice` now rejects (`55000`) a PO whose `paid_at` is
+null. `search_purchase_orders` ranks `invoice_received > invoice_requested > paid > proforma_received`.
+The tab lists all PRs with status `PROFORMA_RECEIVED`, `PAID`,
 `INVOICE_REQUESTED`, or `INVOICE_RECEIVED`, showing PR Ref, Requisition No., Title, Vessel, Vendor,
 Total, and Status. Each row always shows a "View Proforma" link (same `/api/purchase-orders/[id]/proforma`
 stream endpoint). The list has server-side search (PR Ref, Requisition No., Title) and filters
@@ -1265,7 +1331,10 @@ filter on `issuance.proforma_received_at`, sent by the client as `proformaDatePr
 
 - **`INVOICE_REQUESTED`** — staff clicked "Request Invoice" on a `PROFORMA_RECEIVED` row, which
   opens a modal (`RequestInvoiceDialog`) with locked vendor name, editable email, and an editable
-  message template. Submitting POSTs to `/api/purchase-orders/[id]/invoice-request`, which calls the
+  message template. The email choices are the saved vendor's `mail` list, looked up by the awarded link's
+  `vendor_id`; RFQ links issued before vendor ids were stored have `vendor_id = null`, so the Invoice Log falls
+  back to the one vendor whose name matches exactly (none if the name is ambiguous or unmatched, which shows
+  the "update the vendor record" error). Submitting POSTs to `/api/purchase-orders/[id]/invoice-request`, which calls the
   `request_purchase_order_invoice(p_requisition_id, p_vendor_email, p_message)` security-definer RPC.
   That RPC inserts a `purchase_order_invoice_links` row and returns the access token. The row's CTA
   becomes "Copy Link" — clicking it GETs the same route (no body), which calls
@@ -1278,6 +1347,20 @@ filter on `issuance.proforma_received_at`, sent by the client as `proformaDatePr
   `/api/purchase-orders/[id]/invoice-documents/<docId>` — PDF is served inline, other types as an
   attachment. Both document routes use `requireApiActiveUser()` and stream directly from the private
   `attachments` Storage bucket via the admin client.
+
+**Re-request invoice.** An `INVOICE_RECEIVED` row also shows **Re-request Invoice** (confirm dialog,
+`RerequestInvoiceDialog`), mirroring PO Reissue: `POST /api/purchase-orders/[id]/invoice-rerequest` →
+`rerequest_purchase_order_invoice` RPC (`20261103050000_rerequest_purchase_order_invoice.sql`). The RPC
+keeps the `purchase_order_invoice_links` row (and its token), deletes its `purchase_order_invoice_documents`
+rows and sets `submitted_at` back to null, so the status derives back to `INVOICE_REQUESTED`, "Copy Link"
+returns, and the same vendor link accepts a new upload. It returns the deleted documents' Storage paths and
+the route removes them via the admin client (a failed removal is logged, not surfaced). Refused with
+`55000` unless an invoice was received; unlike PO Reissue there is no later step to guard against.
+
+**Row click → related-page links.** Clicking an Invoice Log row (or its PR Ref button) opens `PrLinksDialog`
+(`src/components/purchase-orders/pr-links-dialog.tsx`) with links to the Purchase Requisition, Requested Quote and
+Purchase Orders pages, each opened with `?q=<prNumber>` via `pathWithPrSearch()` in `src/lib/routes.ts`. The actions
+cell stops click propagation so its buttons don't also open the dialog.
 
 **Vendor invoice page** (`/[lang]/purchase-order-invoice/[token]`, public):
 - `getInvoiceByToken(token)` uses the admin client + `get_purchase_order_invoice_by_token` RPC
@@ -1304,7 +1387,7 @@ and `purchase_order_invoice_documents` (one row per file, `document_type in ('in
 `invoice_received` (link submitted) and `invoice_requested` (link exists, not submitted yet) above
 the existing `proforma_received`/`po_issued`/`pending_po` levels.
 
-**`PURCHASE_ORDER_STATUS`** now has five values: `PENDING_PO`, `PO_ISSUED`, `PROFORMA_RECEIVED`,
+**`PURCHASE_ORDER_STATUS`** now has six values: `PENDING_PO`, `PO_ISSUED`, `PROFORMA_RECEIVED`, `PAID`,
 `INVOICE_REQUESTED`, `INVOICE_RECEIVED`. `PO_INVOICE_DOCUMENT_PATH_PREFIX = "po-invoice-documents"`
 is the storage path namespace constant (`src/lib/constants/storage.ts`). `ROUTES.INVOICE_LOG`,
 `ROUTES.PURCHASE_ORDER_INVOICE_FORM`, `ROUTES.PURCHASE_ORDER_INVOICE_THANK_YOU`, and
@@ -1315,7 +1398,50 @@ The `InvoiceDocumentsModal` uses the fetch-before-open pattern (data fetched in 
 handler, passed as `docs` + `loadError` props) — not a useEffect with setState, consistent with how
 `rfq-links-dialog.tsx` works and required by the `react-hooks/set-state-in-effect` lint rule.
 
-## 20. Keeping this file current
+## 20. Delivery Notes
+
+Staff upload **delivery / service notes** (PDF, up to `MAX_DELIVERY_NOTES_PER_REQUISITION` = 5 per
+requisition) for awarded requisitions whose vendor proforma invoice is received. The page is
+`/en/delivery-notes` (`ROUTES.DELIVERY_NOTES`); one flow and one label, "delivery or service note", for
+every category. Uploading changes no PR/PO status.
+
+- **Tables / RPCs** (`20261102010000_delivery_notes.sql`): `delivery_notes` (FK to the requisition,
+  `select to authenticated` RLS only — writes go through RPCs). `add_delivery_note` (locks the requisition
+  row, requires `proforma_received_at`, enforces the 5-note cap with `55001`, `55000` not eligible, and
+  re-checks the path starts with `delivery-notes/<requisitionId>/`), `delete_delivery_note` (returns the
+  storage path), `search_delivery_note_candidates` (awarded + proforma received + **no** note — this is
+  the Invoice Log's three statuses minus those already with a note), and `search_delivery_notes`
+  (requisitions with ≥1 note, notes aggregated as jsonb, date filter on the latest upload). Deleting a
+  requisition's last note returns it to the candidates list.
+- **Upload**: the shared sign → `uploadToSignedUrl` → register pattern (§11). `POST api/delivery-notes/sign`
+  builds `delivery-notes/<requisitionId>/<uuid>.pdf` server-side and refuses early at the cap;
+  `POST api/delivery-notes` verifies the object exists and starts with `%PDF-` (discarding it otherwise, and
+  on any RPC failure), then calls `add_delivery_note`. `DELETE api/delivery-notes/[id]` deletes the row, then
+  the Storage object (a failed removal is logged, not surfaced). `GET api/delivery-notes/[id]/file` streams
+  the PDF inline. `GET api/delivery-notes/candidates` and `GET api/delivery-notes` are the two paged lists.
+- **Picker urgency, status filter and sort** (`20261103020000_delivery_note_candidate_urgency.sql`,
+  `drop function` + `create function` — the signature and `returns table` both changed).
+  `search_delivery_note_candidates(p_search, p_urgencies, p_sort, p_page, p_page_size)` derives each row's
+  `urgency` in SQL: **danger** = the vendor's tax invoice is received (`purchase_order_invoice_links.submitted_at`),
+  **warning** = paid (`purchase_order_issuances.paid_at`, so invoice-requested-but-not-received stays warning),
+  **normal** = proforma received but not paid. The values live in `src/lib/constants/delivery-note.ts`
+  (`DELIVERY_NOTE_URGENCY`, `DELIVERY_NOTE_CANDIDATE_SORT`) — never compare against raw strings, and never derive
+  urgency client-side. `p_urgencies` filters before paging and `count(*) over()` runs after it, so totals match;
+  an empty/null array means all. `p_sort = 'urgency'` orders danger → warning → normal, newest proforma first
+  within each; anything else keeps the natural newest-proforma-first order. The `GET api/delivery-notes/candidates`
+  query params are `urgency` (CSV, unknown values dropped) and `sort` (`default|urgency`). The dialog shows a
+  Status badge column (rust/amber/slate, with a tinted row and coloured left edge for danger/warning), a
+  Status multiselect and an "Urgent first" toggle; filter and sort changes apply immediately and reset to page 1.
+  `Menu` portals its panel into `document.body` at `z-20`, which is *behind* a `Dialog` (`z-30`), so any
+  `Menu`/`FilterMultiselect` placed inside a dialog must pass `zIndexClassName="z-40"` (below the `z-50` toaster).
+- **UI** (`src/components/delivery-notes/`): `DeliveryNotesView` (page; Invoice Log–style toolbar, with the
+  status filter hidden by passing no `statusOptions` to `RfqToolbar`), `AddDeliveryNoteDialog` (the header
+  CTA: page 1 is preloaded by the click handler per the fetch-then-open rule; search + 10/20/50 paging;
+  choosing a row switches the same dialog to the uploader), `DeliveryNotesDialog` (per-requisition view /
+  delete / add another, keeping its own notes copy so it survives list refetches), `DeleteDeliveryNoteDialog`,
+  and the shared `DeliveryNoteUploader`.
+
+## 21. Keeping this file current
 
 This file is auto-loaded into every session via `CLAUDE.md`'s `@plans/development.md` import — it's
 only useful if it matches what the code actually does. Update the relevant section **in the same

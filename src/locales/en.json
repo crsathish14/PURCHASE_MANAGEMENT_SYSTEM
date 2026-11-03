@@ -2,6 +2,10 @@
   "common": {
     "appName": "Purchase Management System",
     "companyName": "MYSEA SHIPPING",
+    "pdfPageLinks": {
+      "rfq": "View this requisition in the Requested Quote page:",
+      "purchaseOrder": "View this requisition in the Purchase Orders page:"
+    },
     "imagePreview": {
       "close": "Close preview",
       "previous": "Previous photo",
@@ -126,7 +130,6 @@
   "staff": {
     "nav": {
       "dashboard": "Dashboard",
-      "pipeline": "Pipeline",
       "poRequests": "Purchase Requisition",
       "rfq": "Requested Quote",
       "purchaseOrders": "Purchase Orders",
@@ -134,7 +137,6 @@
       "deliveryNotes": "Delivery Notes",
       "vendors": "Vendors",
       "vessels": "Vessels",
-      "reports": "Reports",
       "settings": "Settings"
     },
     "roleLabels": {
@@ -142,8 +144,6 @@
       "officer": "Purchase Officer"
     },
     "topbar": {
-      "searchPlaceholder": "Search PRs, POs, invoices, vendors, vessels…",
-      "new": "New",
       "settings": "Settings",
       "logout": "Log out",
       "menu": "Open menu"
@@ -172,6 +172,7 @@
         "pending_po": "Pending PO",
         "po_issued": "PO Issued",
         "proforma_received": "Proforma Received",
+        "paid": "Paid",
         "invoice_requested": "Invoice Requested",
         "invoice_received": "Invoice Received"
       },
@@ -210,6 +211,16 @@
       "saveDraft": "Save",
       "issuePo": "Issue PO",
       "poIssued": "PO Issued",
+      "reissuePo": "Reissue PO",
+      "reissued": "Purchase Order reissued. Waiting for the vendor to upload a new proforma invoice.",
+      "reissueError": "Couldn't reissue this Purchase Order.",
+      "reissueDialog": {
+        "title": "Reissue Purchase Order",
+        "message": "Reissuing the Purchase Order for {prNumber} permanently deletes the proforma invoice received from {vendorName}. The Purchase Order returns to PO Issued and the vendor can upload a new proforma invoice using the same link.",
+        "cancel": "Cancel",
+        "confirm": "Reissue PO",
+        "confirming": "Reissuing…"
+      },
       "draftSaved": "Purchase Order draft saved.",
       "draftSaveError": "Couldn't save this Purchase Order draft.",
       "invalidDraft": "Enter a valid non-negative quantity for every item.",
@@ -277,12 +288,43 @@
         "status": "Status"
       },
       "viewProforma": "View Proforma",
+      "prLinksDialog": {
+        "title": "{prNumber} — related pages",
+        "description": "Open a page already filtered to this PR.",
+        "close": "Close",
+        "openRowFor": "Show page links for {prNumber}",
+        "links": {
+          "purchaseRequisition": "Purchase Requisition",
+          "rfq": "Requested Quote (RFQ)",
+          "purchaseOrder": "Purchase Orders"
+        }
+      },
       "viewFor": "View proforma for {prNumber}",
       "empty": "No proforma invoices received yet.",
       "loadError": "Couldn't load invoice log.",
+      "markPaid": "Paid",
+      "markPaidDone": "Marked as paid.",
+      "markPaidError": "Couldn't mark this purchase order as paid.",
+      "markPaidDialog": {
+        "title": "Mark as Paid",
+        "message": "Confirm that payment for {prNumber} to {vendorName} has been made. You can then request the tax invoice. This can't be undone.",
+        "confirm": "Mark as Paid",
+        "confirming": "Saving…",
+        "cancel": "Cancel"
+      },
       "requestInvoice": "Request Invoice",
       "copyInvoiceLink": "Copy Link",
       "viewInvoice": "View Invoice",
+      "rerequestInvoice": "Re-request Invoice",
+      "rerequestInvoiceDone": "Invoice re-requested. Waiting for the vendor to upload a new invoice.",
+      "rerequestInvoiceError": "Couldn't re-request this invoice.",
+      "rerequestInvoiceDialog": {
+        "title": "Re-request Invoice",
+        "message": "Re-requesting the invoice for {prNumber} permanently deletes the invoice and supporting documents received from {vendorName}. The status returns to Invoice Requested and the vendor can upload a new invoice using the same link.",
+        "confirm": "Re-request Invoice",
+        "confirming": "Re-requesting…",
+        "cancel": "Cancel"
+      },
       "linkCopied": "Link copied to clipboard.",
       "linkCopyFailed": "Failed to copy link.",
       "invoiceRequested": "Invoice request sent.",
@@ -331,6 +373,129 @@
           "startDate": "Start date",
           "endDate": "End date"
         }
+      }
+    },
+    "deliveryNotes": {
+      "title": "Delivery Notes",
+      "subtitle": "Delivery and service notes uploaded for orders whose proforma invoice has been received.",
+      "addNote": "Add delivery or service note",
+      "columns": {
+        "prRef": "PR Ref",
+        "requisitionNumber": "Requisition No.",
+        "title": "Title",
+        "vessel": "Vessel",
+        "category": "Category",
+        "vendor": "Vendor",
+        "notes": "Notes",
+        "uploaded": "Last uploaded"
+      },
+      "manageNotes": "View notes",
+      "manageNotesFor": "View delivery or service notes for {prNumber}",
+      "empty": "No delivery or service notes uploaded yet.",
+      "noResults": "No delivery notes match your search and filters.",
+      "loadError": "Couldn't load delivery notes.",
+      "toolbar": {
+        "searchPlaceholder": "Search PR ref, requisition no., or title",
+        "status": "Status",
+        "vessel": "Vessel",
+        "category": "Category",
+        "date": "Uploaded date",
+        "all": "All",
+        "any": "Any",
+        "nSelected": "{count} selected",
+        "submit": "Submit",
+        "clear": "Clear",
+        "removeFilter": "Remove {label} filter",
+        "dateOptions": {
+          "last1Month": "Last 1 month",
+          "last3Months": "Last 3 months",
+          "last6Months": "Last 6 months",
+          "custom": "Custom date",
+          "startDate": "Start date",
+          "endDate": "End date"
+        }
+      },
+      "addDialog": {
+        "title": "Add delivery or service note",
+        "subtitle": "Pick a requisition whose proforma invoice has been received and that has no delivery or service note yet.",
+        "searchPlaceholder": "Search PR ref, requisition no., or title",
+        "columns": {
+          "status": "Status",
+          "prRef": "PR Ref",
+          "requisitionNumber": "Requisition No.",
+          "title": "Title",
+          "vessel": "Vessel",
+          "category": "Category",
+          "vendor": "Vendor"
+        },
+        "statusFilter": {
+          "label": "Status",
+          "all": "All",
+          "nSelected": "{count} selected"
+        },
+        "urgency": {
+          "danger": "Overdue",
+          "warning": "Due",
+          "normal": "In window"
+        },
+        "urgencyOptions": {
+          "danger": "Overdue — tax invoice received",
+          "warning": "Due — paid",
+          "normal": "In window — proforma received, not paid yet"
+        },
+        "sortByUrgency": "Urgent first",
+        "sortByUrgencyHint": "Show overdue first, then due, then in window",
+        "legend": "Overdue: tax invoice received. Due: paid. Both still need a delivery or service note.",
+        "selectFor": "Upload a delivery or service note for {prNumber}",
+        "empty": "No requisitions are waiting for a delivery or service note.",
+        "noResults": "No requisitions match your search or filters.",
+        "loadError": "Couldn't load requisitions.",
+        "close": "Close",
+        "back": "Back",
+        "uploadTitle": "Upload delivery or service note",
+        "uploadSubtitle": "Attach the signed note for {prNumber} as a PDF."
+      },
+      "uploader": {
+        "choosePdf": "Choose PDF",
+        "chooseAnother": "Choose a different PDF",
+        "noFileChosen": "No file chosen",
+        "upload": "Upload",
+        "uploading": "Uploading…",
+        "notPdf": "Only PDF files can be uploaded.",
+        "uploadError": "Couldn't upload this file. Try again.",
+        "uploaded": "Delivery or service note uploaded."
+      },
+      "notesDialog": {
+        "title": "Delivery or service notes",
+        "subtitle": "{prNumber} · {count} of {max} notes",
+        "view": "View",
+        "viewFile": "View {fileName}",
+        "delete": "Delete",
+        "deleteFile": "Delete {fileName}",
+        "uploadedOn": "Uploaded {date}",
+        "addAnother": "Add another note",
+        "maxReached": "This requisition has reached the maximum of {max} notes. Delete one to add another.",
+        "close": "Close"
+      },
+      "deleteDialog": {
+        "title": "Delete note",
+        "message": "Delete \"{fileName}\"? This permanently removes the file.",
+        "lastNoteWarning": " It is the only note for {prNumber}, which will return to the list of requisitions waiting for a note.",
+        "cancel": "Cancel",
+        "confirm": "Delete",
+        "deleted": "Delivery or service note deleted."
+      },
+      "api": {
+        "invalidRequest": "Invalid request.",
+        "notPdf": "Only PDF files can be uploaded.",
+        "fileMissing": "The uploaded file couldn't be found. Try uploading it again.",
+        "notEligible": "This requisition isn't ready for a delivery note.",
+        "maxReached": "A requisition can have at most 5 delivery or service notes.",
+        "saveError": "Couldn't save this delivery note.",
+        "uploadError": "Couldn't prepare this upload. Try again.",
+        "deleteError": "Couldn't delete this delivery note.",
+        "notFound": "Delivery note not found.",
+        "viewError": "Couldn't open this delivery note."
       }
     },
     "teamAccess": {
@@ -533,6 +698,7 @@
         "downloadStoreTemplate": "Download Store template",
         "downloadSparesTemplate": "Download Spares template",
         "downloadServiceTemplate": "Download Service template",
+        "downloadLoTemplate": "Download LO template",
         "uploadTemplate": "Upload filled template…",
         "parsing": "Reading file…",
         "parseError": "Couldn't read this file. Make sure it's an unmodified downloaded template.",

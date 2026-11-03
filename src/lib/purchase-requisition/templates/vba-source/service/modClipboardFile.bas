@@ -23,40 +23,58 @@ Private Declare PtrSafe Function OpenClipboard Lib "user32" (ByVal hwnd As LongP
 Private Declare PtrSafe Function CloseClipboard Lib "user32" () As Long
 Private Declare PtrSafe Function IsClipboardFormatAvailable Lib "user32" (ByVal wFormat As Long) As Long
 Private Declare PtrSafe Function GetClipboardData Lib "user32" (ByVal wFormat As Long) As LongPtr
-Private Declare PtrSafe Function DragQueryFileW Lib "shell32.dll" (ByVal hDrop As LongPtr, ByVal iFile As Long, ByVal lpszFile As String, ByVal cch As Long) As Long
+' lpszFile is a LongPtr (passed as StrPtr(buffer)), NOT "ByVal ... As String": VBA converts a
+' ByVal String argument to ANSI for every Declare, but this is the wide (W) API and writes
+' UTF-16 - through a String parameter the path comes back as "C" & vbNullChar & ":" & ...
+' and never matches an image extension.
+Private Declare PtrSafe Function DragQueryFileW Lib "shell32.dll" (ByVal hDrop As LongPtr, ByVal iFile As Long, ByVal lpszFile As LongPtr, ByVal cch As Long) As Long
 
 Private Const CF_HDROP As Long = 15
-Private Const MAX_PATH_LEN As Long = 260
+Private Const DRAGQUERY_COUNT As Long = -1   ' 0xFFFFFFFF: ask DragQueryFileW for the number of files
 
-' Returns the first file path sitting on the clipboard as a file
-' reference, or "" if the clipboard doesn't currently hold one (which
-' just means "fall back to a normal clipboard image-data paste" -
-' this never raises an error to the caller).
-Public Function GetClipboardFilePath() As String
+' Returns the path of EVERY image file sitting on the clipboard as a file
+' reference (several can be copied at once in File Explorer), in the order
+' Explorer lists them. Non-image files (documents, folders) are skipped.
+' Returns an empty collection if the clipboard holds no file reference at
+' all, which just means "fall back to a normal clipboard image-data paste" -
+' this never raises an error to the caller.
+Public Function GetClipboardImageFilePaths() As Collection
+    Dim result As New Collection
     Dim hDropPtr As LongPtr
+    Dim fileCount As Long, i As Long, nameLen As Long
     Dim buf As String
-    Dim charCount As Long
+    Dim opened As Boolean
 
     On Error GoTo Fail
-    GetClipboardFilePath = ""
 
-    If IsClipboardFormatAvailable(CF_HDROP) = 0 Then Exit Function
-    If OpenClipboard(0) = 0 Then Exit Function
-
-    hDropPtr = GetClipboardData(CF_HDROP)
-    If hDropPtr <> 0 Then
-        buf = String(MAX_PATH_LEN, vbNullChar)
-        charCount = DragQueryFileW(hDropPtr, 0, buf, MAX_PATH_LEN)
-        If charCount > 0 Then GetClipboardFilePath = Left$(buf, charCount)
+    If IsClipboardFormatAvailable(CF_HDROP) <> 0 Then
+        If OpenClipboard(0) <> 0 Then
+            opened = True
+            hDropPtr = GetClipboardData(CF_HDROP)
+            If hDropPtr <> 0 Then
+                fileCount = DragQueryFileW(hDropPtr, DRAGQUERY_COUNT, 0, 0)
+                For i = 0 To fileCount - 1
+                    nameLen = DragQueryFileW(hDropPtr, i, 0, 0)   ' length, without the terminator
+                    If nameLen > 0 Then
+                        buf = String$(nameLen + 1, vbNullChar)
+                        If DragQueryFileW(hDropPtr, i, StrPtr(buf), nameLen + 1) > 0 Then
+                            buf = Left$(buf, nameLen)
+                            If IsImageFilePath(buf) Then result.Add buf
+                        End If
+                    End If
+                Next i
+            End If
+            CloseClipboard
+            opened = False
+        End If
     End If
 
-    CloseClipboard
+    Set GetClipboardImageFilePaths = result
     Exit Function
 
 Fail:
-    On Error Resume Next
-    CloseClipboard   ' make sure the clipboard is never left locked open
-    GetClipboardFilePath = ""
+    If opened Then CloseClipboard   ' make sure the clipboard is never left locked open
+    Set GetClipboardImageFilePaths = New Collection
 End Function
 
 ' True for common image file extensions - guards against treating an

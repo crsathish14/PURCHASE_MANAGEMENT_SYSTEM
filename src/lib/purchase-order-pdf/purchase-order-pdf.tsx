@@ -1,4 +1,4 @@
-import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Link, Page, Text, View } from "@react-pdf/renderer";
 
 import en from "@/locales/en.json";
 import { VENDOR_QUOTE_CURRENCY } from "@/lib/constants/vendor-quote";
@@ -26,6 +26,8 @@ export type PurchaseOrderPdfProps = {
   category: PrCategoryWithCurrentPoPdfSupport;
   logoDataUri: string;
   prNumber: string;
+  // Purchase Orders page link filtered to this PR. Omitted for the vendor's download, since a vendor has no staff access.
+  pageUrl?: string;
   requisitionTitle: string | null;
   vesselName: string | null;
   vesselImoNo: string | null;
@@ -255,6 +257,7 @@ export function PurchaseOrderPdf({
   category,
   logoDataUri,
   prNumber,
+  pageUrl,
   requisitionTitle,
   vesselName,
   vesselImoNo,
@@ -379,6 +382,14 @@ export function PurchaseOrderPdf({
             <InstructionsSection title={t.otherInstructionsTitle} instructions={t.otherInstructions} />
           </View>
         </View>
+        {pageUrl ? (
+          <View style={styles.pageLinkBlock} wrap={false}>
+            <Text style={styles.pageLinkLabel}>{en.common.pdfPageLinks.purchaseOrder}</Text>
+            <Link src={pageUrl} style={styles.pageLink}>
+              {pageUrl}
+            </Link>
+          </View>
+        ) : null}
       </Page>
     </Document>
   );

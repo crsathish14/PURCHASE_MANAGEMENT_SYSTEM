@@ -1,4 +1,6 @@
-import { Text, View } from "@react-pdf/renderer";
+import { Link, Text, View } from "@react-pdf/renderer";
+
+import en from "@/locales/en.json";
 
 import { VENDOR_QUOTE_CURRENCY } from "@/lib/constants/vendor-quote";
 import type { QuoteComparisonVendor } from "@/lib/data/rfq-quote-comparison";
@@ -25,6 +27,8 @@ export type RfqQuotePdfPrContext = {
   equipmentModel: string | null;
   equipmentSpecifications: string | null;
   equipmentOtherDetails: string | null;
+  // Requested Quote page link, filtered to this PR; printed at the end.
+  pageUrl: string;
 };
 
 type RfqDetailsCopy = {
@@ -185,6 +189,17 @@ export function GrandTotalRow({ label, amount }: { label: string; amount: number
     <View style={pdfStyles.grandTotalRow}>
       <Text style={pdfStyles.grandTotalLabel}>{label}</Text>
       <Text style={pdfStyles.grandTotalValue}>{formatCurrencyUsd(amount)}</Text>
+    </View>
+  );
+}
+
+export function PageLinkSection({ url }: { url: string }) {
+  return (
+    <View style={pdfStyles.pageLinkBlock} wrap={false}>
+      <Text style={pdfStyles.pageLinkLabel}>{en.common.pdfPageLinks.rfq}</Text>
+      <Link src={url} style={pdfStyles.pageLink}>
+        {url}
+      </Link>
     </View>
   );
 }

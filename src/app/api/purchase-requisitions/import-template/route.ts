@@ -4,6 +4,7 @@ import { PR_CATEGORY } from "@/lib/constants/purchase-requisition";
 import type { PrTemplateCategory } from "@/lib/constants/purchase-requisition";
 import { requireApiActiveUser } from "@/lib/supabase/require-active-user";
 import {
+  readLoTemplateBuffer,
   readServiceTemplateBuffer,
   readSparesTemplateBuffer,
   readStoresTemplateBuffer,
@@ -11,8 +12,8 @@ import {
 
 // Every template-supported category ships its real, VBA-driven paper-form workbook (persisted
 // as-is under lib/purchase-requisition/templates/ — see that folder's
-// vba-source/stores/, vba-source/spares/, and vba-source/service/ for the
-// readable macro code and setup guides, three independent VBA projects)
+// vba-source/stores/, vba-source/spares/, vba-source/service/, and vba-source/lo/ for the
+// readable macro code and setup guides, four independent VBA projects)
 // instead of an ExcelJS-built one — a generic spreadsheet library can't
 // safely author a workbook with a live VBA project (buttons, protection,
 // Ctrl+V binding), so unlike a plain generated template these are static
@@ -25,11 +26,13 @@ const TEMPLATE_BUFFER_READER: Record<PrTemplateCategory, () => Promise<Buffer>> 
   [PR_CATEGORY.STORES]: readStoresTemplateBuffer,
   [PR_CATEGORY.SPARES]: readSparesTemplateBuffer,
   [PR_CATEGORY.SERVICE]: readServiceTemplateBuffer,
+  [PR_CATEGORY.LO]: readLoTemplateBuffer,
 };
 const TEMPLATE_FILE_NAME: Record<PrTemplateCategory, string> = {
   [PR_CATEGORY.STORES]: "pms-store-requisition-template.xlsm",
   [PR_CATEGORY.SPARES]: "pms-spares-requisition-template.xlsm",
   [PR_CATEGORY.SERVICE]: "pms-service-requisition-template.xlsm",
+  [PR_CATEGORY.LO]: "pms-lo-requisition-template.xlsm",
 };
 
 export async function GET(request: Request) {
@@ -41,7 +44,8 @@ export async function GET(request: Request) {
   if (
     categoryParam !== PR_CATEGORY.STORES &&
     categoryParam !== PR_CATEGORY.SPARES &&
-    categoryParam !== PR_CATEGORY.SERVICE
+    categoryParam !== PR_CATEGORY.SERVICE &&
+    categoryParam !== PR_CATEGORY.LO
   ) {
     return NextResponse.json(
       { error: { message: "Unknown or unsupported template category." } },

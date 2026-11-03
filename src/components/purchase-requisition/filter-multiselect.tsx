@@ -14,6 +14,8 @@ export type FilterMultiselectProps = {
   onChange: (next: string[]) => void;
   allLabel: string;
   nSelectedLabel: (count: number) => string;
+  // Only needed when the filter sits inside a Dialog — see Menu.
+  zIndexClassName?: string;
 };
 
 // One reusable dropdown-with-checkboxes for the toolbar's Status/Vessel/Category
@@ -26,6 +28,7 @@ export function FilterMultiselect({
   onChange,
   allLabel,
   nSelectedLabel,
+  zIndexClassName,
 }: FilterMultiselectProps) {
   const active = selected.length > 0;
 
@@ -37,6 +40,7 @@ export function FilterMultiselect({
     <Menu
       align="left"
       closeOnContentClick={false}
+      zIndexClassName={zIndexClassName}
       trigger={
         <button
           type="button"
