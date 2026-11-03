@@ -117,6 +117,24 @@ export const pdfStyles = StyleSheet.create({
     textAlign: "right",
   },
 
+  pageLinkBlock: {
+    marginTop: 14,
+    paddingTop: 6,
+    borderTopWidth: 0.6,
+    borderTopColor: pdfColors.line,
+  },
+  pageLinkLabel: {
+    fontFamily: "Helvetica",
+    fontSize: 8,
+    color: pdfColors.slate,
+    marginBottom: 2,
+  },
+  pageLink: {
+    fontFamily: "Helvetica",
+    fontSize: 8,
+    color: "#1d4ed8",
+    textDecoration: "underline",
+  },
   grandTotalRow: {
     flexDirection: "row",
     justifyContent: "flex-end",

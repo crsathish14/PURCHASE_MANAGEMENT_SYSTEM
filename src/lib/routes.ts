@@ -36,3 +36,9 @@ export function purchaseOrderFormPath(token: string): string {
 export function purchaseOrderInvoiceFormPath(token: string): string {
   return `${ROUTES.PURCHASE_ORDER_INVOICE_FORM}/${token}`;
 }
+
+// A staff list page opened already filtered to one PR: those pages' `q`
+// search matches the PR reference.
+export function pathWithPrSearch(route: string, prNumber: string): string {
+  return `${route}?${new URLSearchParams({ q: prNumber }).toString()}`;
+}

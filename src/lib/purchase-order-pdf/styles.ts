@@ -60,6 +60,22 @@ export const purchaseOrderPdfStyles = StyleSheet.create({
   headerMetaLabel: {
     fontFamily: "Helvetica-Bold",
   },
+  pageLinkBlock: {
+    marginTop: 10,
+    paddingTop: 6,
+    borderTopWidth: 0.6,
+    borderTopColor: "#cbd4df",
+  },
+  pageLinkLabel: {
+    fontSize: 8,
+    color: "#5b6878",
+    marginBottom: 2,
+  },
+  pageLink: {
+    fontSize: 8,
+    color: "#1d4ed8",
+    textDecoration: "underline",
+  },
   footer: {
     position: "absolute",
     bottom: 12,

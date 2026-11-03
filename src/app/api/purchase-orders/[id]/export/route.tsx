@@ -8,6 +8,7 @@ import en from "@/locales/en.json";
 import { getPurchaseOrderForExport } from "@/lib/data/purchase-orders";
 import { getRfqQuoteComparison } from "@/lib/data/rfq-quote-comparison";
 import { buildPurchaseOrderPdfFilename } from "@/lib/purchase-order-pdf/filename";
+import { purchaseOrdersPageUrlForPr } from "@/lib/pdf-page-link";
 import { isPurchaseOrderPdfCategory, PurchaseOrderPdf } from "@/lib/purchase-order-pdf/purchase-order-pdf";
 import { requireApiActiveUser } from "@/lib/supabase/require-active-user";
 
@@ -64,6 +65,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         category={category}
         logoDataUri={logoDataUri}
         prNumber={data.prNumber}
+        pageUrl={purchaseOrdersPageUrlForPr(data.prNumber)}
         requisitionTitle={data.title}
         vesselName={data.vesselLabel}
         vesselImoNo={data.vesselImoNo}

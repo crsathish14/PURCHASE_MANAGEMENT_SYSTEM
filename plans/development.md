@@ -1290,6 +1290,12 @@ Rev. No. and Code No. are not shown, and line-item Lead Time is centered. The qu
 supplier address field, so the PDF leaves Supplier Address as a placeholder.
 The download filename is `{prNumber}-Purchase-Order.pdf`.
 
+**Page links at the end of generated PDFs.** The vendor quote PDF (§18) and the staff Purchase Order PDF end
+with a clickable link to the Requested Quote / Purchase Orders page filtered to that PR
+(`rfqPageUrlForPr` / `purchaseOrdersPageUrlForPr` in `src/lib/pdf-page-link.ts`: `NEXT_PUBLIC_SITE_URL` + route +
+`?q=<prNumber>`, since both list pages search PR reference via `q`). Copy: `en.common.pdfPageLinks`. The
+vendor's token-based PO download omits it (`pageUrl` is optional) because a vendor has no staff access.
+
 **Read-only after issue, and Reissue.** Any row past `PENDING_PO` (issued, proforma received, paid,
 invoice requested/received) opens read-only in the detail modal — quantities disabled, no Save/Issue
 CTAs (`isIssuedStatus` in `purchase-orders-view.tsx`). A `PROFORMA_RECEIVED` row additionally shows
@@ -1341,6 +1347,20 @@ filter on `issuance.proforma_received_at`, sent by the client as `proformaDatePr
   `/api/purchase-orders/[id]/invoice-documents/<docId>` — PDF is served inline, other types as an
   attachment. Both document routes use `requireApiActiveUser()` and stream directly from the private
   `attachments` Storage bucket via the admin client.
+
+**Re-request invoice.** An `INVOICE_RECEIVED` row also shows **Re-request Invoice** (confirm dialog,
+`RerequestInvoiceDialog`), mirroring PO Reissue: `POST /api/purchase-orders/[id]/invoice-rerequest` →
+`rerequest_purchase_order_invoice` RPC (`20261103050000_rerequest_purchase_order_invoice.sql`). The RPC
+keeps the `purchase_order_invoice_links` row (and its token), deletes its `purchase_order_invoice_documents`
+rows and sets `submitted_at` back to null, so the status derives back to `INVOICE_REQUESTED`, "Copy Link"
+returns, and the same vendor link accepts a new upload. It returns the deleted documents' Storage paths and
+the route removes them via the admin client (a failed removal is logged, not surfaced). Refused with
+`55000` unless an invoice was received; unlike PO Reissue there is no later step to guard against.
+
+**Row click → related-page links.** Clicking an Invoice Log row (or its PR Ref button) opens `PrLinksDialog`
+(`src/components/purchase-orders/pr-links-dialog.tsx`) with links to the Purchase Requisition, Requested Quote and
+Purchase Orders pages, each opened with `?q=<prNumber>` via `pathWithPrSearch()` in `src/lib/routes.ts`. The actions
+cell stops click propagation so its buttons don't also open the dialog.
 
 **Vendor invoice page** (`/[lang]/purchase-order-invoice/[token]`, public):
 - `getInvoiceByToken(token)` uses the admin client + `get_purchase_order_invoice_by_token` RPC

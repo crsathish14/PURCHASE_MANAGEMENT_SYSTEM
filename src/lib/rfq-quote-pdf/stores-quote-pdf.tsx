@@ -7,6 +7,7 @@ import {
   displayPdfValue,
   GrandTotalRow,
   PdfHeader,
+  PageLinkSection,
   QuotationSummarySection,
   RfqDetailsSection,
   VendorDetailsSection,
@@ -116,6 +117,7 @@ export function StoresQuotePdf({ vendor, pr }: StoresQuotePdfProps) {
         </View>
 
         <QuotationSummarySection t={t.quotationSummary} vendor={vendor} />
+        <PageLinkSection url={pr.pageUrl} />
       </Page>
     </Document>
   );

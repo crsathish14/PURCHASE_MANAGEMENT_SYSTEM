@@ -7,6 +7,7 @@ import {
   displayPdfValue,
   GrandTotalRow,
   PdfHeader,
+  PageLinkSection,
   QuotationSummarySection,
   RfqDetailsSection,
   VendorDetailsSection,
@@ -102,6 +103,7 @@ export function LoQuotePdf({ vendor, pr }: LoQuotePdfProps) {
         </View>
 
         <QuotationSummarySection t={t.quotationSummary} vendor={vendor} />
+        <PageLinkSection url={pr.pageUrl} />
       </Page>
     </Document>
   );

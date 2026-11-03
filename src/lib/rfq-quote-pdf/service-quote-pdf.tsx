@@ -8,6 +8,7 @@ import {
   EquipmentDetailsSection,
   GrandTotalRow,
   PdfHeader,
+  PageLinkSection,
   QuotationSummarySection,
   RfqDetailsSection,
   VendorDetailsSection,
@@ -93,6 +94,7 @@ export function ServiceQuotePdf({ vendor, pr }: ServiceQuotePdfProps) {
         </View>
 
         <QuotationSummarySection t={t.quotationSummary} vendor={vendor} />
+        <PageLinkSection url={pr.pageUrl} />
       </Page>
     </Document>
   );

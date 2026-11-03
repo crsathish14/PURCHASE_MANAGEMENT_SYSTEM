@@ -1300,6 +1300,10 @@ export type Database = {
         Args: { p_requisition_id: string };
         Returns: string;
       };
+      rerequest_purchase_order_invoice: {
+        Args: { p_requisition_id: string };
+        Returns: string[];
+      };
       get_purchase_order_invoice_link_token: {
         Args: { p_requisition_id: string };
         Returns: string;

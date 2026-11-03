@@ -2,6 +2,10 @@
   "common": {
     "appName": "Purchase Management System",
     "companyName": "MYSEA SHIPPING",
+    "pdfPageLinks": {
+      "rfq": "View this requisition in the Requested Quote page:",
+      "purchaseOrder": "View this requisition in the Purchase Orders page:"
+    },
     "imagePreview": {
       "close": "Close preview",
       "previous": "Previous photo",
@@ -140,8 +144,6 @@
       "officer": "Purchase Officer"
     },
     "topbar": {
-      "searchPlaceholder": "Search PRs, POs, invoices, vendors, vessels…",
-      "new": "New",
       "settings": "Settings",
       "logout": "Log out",
       "menu": "Open menu"
@@ -286,6 +288,17 @@
         "status": "Status"
       },
       "viewProforma": "View Proforma",
+      "prLinksDialog": {
+        "title": "{prNumber} — related pages",
+        "description": "Open a page already filtered to this PR.",
+        "close": "Close",
+        "openRowFor": "Show page links for {prNumber}",
+        "links": {
+          "purchaseRequisition": "Purchase Requisition",
+          "rfq": "Requested Quote (RFQ)",
+          "purchaseOrder": "Purchase Orders"
+        }
+      },
       "viewFor": "View proforma for {prNumber}",
       "empty": "No proforma invoices received yet.",
       "loadError": "Couldn't load invoice log.",
@@ -302,6 +315,16 @@
       "requestInvoice": "Request Invoice",
       "copyInvoiceLink": "Copy Link",
       "viewInvoice": "View Invoice",
+      "rerequestInvoice": "Re-request Invoice",
+      "rerequestInvoiceDone": "Invoice re-requested. Waiting for the vendor to upload a new invoice.",
+      "rerequestInvoiceError": "Couldn't re-request this invoice.",
+      "rerequestInvoiceDialog": {
+        "title": "Re-request Invoice",
+        "message": "Re-requesting the invoice for {prNumber} permanently deletes the invoice and supporting documents received from {vendorName}. The status returns to Invoice Requested and the vendor can upload a new invoice using the same link.",
+        "confirm": "Re-request Invoice",
+        "confirming": "Re-requesting…",
+        "cancel": "Cancel"
+      },
       "linkCopied": "Link copied to clipboard.",
       "linkCopyFailed": "Failed to copy link.",
       "invoiceRequested": "Invoice request sent.",
@@ -411,18 +434,18 @@
           "nSelected": "{count} selected"
         },
         "urgency": {
-          "danger": "Danger",
-          "warning": "Warning",
-          "normal": "Normal"
+          "danger": "Overdue",
+          "warning": "Due",
+          "normal": "In window"
         },
         "urgencyOptions": {
-          "danger": "Danger — tax invoice received",
-          "warning": "Warning — paid",
-          "normal": "Normal — proforma received, not paid yet"
+          "danger": "Overdue — tax invoice received",
+          "warning": "Due — paid",
+          "normal": "In window — proforma received, not paid yet"
         },
         "sortByUrgency": "Urgent first",
-        "sortByUrgencyHint": "Show danger first, then warning, then the rest",
-        "legend": "Danger: tax invoice received. Warning: paid. Both still need a delivery or service note.",
+        "sortByUrgencyHint": "Show overdue first, then due, then in window",
+        "legend": "Overdue: tax invoice received. Due: paid. Both still need a delivery or service note.",
         "selectFor": "Upload a delivery or service note for {prNumber}",
         "empty": "No requisitions are waiting for a delivery or service note.",
         "noResults": "No requisitions match your search or filters.",

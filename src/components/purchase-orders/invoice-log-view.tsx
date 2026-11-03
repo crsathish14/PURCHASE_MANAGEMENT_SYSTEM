@@ -14,7 +14,9 @@ import { toast } from "@/store/toast-store";
 import { RfqPager } from "@/components/rfq/rfq-pager";
 import { RfqToolbar } from "@/components/rfq/rfq-toolbar";
 import { MarkPaidDialog } from "./mark-paid-dialog";
+import { PrLinksDialog } from "./pr-links-dialog";
 import { RequestInvoiceDialog } from "./request-invoice-dialog";
+import { RerequestInvoiceDialog } from "./rerequest-invoice-dialog";
 import { InvoiceDocumentsModal, type InvoiceDocumentItem } from "./invoice-documents-modal";
 
 const t = en.staff.invoiceLog;
@@ -99,8 +101,11 @@ export function InvoiceLogView({
   const [loading, setLoading] = useState(false);
   const requestIdRef = useRef(0);
 
+  const [linksTarget, setLinksTarget] = useState<PurchaseOrderListRow | null>(null);
   const [markPaidTarget, setMarkPaidTarget] = useState<PurchaseOrderListRow | null>(null);
   const [markingPaid, setMarkingPaid] = useState(false);
+  const [rerequestTarget, setRerequestTarget] = useState<PurchaseOrderListRow | null>(null);
+  const [rerequesting, setRerequesting] = useState(false);
   const [requestInvoiceTarget, setRequestInvoiceTarget] = useState<RequestInvoiceTarget | null>(null);
   const [viewInvoiceTarget, setViewInvoiceTarget] = useState<ViewInvoiceTarget | null>(null);
   const [copyingLinkId, setCopyingLinkId] = useState<string | null>(null);
@@ -341,6 +346,28 @@ export function InvoiceLogView({
     }
   }
 
+  async function handleRerequestConfirmed() {
+    if (!rerequestTarget) return;
+    setRerequesting(true);
+    try {
+      const response = await fetch(`/api/purchase-orders/${rerequestTarget.id}/invoice-rerequest`, {
+        method: "POST",
+      });
+      const payload = (await response.json().catch(() => null)) as { error?: { message: string } } | null;
+      if (!response.ok) {
+        toast.error(payload?.error?.message ?? t.rerequestInvoiceError);
+        return;
+      }
+      toast.success(t.rerequestInvoiceDone);
+      setRerequestTarget(null);
+      void fetchList({ page, pageSize, ...appliedParams });
+    } catch {
+      toast.error(t.rerequestInvoiceError);
+    } finally {
+      setRerequesting(false);
+    }
+  }
+
   function handleRequestInvoiceSuccess() {
     setRequestInvoiceTarget(null);
     void fetchList({ page, pageSize, ...appliedParams });
@@ -403,8 +430,24 @@ export function InvoiceLogView({
                   </tr>
                 ) : (
                   rows.map((row) => (
-                    <tr key={row.id} className="border-b border-line last:border-b-0">
-                      <td className="whitespace-nowrap px-4 py-3 font-mono text-ink">{row.prNumber}</td>
+                    <tr
+                      key={row.id}
+                      className="cursor-pointer border-b border-line last:border-b-0 hover:bg-mist"
+                      onClick={() => setLinksTarget(row)}
+                    >
+                      <td className="whitespace-nowrap px-4 py-3 font-mono text-ink">
+                        <button
+                          type="button"
+                          aria-label={t.prLinksDialog.openRowFor.replace("{prNumber}", row.prNumber)}
+                          className="font-mono underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-harbor"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setLinksTarget(row);
+                          }}
+                        >
+                          {row.prNumber}
+                        </button>
+                      </td>
                       <td className="whitespace-nowrap px-4 py-3 font-mono text-ink">
                         {row.requisitionNumber ?? "—"}
                       </td>
@@ -419,7 +462,7 @@ export function InvoiceLogView({
                           {en.staff.purchaseOrders.statusLabels[row.status]}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" onClick={(event) => event.stopPropagation()}>
                         <div className="flex flex-wrap items-center gap-2">
                           <a
                             href={`/api/purchase-orders/${row.id}/proforma`}
@@ -469,6 +512,12 @@ export function InvoiceLogView({
                               )}
                             </button>
                           ) : null}
+
+                          {row.status === PURCHASE_ORDER_STATUS.INVOICE_RECEIVED ? (
+                            <button type="button" className={ctaClass} onClick={() => setRerequestTarget(row)}>
+                              {t.rerequestInvoice}
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -490,6 +539,10 @@ export function InvoiceLogView({
         </div>
       </section>
 
+      {linksTarget ? (
+        <PrLinksDialog open onClose={() => setLinksTarget(null)} prNumber={linksTarget.prNumber} />
+      ) : null}
+
       {markPaidTarget ? (
         <MarkPaidDialog
           open
@@ -498,6 +551,17 @@ export function InvoiceLogView({
           prNumber={markPaidTarget.prNumber}
           vendorName={markPaidTarget.vendorName}
           loading={markingPaid}
+        />
+      ) : null}
+
+      {rerequestTarget ? (
+        <RerequestInvoiceDialog
+          open
+          onClose={() => setRerequestTarget(null)}
+          onConfirm={() => void handleRerequestConfirmed()}
+          prNumber={rerequestTarget.prNumber}
+          vendorName={rerequestTarget.vendorName}
+          loading={rerequesting}
         />
       ) : null}
 
