@@ -1357,10 +1357,12 @@ returns, and the same vendor link accepts a new upload. It returns the deleted d
 the route removes them via the admin client (a failed removal is logged, not surfaced). Refused with
 `55000` unless an invoice was received; unlike PO Reissue there is no later step to guard against.
 
-**Row click → related-page links.** Clicking an Invoice Log row (or its PR Ref button) opens `PrLinksDialog`
-(`src/components/purchase-orders/pr-links-dialog.tsx`) with links to the Purchase Requisition, Requested Quote and
-Purchase Orders pages, each opened with `?q=<prNumber>` via `pathWithPrSearch()` in `src/lib/routes.ts`. The actions
-cell stops click propagation so its buttons don't also open the dialog.
+**Invoice Log row actions: one primary button + overflow menu.** Each row's Actions cell is right-aligned and holds
+one fixed-width primary button for the next workflow step (Paid / Request Invoice / Copy Link / View Invoice, by
+status) plus a kebab `Menu` (`t.rowMenu`) with View Proforma (opens the same `/api/purchase-orders/[id]/proforma`
+stream in a new tab), Re-request Invoice (`INVOICE_RECEIVED` only, danger tone), and a "Go to" group linking to the
+Purchase Requisition, Requested Quote and Purchase Orders pages, each opened with `?q=<prNumber>` via
+`pathWithPrSearch()` in `src/lib/routes.ts`. Rows are no longer clickable; the former `PrLinksDialog` was removed.
 
 **Vendor invoice page** (`/[lang]/purchase-order-invoice/[token]`, public):
 - `getInvoiceByToken(token)` uses the admin client + `get_purchase_order_invoice_by_token` RPC
