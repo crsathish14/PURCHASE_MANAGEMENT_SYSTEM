@@ -31,6 +31,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
         category={detail.category}
         logoDataUri={logoDataUri}
         prNumber={detail.prNumber}
+        poNumber={detail.poNumber}
         requisitionTitle={detail.requisitionTitle}
         vesselName={detail.vesselName}
         vesselImoNo={detail.vesselImoNo}
@@ -49,7 +50,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
         items={detail.items}
       />,
     );
-    const filename = buildPurchaseOrderPdfFilename(detail.prNumber);
+    const filename = buildPurchaseOrderPdfFilename(detail.poNumber, detail.prNumber);
 
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,

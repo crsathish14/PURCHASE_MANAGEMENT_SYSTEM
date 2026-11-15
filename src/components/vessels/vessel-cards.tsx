@@ -36,6 +36,10 @@ export function VesselCards({
               <p className="mt-1.5 text-xs text-slate">
                 <span className="font-semibold">{t.imoNo}:</span> {vessel.imoNo}
               </p>
+              <p className="mt-1 text-xs text-slate">
+                <span className="font-semibold">{t.vesselCode}:</span>{" "}
+                {vessel.vesselCode ?? <span className="text-rust">{t.vesselCodeMissing}</span>}
+              </p>
             </div>
             <Button
               variant="secondary"

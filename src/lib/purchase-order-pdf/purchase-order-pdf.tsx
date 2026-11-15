@@ -26,6 +26,7 @@ export type PurchaseOrderPdfProps = {
   category: PrCategoryWithCurrentPoPdfSupport;
   logoDataUri: string;
   prNumber: string;
+  poNumber: string | null;
   // Purchase Orders page link filtered to this PR. Omitted for the vendor's download, since a vendor has no staff access.
   pageUrl?: string;
   requisitionTitle: string | null;
@@ -86,7 +87,15 @@ function getDeliveryTime(items: PurchaseOrderPdfItem[]): string {
   return "Refer to item lines";
 }
 
-function Header({ logoDataUri, issuedAt }: { logoDataUri: string; issuedAt: string }) {
+function Header({
+  logoDataUri,
+  issuedAt,
+  poNumber,
+}: {
+  logoDataUri: string;
+  issuedAt: string;
+  poNumber: string | null;
+}) {
   return (
     <View style={styles.header} fixed>
       <PdfLogo logoDataUri={logoDataUri} />
@@ -98,7 +107,7 @@ function Header({ logoDataUri, issuedAt }: { logoDataUri: string; issuedAt: stri
       <View style={styles.headerMeta}>
         <Text style={styles.headerMetaLine}>
           <Text style={styles.headerMetaLabel}>{t.poNumber} </Text>
-          {t.placeholder}
+          {invoiceValue(poNumber)}
         </Text>
         <Text style={styles.headerMetaLine}>
           <Text style={styles.headerMetaLabel}>{t.date} </Text>
@@ -257,6 +266,7 @@ export function PurchaseOrderPdf({
   category,
   logoDataUri,
   prNumber,
+  poNumber,
   pageUrl,
   requisitionTitle,
   vesselName,
@@ -280,7 +290,7 @@ export function PurchaseOrderPdf({
   return (
     <Document>
       <Page size="A4" orientation="landscape" style={styles.page}>
-        <Header logoDataUri={logoDataUri} issuedAt={issuedAt} />
+        <Header logoDataUri={logoDataUri} issuedAt={issuedAt} poNumber={poNumber} />
         <Footer />
 
         <View style={styles.section}>
@@ -367,7 +377,7 @@ export function PurchaseOrderPdf({
       </Page>
 
       <Page size="A4" orientation="landscape" style={styles.page}>
-        <Header logoDataUri={logoDataUri} issuedAt={issuedAt} />
+        <Header logoDataUri={logoDataUri} issuedAt={issuedAt} poNumber={poNumber} />
         <Footer />
         <InvoiceToSection
           masterOwners={vesselMasterOwners}

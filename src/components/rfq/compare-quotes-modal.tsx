@@ -38,6 +38,8 @@ export type CompareQuotesModalProps = {
   data: QuoteComparisonData | null;
   requestedCount: number;
   title?: string;
+  // Purchase Orders page only: shown in the subtitle after the requisition number.
+  poNumber?: string | null;
   footer?: ReactNode;
   purchaseOrderEditor?: PurchaseOrderQuantityEditor;
   // Opens rfq-links-dialog.tsx's own award confirm dialog on top of this
@@ -54,6 +56,7 @@ export function CompareQuotesModal({
   data,
   requestedCount,
   title = t.pageTitle,
+  poNumber,
   footer,
   purchaseOrderEditor,
   onAwardClick,
@@ -114,8 +117,9 @@ export function CompareQuotesModal({
             <h2 className="font-display text-lg font-semibold text-ink">{title}</h2>
             {data ? (
               <p className="mt-0.5 text-[12.5px] text-slate">
-                {t.subtitle
+                {(poNumber ? t.subtitleWithPoNumber : t.subtitle)
                   .replace("{prNumber}", data.prNumber)
+                  .replace("{poNumber}", poNumber ?? "")
                   .replace("{requisitionNumber}", data.requisitionNumber ?? "—")
                   .replace("{vesselLabel}", data.vesselLabel ?? "—")}
               </p>

@@ -418,7 +418,7 @@ export function PurchaseOrdersView({
 
       const disposition = response.headers.get("Content-Disposition") ?? "";
       const filenameMatch = disposition.match(/filename="([^"]+)"/);
-      const filename = filenameMatch?.[1] ?? buildPurchaseOrderPdfFilename(quoteDetail.prNumber);
+      const filename = filenameMatch?.[1] ?? buildPurchaseOrderPdfFilename(null, quoteDetail.prNumber);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -496,6 +496,7 @@ export function PurchaseOrdersView({
                 <tr className="border-b border-line text-[11px] font-bold tracking-wide text-slate-lt uppercase">
                   <th className="px-4 py-3">{t.columns.prRef}</th>
                   <th className="px-4 py-3">{t.columns.requisitionNumber}</th>
+                  <th className="px-4 py-3">{t.columns.poNumber}</th>
                   <th className="px-4 py-3">{t.columns.title}</th>
                   <th className="px-4 py-3">{t.columns.vessel}</th>
                   <th className="px-4 py-3">{t.columns.vendor}</th>
@@ -508,7 +509,7 @@ export function PurchaseOrdersView({
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-10 text-center text-sm text-slate-lt">
+                    <td colSpan={10} className="px-4 py-10 text-center text-sm text-slate-lt">
                       {total === 0 && !hasActiveFilters ? t.empty : t.noResults}
                     </td>
                   </tr>
@@ -533,6 +534,7 @@ export function PurchaseOrdersView({
                     >
                       <td className="whitespace-nowrap px-4 py-3 font-mono text-ink">{row.prNumber}</td>
                       <td className="whitespace-nowrap px-4 py-3 font-mono text-ink">{row.requisitionNumber ?? "—"}</td>
+                      <td className="whitespace-nowrap px-4 py-3 font-mono text-ink">{row.poNumber ?? "—"}</td>
                       <td className="px-4 py-3 text-ink">{row.title ?? "—"}</td>
                       <td className="px-4 py-3 text-ink">{row.vesselLabel ?? "—"}</td>
                       <td className="px-4 py-3 font-semibold text-ink">{row.vendorName}</td>
@@ -574,6 +576,7 @@ export function PurchaseOrdersView({
         data={quoteDetail}
         requestedCount={1}
         title={t.quoteDetailTitle}
+        poNumber={rows.find((item) => item.id === quoteDetail?.requisitionId)?.poNumber ?? null}
         purchaseOrderEditor={purchaseOrderEditor}
         footer={
           quoteDetail ? (

@@ -40,6 +40,10 @@ export function PurchaseOrderForm({ detail, token }: { detail: PurchaseOrderVend
         <div className="space-y-7 px-6 py-6 sm:px-8">
           <section className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
+              <p className="text-[11px] font-bold tracking-wide text-slate-lt uppercase">{t.poNumber}</p>
+              <p className="mt-1 font-mono text-sm font-semibold text-ink">{displayValue(detail.poNumber)}</p>
+            </div>
+            <div>
               <p className="text-[11px] font-bold tracking-wide text-slate-lt uppercase">{t.prNumber}</p>
               <p className="mt-1 font-mono text-sm text-ink">{detail.prNumber}</p>
             </div>
