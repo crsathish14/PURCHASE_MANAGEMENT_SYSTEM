@@ -285,21 +285,19 @@
         "vessel": "Vessel",
         "vendor": "Vendor",
         "total": "Quote Total",
-        "status": "Status"
+        "status": "Status",
+        "actions": "Actions"
       },
       "viewProforma": "View Proforma",
-      "prLinksDialog": {
-        "title": "{prNumber} — related pages",
-        "description": "Open a page already filtered to this PR.",
-        "close": "Close",
-        "openRowFor": "Show page links for {prNumber}",
+      "rowMenu": {
+        "label": "More actions for {prNumber}",
+        "goToHeading": "Go to (filtered to this PR)",
         "links": {
           "purchaseRequisition": "Purchase Requisition",
           "rfq": "Requested Quote (RFQ)",
           "purchaseOrder": "Purchase Orders"
         }
       },
-      "viewFor": "View proforma for {prNumber}",
       "empty": "No proforma invoices received yet.",
       "loadError": "Couldn't load invoice log.",
       "markPaid": "Paid",

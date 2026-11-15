@@ -3,8 +3,9 @@
 import { useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-import { Badge, Spinner, type BadgeTone } from "@/components/atoms";
+import { Badge, Menu, MenuItem, Spinner, type BadgeTone } from "@/components/atoms";
 import en from "@/locales/en.json";
+import { pathWithPrSearch, ROUTES } from "@/lib/routes";
 import { PURCHASE_ORDER_STATUS, type PurchaseOrderStatus } from "@/lib/constants/purchase-order";
 import type { DatePreset } from "@/lib/constants/purchase-requisition";
 import type { PrDropdownField } from "@/lib/data/purchase-requisition";
@@ -14,7 +15,6 @@ import { toast } from "@/store/toast-store";
 import { RfqPager } from "@/components/rfq/rfq-pager";
 import { RfqToolbar } from "@/components/rfq/rfq-toolbar";
 import { MarkPaidDialog } from "./mark-paid-dialog";
-import { PrLinksDialog } from "./pr-links-dialog";
 import { RequestInvoiceDialog } from "./request-invoice-dialog";
 import { RerequestInvoiceDialog } from "./rerequest-invoice-dialog";
 import { InvoiceDocumentsModal, type InvoiceDocumentItem } from "./invoice-documents-modal";
@@ -42,6 +42,16 @@ const INVOICE_LOG_STATUS_OPTIONS = INVOICE_LOG_STATUSES.map((value) => ({
 }));
 
 const DEFAULT_PAGE_SIZE = 20;
+
+// Each list page the row menu can open, pre-filtered to the row's PR.
+function relatedPageLinks(prNumber: string) {
+  const labels = t.rowMenu.links;
+  return [
+    { label: labels.purchaseRequisition, href: pathWithPrSearch(ROUTES.PO_REQUESTS, prNumber) },
+    { label: labels.rfq, href: pathWithPrSearch(ROUTES.RFQ_LIST, prNumber) },
+    { label: labels.purchaseOrder, href: pathWithPrSearch(ROUTES.PURCHASE_ORDERS, prNumber) },
+  ];
+}
 
 type ListParams = {
   page: number;
@@ -101,7 +111,6 @@ export function InvoiceLogView({
   const [loading, setLoading] = useState(false);
   const requestIdRef = useRef(0);
 
-  const [linksTarget, setLinksTarget] = useState<PurchaseOrderListRow | null>(null);
   const [markPaidTarget, setMarkPaidTarget] = useState<PurchaseOrderListRow | null>(null);
   const [markingPaid, setMarkingPaid] = useState(false);
   const [rerequestTarget, setRerequestTarget] = useState<PurchaseOrderListRow | null>(null);
@@ -374,7 +383,7 @@ export function InvoiceLogView({
   }
 
   const ctaClass =
-    "rounded-md border border-line bg-paper px-2.5 py-1.5 text-xs font-bold text-harbor transition-colors hover:bg-mist focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-harbor disabled:cursor-not-allowed disabled:opacity-60";
+    "inline-flex min-w-32 items-center justify-center rounded-md border border-line bg-paper px-2.5 py-1.5 text-xs font-bold whitespace-nowrap text-harbor transition-colors hover:bg-mist focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-harbor disabled:cursor-not-allowed disabled:opacity-60";
 
   return (
     <div>
@@ -418,7 +427,7 @@ export function InvoiceLogView({
                   <th className="px-4 py-3">{t.columns.vendor}</th>
                   <th className="px-4 py-3 text-right">{t.columns.total}</th>
                   <th className="px-4 py-3">{t.columns.status}</th>
-                  <th className="px-4 py-3" />
+                  <th className="px-4 py-3 text-right">{t.columns.actions}</th>
                 </tr>
               </thead>
               <tbody>
@@ -430,24 +439,8 @@ export function InvoiceLogView({
                   </tr>
                 ) : (
                   rows.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="cursor-pointer border-b border-line last:border-b-0 hover:bg-mist"
-                      onClick={() => setLinksTarget(row)}
-                    >
-                      <td className="whitespace-nowrap px-4 py-3 font-mono text-ink">
-                        <button
-                          type="button"
-                          aria-label={t.prLinksDialog.openRowFor.replace("{prNumber}", row.prNumber)}
-                          className="font-mono underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-harbor"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setLinksTarget(row);
-                          }}
-                        >
-                          {row.prNumber}
-                        </button>
-                      </td>
+                    <tr key={row.id} className="border-b border-line last:border-b-0 hover:bg-mist">
+                      <td className="whitespace-nowrap px-4 py-3 font-mono text-ink">{row.prNumber}</td>
                       <td className="whitespace-nowrap px-4 py-3 font-mono text-ink">
                         {row.requisitionNumber ?? "—"}
                       </td>
@@ -462,18 +455,8 @@ export function InvoiceLogView({
                           {en.staff.purchaseOrders.statusLabels[row.status]}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3" onClick={(event) => event.stopPropagation()}>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <a
-                            href={`/api/purchase-orders/${row.id}/proforma`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label={t.viewFor.replace("{prNumber}", row.prNumber)}
-                            className={ctaClass}
-                          >
-                            {t.viewProforma}
-                          </a>
-
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-2">
                           {row.status === PURCHASE_ORDER_STATUS.PROFORMA_RECEIVED ? (
                             <button type="button" className={ctaClass} onClick={() => setMarkPaidTarget(row)}>
                               {t.markPaid}
@@ -513,11 +496,48 @@ export function InvoiceLogView({
                             </button>
                           ) : null}
 
-                          {row.status === PURCHASE_ORDER_STATUS.INVOICE_RECEIVED ? (
-                            <button type="button" className={ctaClass} onClick={() => setRerequestTarget(row)}>
-                              {t.rerequestInvoice}
-                            </button>
-                          ) : null}
+                          <Menu
+                            align="right"
+                            trigger={
+                              <button
+                                type="button"
+                                aria-label={t.rowMenu.label.replace("{prNumber}", row.prNumber)}
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-lt hover:bg-line hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-harbor"
+                              >
+                                <svg viewBox="0 0 24 24" className="h-3.75 w-3.75" aria-hidden="true">
+                                  <circle cx="12" cy="5" r="1.3" fill="currentColor" />
+                                  <circle cx="12" cy="12" r="1.3" fill="currentColor" />
+                                  <circle cx="12" cy="19" r="1.3" fill="currentColor" />
+                                </svg>
+                              </button>
+                            }
+                          >
+                            <MenuItem
+                              onClick={() =>
+                                window.open(
+                                  `/api/purchase-orders/${row.id}/proforma`,
+                                  "_blank",
+                                  "noopener,noreferrer",
+                                )
+                              }
+                            >
+                              {t.viewProforma}
+                            </MenuItem>
+                            {row.status === PURCHASE_ORDER_STATUS.INVOICE_RECEIVED ? (
+                              <MenuItem tone="danger" onClick={() => setRerequestTarget(row)}>
+                                {t.rerequestInvoice}
+                              </MenuItem>
+                            ) : null}
+                            <div className="my-1 border-t border-line" aria-hidden="true" />
+                            <p className="px-3.5 pt-1 pb-1 text-[10px] font-bold tracking-wide text-slate-lt uppercase">
+                              {t.rowMenu.goToHeading}
+                            </p>
+                            {relatedPageLinks(row.prNumber).map((link) => (
+                              <MenuItem key={link.href} onClick={() => router.push(link.href)}>
+                                {link.label}
+                              </MenuItem>
+                            ))}
+                          </Menu>
                         </div>
                       </td>
                     </tr>
@@ -538,10 +558,6 @@ export function InvoiceLogView({
           </div>
         </div>
       </section>
-
-      {linksTarget ? (
-        <PrLinksDialog open onClose={() => setLinksTarget(null)} prNumber={linksTarget.prNumber} />
-      ) : null}
 
       {markPaidTarget ? (
         <MarkPaidDialog
