@@ -99,6 +99,7 @@ export type Database = {
           id: string;
           name: string;
           imo_no: string;
+          vessel_code: string | null;
           master_owners: string;
           company_name: string;
           address: string;
@@ -108,6 +109,7 @@ export type Database = {
           id?: string;
           name: string;
           imo_no: string;
+          vessel_code?: string | null;
           master_owners?: string;
           company_name?: string;
           address?: string;
@@ -115,6 +117,7 @@ export type Database = {
         Update: {
           name?: string;
           imo_no?: string;
+          vessel_code?: string | null;
           master_owners?: string;
           company_name?: string;
           address?: string;
@@ -716,6 +719,7 @@ export type Database = {
           message: string;
           invoice_to_company_name: string;
           invoice_to_address: string;
+          po_number: string | null;
           issued_at: string;
           proforma_invoice_path: string | null;
           proforma_invoice_file_name: string | null;
@@ -732,6 +736,7 @@ export type Database = {
           message: string;
           invoice_to_company_name?: string;
           invoice_to_address?: string;
+          po_number?: string | null;
           issued_at?: string;
           proforma_invoice_path?: string | null;
           proforma_invoice_file_name?: string | null;
@@ -929,6 +934,7 @@ export type Database = {
         Args: {
           p_name: string;
           p_imo_no: string;
+          p_vessel_code: string;
           p_master_owners: string;
           p_company_name: string;
           p_address: string;
@@ -937,6 +943,7 @@ export type Database = {
           id: string;
           name: string;
           imo_no: string;
+          vessel_code: string | null;
           master_owners: string;
           company_name: string;
           address: string;
@@ -1030,6 +1037,7 @@ export type Database = {
         Returns: {
           requisition_id: string;
           pr_number: string;
+          po_number: string | null;
           vessel_label: string | null;
           category: string | null;
           vendor_name: string;
@@ -1043,6 +1051,7 @@ export type Database = {
         Args: { p_requisition_id: string };
         Returns: {
           requisition_id: string;
+          po_number: string | null;
           vendor_name: string;
           vendor_email: string;
           invoice_to_company_name: string;
@@ -1056,6 +1065,7 @@ export type Database = {
         Returns: {
           requisition_id: string;
           pr_number: string;
+          po_number: string | null;
           requisition_title: string | null;
           category: string;
           vessel_name: string | null;
@@ -1254,6 +1264,7 @@ export type Database = {
           id: string;
           pr_number: string;
           requisition_number: string | null;
+          po_number: string | null;
           pr_title: string | null;
           vessel_label: string | null;
           vendor_name: string;

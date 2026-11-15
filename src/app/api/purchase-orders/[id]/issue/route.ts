@@ -77,6 +77,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (code === "P0002") {
       return NextResponse.json({ error: { message: t.draftNotFound } }, { status: 404 });
     }
+    if (code === "55003") {
+      return NextResponse.json({ error: { message: t.vesselCodeMissing } }, { status: 409 });
+    }
     if (code === "55000" || code === "23505") {
       return NextResponse.json({ error: { message: t.alreadyIssued } }, { status: 409 });
     }

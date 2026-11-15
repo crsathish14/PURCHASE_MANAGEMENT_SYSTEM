@@ -35,13 +35,14 @@ export function VesselDialog({
     defaultValues: {
       name: "",
       imoNo: "",
+      vesselCode: "",
       masterOwners: "",
       companyName: "",
       address: "",
     },
   });
 
-  const [name, imoNo] = watch(["name", "imoNo"]);
+  const [name, imoNo, vesselCode] = watch(["name", "imoNo", "vesselCode"]);
   const hasErrors = Object.keys(errors).length > 0;
 
   useEffect(() => {
@@ -50,6 +51,7 @@ export function VesselDialog({
     reset({
       name: vessel?.name ?? "",
       imoNo: vessel?.imoNo ?? "",
+      vesselCode: vessel?.vesselCode ?? "",
       masterOwners: vessel?.masterOwners ?? "",
       companyName: vessel?.companyName ?? "",
       address: vessel?.address ?? "",
@@ -58,7 +60,7 @@ export function VesselDialog({
 
   function close() {
     onClose();
-    reset({ name: "", imoNo: "", masterOwners: "", companyName: "", address: "" });
+    reset({ name: "", imoNo: "", vesselCode: "", masterOwners: "", companyName: "", address: "" });
   }
 
   async function onSubmit(data: AddVesselInput) {
@@ -71,6 +73,7 @@ export function VesselDialog({
         body: JSON.stringify(
           isEditing
             ? {
+                vesselCode: data.vesselCode,
                 masterOwners: data.masterOwners,
                 companyName: data.companyName,
                 address: data.address,
@@ -152,6 +155,22 @@ export function VesselDialog({
         )}
 
         <div className="mb-4">
+          <Label htmlFor="vessel-code" error={!!errors.vesselCode} required>
+            {t.vesselCode}
+          </Label>
+          <Input
+            id="vessel-code"
+            type="text"
+            maxLength={5}
+            className="uppercase"
+            placeholder={t.vesselCodePlaceholder}
+            error={errors.vesselCode?.message}
+            {...register("vesselCode")}
+          />
+          <p className="mt-1 text-xs text-slate-lt">{t.vesselCodeHint}</p>
+        </div>
+
+        <div className="mb-4">
           <Label htmlFor="vessel-master-owners">{t.masterOwners}</Label>
           <Input
             id="vessel-master-owners"
@@ -189,7 +208,7 @@ export function VesselDialog({
             type="submit"
             variant="primary"
             loading={isSubmitting}
-            disabled={(!vessel && (!name || !imoNo)) || hasErrors}
+            disabled={(!vessel && (!name || !imoNo)) || !vesselCode || hasErrors}
           >
             {isSubmitting
               ? vessel

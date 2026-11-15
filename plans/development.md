@@ -165,6 +165,9 @@ for loading, Client Component + `unstable_retry` for error).
   `pr_dropdown_field_options` vessel option through the `add_vessel()` RPC; the settings card edits
   only master/owners, company name, and address so existing requisitions keep their vessel value.
   Address text is stored and rendered with its entered line breaks and spacing.
+  Each vessel also has a unique `vessel_code` (2-5 uppercase letters/digits, e.g. `PS`, `VCI`, `LL`),
+  required when adding a vessel and editable by admins afterwards; it is the first segment of that
+  vessel's Purchase Order numbers (§19). Vessels created before it existed are nullable until set.
 - **File/image uploads** go through one shared pattern: a private Storage bucket (`attachments`,
   with `storage.buckets.file_size_limit`/`allowed_mime_types` set per-feature — see
   `20260823190000_storage_attachments_policies.sql`), `storage.objects` RLS policies scoped to
@@ -1399,6 +1402,28 @@ is the storage path namespace constant (`src/lib/constants/storage.ts`). `ROUTES
 The `InvoiceDocumentsModal` uses the fetch-before-open pattern (data fetched in the parent's event
 handler, passed as `docs` + `loadError` props) — not a useEffect with setState, consistent with how
 `rfq-links-dialog.tsx` works and required by the `react-hooks/set-state-in-effect` lint rule.
+
+**PO number** (`20261104010000_purchase_order_numbers.sql`). Every issued PO gets a unique number,
+`PO-[vessel code]-[dept]-[category]-[year]-[serial]`, e.g. `PO-PS-DK-SP-2026-001`. Vessel code is
+`vessels.vessel_code`; dept is `DK` (Deck), `EN` (Engine) or `OTH` (anything else, including no
+department); category is `ST`/`SP`/`SE`/`LO`; year is the UTC year of `issued_at`. The serial is one
+counter per **vessel + year** (not per dept/category), starts at `001`, is at least 3 digits and just
+grows to 4+ after 999 — kept in `purchase_order_number_counters`, which the number-generating upsert
+row-locks so concurrent issues for a vessel cannot collide. The number is generated once, inside
+`issue_purchase_order`, by `assign_purchase_order_number()` and stored on
+`purchase_order_issuances.po_number` (unique), so later edits never change an issued PO and **Reissue PO
+keeps the same number** (the issuance survives). A vessel with no code aborts issuing with `55003`
+(mapped to `t.vesselCodeMissing` in `issue/route.ts`). The migration backfilled codes for the Ping Shun /
+Victory Ari / Lila vessels and numbered already-issued POs in issue order; when an admin later sets the
+first code on a vessel, a trigger numbers that vessel's still-unnumbered POs. The number is exposed through
+`get_purchase_order_by_token`, `get_purchase_order_pdf_by_token` and `get_purchase_order_for_export`
+(`poNumber`), appears in the PO PDF header (staff and vendor), on the vendor PO/proforma page, in the Purchase Orders
+table as a "PO No." column right after Requisition No. and in the detail modal subtitle (it comes from
+`search_purchase_orders` — `20261104020000_search_purchase_orders_po_number.sql` — which also searches by it;
+`authenticated` has a column grant on `po_number` only, never the access token), and is the
+PDF filename (`buildPurchaseOrderPdfFilename(poNumber, prNumber)`; an unnumbered PO falls back to
+`{prNumber}-Purchase-Order.pdf`). The dept/category code mapping lives only in the SQL function — add a
+category there when a fifth one is introduced.
 
 ## 20. Delivery Notes
 

@@ -65,6 +65,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         category={category}
         logoDataUri={logoDataUri}
         prNumber={data.prNumber}
+        poNumber={issuedOrder.poNumber}
         pageUrl={purchaseOrdersPageUrlForPr(data.prNumber)}
         requisitionTitle={data.title}
         vesselName={data.vesselLabel}
@@ -79,7 +80,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         items={items}
       />,
     );
-    const filename = buildPurchaseOrderPdfFilename(data.prNumber);
+    const filename = buildPurchaseOrderPdfFilename(issuedOrder.poNumber, data.prNumber);
 
     return new NextResponse(new Uint8Array(buffer), {
       status: 200,

@@ -51,6 +51,7 @@ export async function POST(request: Request) {
     .rpc("add_vessel", {
       p_name: parsed.data.name,
       p_imo_no: parsed.data.imoNo,
+      p_vessel_code: parsed.data.vesselCode,
       p_master_owners: parsed.data.masterOwners,
       p_company_name: parsed.data.companyName,
       p_address: parsed.data.address,
@@ -59,7 +60,11 @@ export async function POST(request: Request) {
 
   if (error || !data) {
     if (error?.code === "23505") {
-      const message = error.message.includes("imo_no") ? t.addErrors.imoNoInUse : t.addErrors.nameInUse;
+      const message = error.message.includes("vessel_code")
+        ? t.addErrors.vesselCodeInUse
+        : error.message.includes("imo_no")
+          ? t.addErrors.imoNoInUse
+          : t.addErrors.nameInUse;
       return NextResponse.json({ error: { message } }, { status: 409 });
     }
     console.error("[api/vessels:POST]", error);
@@ -72,6 +77,7 @@ export async function POST(request: Request) {
         id: data.id,
         name: data.name,
         imoNo: data.imo_no,
+        vesselCode: data.vessel_code,
         masterOwners: data.master_owners,
         companyName: data.company_name,
         address: data.address,

@@ -7,6 +7,8 @@ export type PurchaseOrderListRow = {
   id: string;
   prNumber: string;
   requisitionNumber: string | null;
+  // Set when the PO is issued; null while Pending PO.
+  poNumber: string | null;
   title: string | null;
   vesselLabel: string | null;
   vendorName: string;
@@ -123,6 +125,8 @@ export type PurchaseOrderVendorItem = {
 export type PurchaseOrderVendorDetail = {
   requisitionId: string;
   prNumber: string;
+  // Null only for a PO issued before numbering existed whose vessel still has no code.
+  poNumber: string | null;
   vesselLabel: string | null;
   category: string | null;
   vendorName: string;
@@ -147,6 +151,7 @@ export type PurchaseOrderPdfTokenItem = {
 export type PurchaseOrderPdfTokenDetail = {
   requisitionId: string;
   prNumber: string;
+  poNumber: string | null;
   requisitionTitle: string | null;
   category: string;
   vesselName: string | null;
@@ -175,6 +180,7 @@ export async function getPurchaseOrderByToken(token: string): Promise<PurchaseOr
   return {
     requisitionId: data.requisition_id,
     prNumber: data.pr_number,
+    poNumber: data.po_number,
     vesselLabel: data.vessel_label,
     category: data.category,
     vendorName: data.vendor_name,
@@ -198,6 +204,7 @@ export async function getPurchaseOrderPdfByToken(token: string): Promise<Purchas
   return {
     requisitionId: data.requisition_id,
     prNumber: data.pr_number,
+    poNumber: data.po_number,
     requisitionTitle: data.requisition_title,
     category: data.category,
     vesselName: data.vessel_name,
@@ -218,6 +225,7 @@ export async function getPurchaseOrderPdfByToken(token: string): Promise<Purchas
 
 export type PurchaseOrderExportSnapshot = {
   requisitionId: string;
+  poNumber: string | null;
   vendorName: string;
   vendorEmail: string;
   invoiceCompanyName: string;
@@ -240,6 +248,7 @@ export async function getPurchaseOrderForExport(
   const rawItems = Array.isArray(data.items) ? (data.items as Json[]) : [];
   return {
     requisitionId: data.requisition_id,
+    poNumber: data.po_number,
     vendorName: data.vendor_name,
     vendorEmail: data.vendor_email,
     invoiceCompanyName: data.invoice_to_company_name,
@@ -290,6 +299,7 @@ export async function getPurchaseOrders({
     id: row.id,
     prNumber: row.pr_number,
     requisitionNumber: row.requisition_number,
+    poNumber: row.po_number,
     title: row.pr_title,
     vesselLabel: row.vessel_label,
     vendorName: row.vendor_name,

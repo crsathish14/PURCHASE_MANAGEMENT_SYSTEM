@@ -156,10 +156,11 @@
     "purchaseOrders": {
       "title": "Purchase Orders",
       "subtitle": "Review awarded vendor quotes and amounts for each purchase requisition.",
-      "searchPlaceholder": "Search PR ref, vendor, or quote ref",
+      "searchPlaceholder": "Search PR ref, PO no., vendor, or quote ref",
       "columns": {
         "prRef": "PR Ref",
         "requisitionNumber": "Requisition No.",
+        "poNumber": "PO No.",
         "title": "Title",
         "vessel": "Vessel",
         "vendor": "Vendor",
@@ -242,6 +243,7 @@
       "copyUrl": "Copy URL",
       "download": "Download",
       "alreadyIssued": "A Purchase Order has already been issued for this requisition.",
+      "vesselCodeMissing": "This vessel has no vessel code yet. Add one in Settings > Vessel, then issue the Purchase Order again.",
       "vendorEmailMissing": "The awarded quote has no vendor email address.",
       "issueDialog": {
         "title": "Issue Purchase Order",
@@ -601,6 +603,10 @@
       "namePlaceholder": "e.g. MV Aster",
       "imoNo": "IMO No",
       "imoNoPlaceholder": "e.g. 9876543",
+      "vesselCode": "Vessel code",
+      "vesselCodePlaceholder": "e.g. PS",
+      "vesselCodeHint": "2-5 letters or digits. Used as the first part of this vessel's Purchase Order numbers.",
+      "vesselCodeMissing": "Not set - a Purchase Order can't be issued until it is",
       "masterOwners": "Master and owners",
       "masterOwnersPlaceholder": "Enter the master and owners",
       "companyName": "Company name",
@@ -619,6 +625,9 @@
       "addErrors": {
         "nameRequired": "Vessel name is required",
         "imoNoRequired": "IMO No is required",
+        "vesselCodeRequired": "Vessel code is required",
+        "vesselCodeInvalid": "Use 2-5 letters or digits (no spaces or symbols)",
+        "vesselCodeInUse": "Another vessel already uses this code.",
         "nameInUse": "A vessel with this name already exists.",
         "imoNoInUse": "A vessel with this IMO No already exists."
       }
@@ -994,6 +1003,7 @@
         "pageTitle": "Compare Quotes",
         "close": "Close comparison",
         "subtitle": "{prNumber} · {requisitionNumber} · {vesselLabel}",
+        "subtitleWithPoNumber": "{prNumber} · {requisitionNumber} · {poNumber} · {vesselLabel}",
         "emptyTitle": "Nothing to compare",
         "emptyDescription": "These quotes are no longer available. Close this and select from the current list.",
         "partialNotice": "Showing {shown} of {requested} selected quotes — the rest are no longer available.",
@@ -1413,6 +1423,7 @@
     "subtitle": "Review the quantities and prices for this order, then submit your proforma invoice.",
     "invalidTitle": "Purchase Order link unavailable",
     "invalidDescription": "This link is invalid or the Purchase Order is no longer available.",
+    "poNumber": "PO number",
     "prNumber": "PR reference",
     "vendor": "Vendor",
     "vendorEmail": "Email",
