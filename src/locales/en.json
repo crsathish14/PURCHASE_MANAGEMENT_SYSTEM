@@ -260,7 +260,6 @@
         "vendorName": "Vendor name",
         "vendorEmail": "Vendor email",
         "message": "Message",
-        "messageTemplate": "Dear {vendorName},\n\nPlease review the Purchase Order for {prNumber} using the link below. The form shows the agreed quantities and pricing.\n\nRegards,\nPurchase Department",
         "createLink": "Create link",
         "creatingLink": "Creating link…",
         "cancel": "Cancel",
@@ -340,8 +339,13 @@
         "send": "Send Request",
         "sending": "Sending…",
         "cancel": "Cancel",
-        "defaultMessage": "Dear {vendorName},\n\nPlease upload your invoice for the purchase order referenced above using the link below.\n\nThank you,\nPurchase Department",
-        "noEmailsError": "No email addresses found for this vendor. Please update the vendor record first."
+        "noEmailsError": "No email addresses found for this vendor. Please update the vendor record first.",
+        "resultTitle": "Invoice request ready",
+        "resultDescription": "Copy the link and message below and send them to the vendor yourself. Nothing is emailed automatically.",
+        "linkLabel": "Shareable link",
+        "done": "Done",
+        "copy": "Copy",
+        "copied": "Copied"
       },
       "invoiceDocumentsModal": {
         "title": "Invoice Documents",
@@ -583,7 +587,55 @@
     "settingsSubnav": {
       "team": "Team",
       "vessels": "Vessel",
-      "vendors": "Vendor"
+      "vendors": "Vendor",
+      "emailTemplates": "Email Templates"
+    },
+    "emailTemplates": {
+      "title": "Email Templates",
+      "subtitle": "Edit the subject and message used when a vendor link is created. Staff see these pre-filled and can adjust a single message, but only changes saved here are kept.",
+      "breadcrumbSettings": "Settings",
+      "breadcrumbCurrent": "Email Templates",
+      "subjectLabel": "Subject",
+      "bodyLabel": "Message",
+      "save": "Save changes",
+      "saving": "Saving…",
+      "saved": "Email template saved.",
+      "saveError": "Couldn't save the email template. Please try again.",
+      "loadError": "Couldn't load the email template. Please try again.",
+      "linkPlaceholderWarning": "This message has no [Insert Link] placeholder, so the link will be added at the very end.",
+      "updatedAt": "Last updated {date}",
+      "placeholdersTitle": "Placeholders",
+      "placeholdersHint": "Type these exactly as shown. They are replaced automatically when the email is created.",
+      "placeholders": {
+        "vesselName": "The requisition's vessel",
+        "requisitionNo": "The requisition number",
+        "title": "The requisition title",
+        "companyName": "The company name",
+        "link": "The vendor's link, created when the email is generated"
+      },
+      "templates": {
+        "rfq": {
+          "name": "Request for Quotation (RFQ)",
+          "description": "Used when staff issue or reissue an RFQ link to a vendor."
+        },
+        "proforma_invoice": {
+          "name": "Request for Proforma Invoice (PI)",
+          "description": "Used when staff issue a Purchase Order, which asks the vendor to upload a proforma invoice."
+        },
+        "tax_invoice": {
+          "name": "Request for Tax Invoice",
+          "description": "Used when staff request the invoice from the Invoice Log."
+        }
+      },
+      "errors": {
+        "subjectRequired": "Enter a subject.",
+        "bodyRequired": "Enter a message."
+      },
+      "dialog": {
+        "subject": "Subject",
+        "loading": "Loading the email template…",
+        "loadError": "Couldn't load the email template. Close this dialog and try again."
+      }
     },
     "vessels": {
       "title": "Vessels",
@@ -820,7 +872,6 @@
         "expiresAtDateLabel": "Expiry date",
         "expiresAtTimeLabel": "Expiry time",
         "message": "Message",
-        "messageDefault": "Hello,\n\nPlease find below a request for quotation. Kindly review and submit your quotation using the secure link below before it expires.\n\nThank you.",
         "cancel": "Cancel",
         "submit": "Create Link",
         "submitting": "Creating…",

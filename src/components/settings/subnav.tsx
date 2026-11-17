@@ -11,7 +11,7 @@ const INACTIVE_CLASSES =
   "rounded-md px-3 py-2 text-[13px] font-bold whitespace-nowrap text-slate hover:text-ink";
 
 // Shared by the pages in the Settings area.
-export function SettingsSubnav({ active }: { active: "team" | "vessels" | "vendors" }) {
+export function SettingsSubnav({ active }: { active: "team" | "vessels" | "vendors" | "emailTemplates" }) {
   return (
     <nav className="flex flex-row gap-1 overflow-x-auto md:flex-col">
       <Link
@@ -25,6 +25,12 @@ export function SettingsSubnav({ active }: { active: "team" | "vessels" | "vendo
       </Link>
       <Link href={ROUTES.VENDORS} className={active === "vendors" ? ACTIVE_CLASSES : INACTIVE_CLASSES}>
         {t.vendors}
+      </Link>
+      <Link
+        href={ROUTES.EMAIL_TEMPLATES}
+        className={active === "emailTemplates" ? ACTIVE_CLASSES : INACTIVE_CLASSES}
+      >
+        {t.emailTemplates}
       </Link>
     </nav>
   );

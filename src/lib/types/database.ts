@@ -155,6 +155,27 @@ export type Database = {
         };
         Relationships: [];
       };
+      email_templates: {
+        Row: {
+          key: string;
+          subject: string;
+          body: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          key: string;
+          subject: string;
+          body: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          subject?: string;
+          body?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [];
+      };
       purchase_requisitions: {
         Row: {
           id: string;

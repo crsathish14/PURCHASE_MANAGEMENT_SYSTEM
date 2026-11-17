@@ -6,6 +6,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, Copy } from "lucide-react";
 
 import { Button, Dialog, Input, Label, Select, Textarea } from "@/components/atoms";
+import { EmailSubjectField } from "@/components/email-templates/email-subject-field";
+import { useEmailTemplate } from "@/components/email-templates/use-email-template";
+import { EMAIL_TEMPLATE_KEY } from "@/lib/constants/email-template";
 import en from "@/locales/en.json";
 import type { Vendor } from "@/lib/data/vendors";
 import { todayDateString } from "@/lib/validation/purchase-requisition";
@@ -13,12 +16,14 @@ import { issueRfqLinkSchema, type IssueRfqLinkInput } from "@/lib/validation/rfq
 import { toast } from "@/store/toast-store";
 
 const t = en.staff.poRequests.issueRfqDialog;
+const tTemplate = en.staff.emailTemplates.dialog;
 
 const DEFAULT_VALUES: IssueRfqLinkInput = {
   vendorId: "",
   vendorEmail: "",
   expiresAt: "",
-  message: t.messageDefault,
+  // Filled from the saved RFQ email template once it loads.
+  message: "",
 };
 
 // The date/time inputs report local wall-clock values with no timezone
@@ -44,6 +49,7 @@ export type IssueRfqDialogProps = {
 
 type Result = {
   link: string;
+  subject: string;
   message: string;
 };
 
@@ -58,6 +64,9 @@ export function IssueRfqDialog({ open, onClose, requisitionId, prNumber, onIssue
   const [expiresAtTime, setExpiresAtTime] = useState("");
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [vendorLookupStatus, setVendorLookupStatus] = useState<"idle" | "loading" | "error">("idle");
+  const template = useEmailTemplate(EMAIL_TEMPLATE_KEY.RFQ, requisitionId);
+  const templateBody = template.status === "ready" ? template.body : null;
+  const templateSubject = template.status === "ready" ? template.subject : "";
 
   const {
     register,
@@ -98,6 +107,11 @@ export function IssueRfqDialog({ open, onClose, requisitionId, prNumber, onIssue
       active = false;
     };
   }, [open]);
+
+  // A one-off edit lives only in this form; the saved template is changed in Settings alone.
+  useEffect(() => {
+    if (templateBody !== null) setValue("message", templateBody, { shouldValidate: false });
+  }, [templateBody, setValue]);
 
   const [vendorId, vendorEmail, expiresAt, message] = watch([
     "vendorId",
@@ -158,7 +172,8 @@ export function IssueRfqDialog({ open, onClose, requisitionId, prNumber, onIssue
 
       setResult({
         link: payload.data.link,
-        message: `${payload.data.message}\n\n${payload.data.link}`,
+        subject: templateSubject,
+        message: payload.data.message,
       });
       setPhase("result");
       onIssued();
@@ -190,6 +205,7 @@ export function IssueRfqDialog({ open, onClose, requisitionId, prNumber, onIssue
             readOnly
             value={result.link}
             onFocus={(event) => event.currentTarget.select()}
+            className="pr-24"
             endAdornment={
               <Button
                 type="button"
@@ -203,6 +219,8 @@ export function IssueRfqDialog({ open, onClose, requisitionId, prNumber, onIssue
             }
           />
         </div>
+
+        <EmailSubjectField id="rfq-result-subject" value={result.subject} copyable />
 
         <div>
           <div className="mb-1.5 flex items-center justify-between">
@@ -223,7 +241,7 @@ export function IssueRfqDialog({ open, onClose, requisitionId, prNumber, onIssue
               {copied === "message" ? t.copied : t.copy}
             </Button>
           </div>
-          <Textarea id="rfq-result-message" readOnly rows={6} value={result.message} />
+          <Textarea id="rfq-result-message" readOnly rows={12} value={result.message} />
         </div>
       </Dialog>
     );
@@ -330,12 +348,21 @@ export function IssueRfqDialog({ open, onClose, requisitionId, prNumber, onIssue
           <input type="hidden" {...register("expiresAt")} />
         </div>
 
-        <div>
-          <Label htmlFor="rfq-message" error={!!errors.message} required>
-            {t.message}
-          </Label>
-          <Textarea id="rfq-message" rows={5} error={errors.message?.message} {...register("message")} />
-        </div>
+        {template.status === "loading" ? (
+          <p className="text-[13px] text-slate-lt">{tTemplate.loading}</p>
+        ) : template.status === "error" ? (
+          <p className="text-[13px] text-rust">{tTemplate.loadError}</p>
+        ) : (
+          <>
+            <EmailSubjectField id="rfq-subject" value={templateSubject} />
+            <div>
+              <Label htmlFor="rfq-message" error={!!errors.message} required>
+                {t.message}
+              </Label>
+              <Textarea id="rfq-message" rows={14} error={errors.message?.message} {...register("message")} />
+            </div>
+          </>
+        )}
       </form>
     </Dialog>
   );

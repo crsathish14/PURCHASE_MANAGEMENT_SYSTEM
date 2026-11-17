@@ -5,6 +5,7 @@ import { env } from "@/lib/env";
 import { quoteFormPath } from "@/lib/routes";
 import { requireApiActiveUser } from "@/lib/supabase/require-active-user";
 import { createClient } from "@/lib/supabase/server";
+import { insertLinkIntoMessage } from "@/lib/email-templates";
 import { issueRfqLinkSchema } from "@/lib/validation/rfq-link";
 
 const t = en.staff.requestedQuote.linksDialog.reissueDialog;
@@ -93,7 +94,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ lin
         link,
         vendorId: parsed.data.vendorId,
         vendorEmail: parsed.data.vendorEmail,
-        message: parsed.data.message,
+        message: insertLinkIntoMessage(parsed.data.message, link),
         expiresAt: parsed.data.expiresAt,
       },
     },

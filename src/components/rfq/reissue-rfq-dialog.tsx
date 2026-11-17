@@ -6,6 +6,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, Copy } from "lucide-react";
 
 import { Button, Dialog, Input, Label, Select, Textarea } from "@/components/atoms";
+import { EmailSubjectField } from "@/components/email-templates/email-subject-field";
+import { useEmailTemplate } from "@/components/email-templates/use-email-template";
+import { EMAIL_TEMPLATE_KEY } from "@/lib/constants/email-template";
 import en from "@/locales/en.json";
 import type { Vendor } from "@/lib/data/vendors";
 import { todayDateString } from "@/lib/validation/purchase-requisition";
@@ -21,6 +24,7 @@ import { toast } from "@/store/toast-store";
 // duplicate copy block here.
 const issueT = en.staff.poRequests.issueRfqDialog;
 const t = en.staff.requestedQuote.linksDialog.reissueDialog;
+const tTemplate = en.staff.emailTemplates.dialog;
 
 // Same local-wall-clock-to-UTC-instant reasoning as issue-rfq-dialog.tsx's
 // own combineExpiryDateTime — duplicated rather than imported since it's a
@@ -45,6 +49,7 @@ export type ReissueRfqDialogProps = {
 
 type Result = {
   link: string;
+  subject: string;
   message: string;
 };
 
@@ -65,6 +70,9 @@ export function ReissueRfqDialog({
   const [expiresAtTime, setExpiresAtTime] = useState("");
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [vendorLookupStatus, setVendorLookupStatus] = useState<"idle" | "loading" | "error">("idle");
+  const template = useEmailTemplate(EMAIL_TEMPLATE_KEY.RFQ, requisitionId);
+  const templateBody = template.status === "ready" ? template.body : null;
+  const templateSubject = template.status === "ready" ? template.subject : "";
 
   const {
     register,
@@ -76,7 +84,7 @@ export function ReissueRfqDialog({
   } = useForm<IssueRfqLinkInput>({
     resolver: zodResolver(issueRfqLinkSchema),
     mode: "onBlur",
-    defaultValues: { vendorId: vendorId ?? "", vendorEmail, expiresAt: "", message: issueT.messageDefault },
+    defaultValues: { vendorId: vendorId ?? "", vendorEmail, expiresAt: "", message: "" },
   });
 
   useEffect(() => {
@@ -113,6 +121,11 @@ export function ReissueRfqDialog({
     };
   }, [open, vendorEmail, vendorId, setValue]);
 
+  // A one-off edit lives only in this form; the saved template is changed in Settings alone.
+  useEffect(() => {
+    if (templateBody !== null) setValue("message", templateBody, { shouldValidate: false });
+  }, [templateBody, setValue]);
+
   const [selectedVendorId, watchedVendorEmail, expiresAt, message] = watch([
     "vendorId",
     "vendorEmail",
@@ -147,7 +160,7 @@ export function ReissueRfqDialog({
     setCopied(null);
     setExpiresAtDate("");
     setExpiresAtTime("");
-    reset({ vendorId: vendorId ?? "", vendorEmail, expiresAt: "", message: issueT.messageDefault });
+    reset({ vendorId: vendorId ?? "", vendorEmail, expiresAt: "", message: "" });
   }
 
   async function copyToClipboard(value: string, which: "link" | "message") {
@@ -177,7 +190,8 @@ export function ReissueRfqDialog({
 
       setResult({
         link: payload.data.link,
-        message: `${payload.data.message}\n\n${payload.data.link}`,
+        subject: templateSubject,
+        message: payload.data.message,
       });
       setPhase("result");
       onReissued();
@@ -209,6 +223,7 @@ export function ReissueRfqDialog({
             readOnly
             value={result.link}
             onFocus={(event) => event.currentTarget.select()}
+            className="pr-24"
             endAdornment={
               <Button type="button" variant="ghost" size="sm" onClick={() => copyToClipboard(result.link, "link")}>
                 {copied === "link" ? <Check size={14} strokeWidth={2} /> : <Copy size={14} strokeWidth={2} />}
@@ -217,6 +232,8 @@ export function ReissueRfqDialog({
             }
           />
         </div>
+
+        <EmailSubjectField id="reissue-result-subject" value={result.subject} copyable />
 
         <div>
           <div className="mb-1.5 flex items-center justify-between">
@@ -228,7 +245,7 @@ export function ReissueRfqDialog({
               {copied === "message" ? issueT.copied : issueT.copy}
             </Button>
           </div>
-          <Textarea id="reissue-result-message" readOnly rows={6} value={result.message} />
+          <Textarea id="reissue-result-message" readOnly rows={12} value={result.message} />
         </div>
       </Dialog>
     );
@@ -342,12 +359,21 @@ export function ReissueRfqDialog({
           <input type="hidden" {...register("expiresAt")} />
         </div>
 
-        <div>
-          <Label htmlFor="reissue-message" error={!!errors.message} required>
-            {issueT.message}
-          </Label>
-          <Textarea id="reissue-message" rows={5} error={errors.message?.message} {...register("message")} />
-        </div>
+        {template.status === "loading" ? (
+          <p className="text-[13px] text-slate-lt">{tTemplate.loading}</p>
+        ) : template.status === "error" ? (
+          <p className="text-[13px] text-rust">{tTemplate.loadError}</p>
+        ) : (
+          <>
+            <EmailSubjectField id="reissue-subject" value={templateSubject} />
+            <div>
+              <Label htmlFor="reissue-message" error={!!errors.message} required>
+                {issueT.message}
+              </Label>
+              <Textarea id="reissue-message" rows={14} error={errors.message?.message} {...register("message")} />
+            </div>
+          </>
+        )}
       </form>
     </Dialog>
   );

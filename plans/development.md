@@ -1468,7 +1468,31 @@ every category. Uploading changes no PR/PO status.
   delete / add another, keeping its own notes copy so it survives list refetches), `DeleteDeliveryNoteDialog`,
   and the shared `DeliveryNoteUploader`.
 
-## 21. Keeping this file current
+## 21. Vendor email templates
+
+The messages staff copy to vendors are not hardcoded: three editable templates live in
+`public.email_templates` (`20261105010000_email_templates.sql`; one row per key in
+`EMAIL_TEMPLATE_KEY`, `src/lib/constants/email-template.ts`): `rfq` (Issue RFQ and Reissue RFQ),
+`proforma_invoice` (Issue Purchase Order) and `tax_invoice` (Request Invoice on the Invoice Log). Each has a
+`subject` and a `body`. RLS: select for any authenticated user, update admin-only, no insert/delete.
+
+- **Placeholders** (`EMAIL_TEMPLATE_PLACEHOLDER`): `[Vessel Name]`, `[Requisition No.]`, `[Title]`,
+  `[Company Name]` (always `en.common.companyName`) and `[Insert Link]`. The first four are filled by
+  `GET /api/email-templates/[key]/render?requisitionId=` (`getRenderedEmailTemplate`, reading
+  `pr_requisition_list`); `[Insert Link]` is filled by the issue/reissue/invoice-request Route Handlers once the
+  token exists (`insertLinkIntoMessage` in `src/lib/email-templates.ts`), which also appends the link at the
+  end if a one-off edit removed the placeholder. Those routes now return the finished `message`; clients no
+  longer append the link themselves.
+- **Dialogs** use `useEmailTemplate(key, requisitionId)` (`src/components/email-templates/`): the subject is
+  read-only (`EmailSubjectField`), the body is editable for that one send only and is **never saved back**. The
+  result screens show a copyable subject, link and message. Request Invoice gained a result screen too (it used
+  to just toast), so staff can copy the message with the link.
+- **Settings > Email Templates** (`ROUTES.EMAIL_TEMPLATES`, admin-only, `PUT /api/email-templates/[key]`) is the
+  only place that edits the saved templates. `SettingsSubnav` has a matching link.
+- The `rfq_links.message` / invoice-link message columns store the message as typed (with `[Insert Link]` still
+  in it), not the link-substituted text.
+
+## 22. Keeping this file current
 
 This file is auto-loaded into every session via `CLAUDE.md`'s `@plans/development.md` import — it's
 only useful if it matches what the code actually does. Update the relevant section **in the same

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import en from "@/locales/en.json";
+import { insertLinkIntoMessage } from "@/lib/email-templates";
 import { ROUTES } from "@/lib/routes";
 import { createClient } from "@/lib/supabase/server";
 import { requireApiActiveUser } from "@/lib/supabase/require-active-user";
@@ -56,7 +57,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const origin = new URL(request.url).origin;
     const link = `${origin}${ROUTES.PURCHASE_ORDER_INVOICE_FORM}/${token as string}`;
-    return NextResponse.json({ data: { token, link } });
+    return NextResponse.json({ data: { token, link, message: insertLinkIntoMessage(message, link) } });
   } catch (error) {
     console.error("[api/purchase-orders/[id]/invoice-request:POST]", error);
     return NextResponse.json({ error: { message: t.requestInvoiceError } }, { status: 500 });
