@@ -20,6 +20,7 @@ export const ROUTES = {
   DELIVERY_NOTES: `/${defaultLocale}/delivery-notes`,
   VENDORS: `/${defaultLocale}/vendors`,
   VESSELS: `/${defaultLocale}/vessels`,
+  EMAIL_TEMPLATES: `/${defaultLocale}/email-templates`,
   QUOTE_FORM: `/${defaultLocale}/quote`,
 } as const;
 

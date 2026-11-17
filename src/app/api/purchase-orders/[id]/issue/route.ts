@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import en from "@/locales/en.json";
 import { env } from "@/lib/env";
+import { insertLinkIntoMessage } from "@/lib/email-templates";
 import { purchaseOrderFormPath } from "@/lib/routes";
 import { getPurchaseOrderIssueToken, issuePurchaseOrder } from "@/lib/data/purchase-orders";
 import { requireApiActiveUser } from "@/lib/supabase/require-active-user";
@@ -69,7 +70,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({
       data: {
         link,
-        message: `${parsed.data.message}\n\n${link}`,
+        message: insertLinkIntoMessage(parsed.data.message, link),
       },
     });
   } catch (error) {

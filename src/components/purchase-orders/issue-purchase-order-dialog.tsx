@@ -4,6 +4,9 @@ import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 
 import { Button, Dialog, Input, Label, Textarea } from "@/components/atoms";
+import { EmailSubjectField } from "@/components/email-templates/email-subject-field";
+import { useEmailTemplate } from "@/components/email-templates/use-email-template";
+import { EMAIL_TEMPLATE_KEY } from "@/lib/constants/email-template";
 import en from "@/locales/en.json";
 import { PR_CATEGORY } from "@/lib/constants/purchase-requisition";
 import type { QuoteComparisonVendor } from "@/lib/data/rfq-quote-comparison";
@@ -12,6 +15,7 @@ import { toast } from "@/store/toast-store";
 
 const t = en.staff.purchaseOrders.issueDialog;
 const tPo = en.staff.purchaseOrders;
+const tTemplate = en.staff.emailTemplates.dialog;
 
 type IssuePurchaseOrderDialogProps = {
   open: boolean;
@@ -30,7 +34,7 @@ type IssuePurchaseOrderDialogProps = {
   onIssued: (link: string) => void;
 };
 
-type IssueResult = { link: string; message: string };
+type IssueResult = { link: string; subject: string; message: string };
 
 export function IssuePurchaseOrderDialog({
   open,
@@ -48,9 +52,11 @@ export function IssuePurchaseOrderDialog({
   sameAsQuoteQty,
   onIssued,
 }: IssuePurchaseOrderDialogProps) {
-  const [message, setMessage] = useState(() =>
-    t.messageTemplate.replace("{vendorName}", vendor.vendorName).replace("{prNumber}", prNumber),
-  );
+  const template = useEmailTemplate(EMAIL_TEMPLATE_KEY.PROFORMA_INVOICE, requisitionId);
+  // The saved template, plus this dialog's own one-off edit (never saved back).
+  const [editedMessage, setEditedMessage] = useState<string | null>(null);
+  const message = editedMessage ?? (template.status === "ready" ? template.body : "");
+  const templateSubject = template.status === "ready" ? template.subject : "";
   const [invoiceCompanyName, setInvoiceCompanyName] = useState(
     () => vesselCompanyName?.trim() || en.common.companyName,
   );
@@ -110,7 +116,7 @@ export function IssuePurchaseOrderDialog({
         return;
       }
 
-      setResult({ link: payload.data.link, message: payload.data.message });
+      setResult({ link: payload.data.link, subject: templateSubject, message: payload.data.message });
       onIssued(payload.data.link);
     } catch {
       toast.error(tPo.issueError);
@@ -160,6 +166,7 @@ export function IssuePurchaseOrderDialog({
               readOnly
               value={result.link}
               onFocus={(event) => event.currentTarget.select()}
+              className="pr-24"
               endAdornment={
                 <Button type="button" variant="ghost" size="sm" onClick={() => void copyToClipboard(result.link, "link")}>
                   {copied === "link" ? <Check size={14} strokeWidth={2} /> : <Copy size={14} strokeWidth={2} />}
@@ -168,6 +175,7 @@ export function IssuePurchaseOrderDialog({
               }
             />
           </div>
+          <EmailSubjectField id="po-result-subject" value={result.subject} copyable />
           <div>
             <div className="mb-1.5 flex items-center justify-between">
               <label htmlFor="po-result-message" className="text-xs font-bold text-ink">
@@ -183,7 +191,7 @@ export function IssuePurchaseOrderDialog({
                 {copied === "message" ? t.copied : t.copy}
               </Button>
             </div>
-            <Textarea id="po-result-message" readOnly rows={7} value={result.message} />
+            <Textarea id="po-result-message" readOnly rows={12} value={result.message} />
           </div>
         </>
       ) : (
@@ -239,16 +247,25 @@ export function IssuePurchaseOrderDialog({
             <Label htmlFor="po-vendor-email">{t.vendorEmail}</Label>
             <Input id="po-vendor-email" readOnly value={vendorEmail} />
           </div>
-          <div>
-            <Label htmlFor="po-message" required>{t.message}</Label>
-            <Textarea
-              id="po-message"
-              rows={7}
-              value={message}
-              onChange={(event) => setMessage(event.target.value)}
-              disabled={creating}
-            />
-          </div>
+          {template.status === "loading" ? (
+            <p className="text-[13px] text-slate-lt">{tTemplate.loading}</p>
+          ) : template.status === "error" ? (
+            <p className="text-[13px] text-rust">{tTemplate.loadError}</p>
+          ) : (
+            <>
+              <EmailSubjectField id="po-subject" value={templateSubject} />
+              <div>
+                <Label htmlFor="po-message" required>{t.message}</Label>
+                <Textarea
+                  id="po-message"
+                  rows={14}
+                  value={message}
+                  onChange={(event) => setEditedMessage(event.target.value)}
+                  disabled={creating}
+                />
+              </div>
+            </>
+          )}
           {!vendorEmail ? <p className="mt-2 text-xs text-rust">{tPo.vendorEmailMissing}</p> : null}
         </>
       )}

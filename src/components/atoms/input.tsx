@@ -19,7 +19,8 @@ export function Input({ error, endAdornment, startAdornment, className = "", ...
             "w-full rounded-md border bg-paper px-2.5 py-2 text-[13.5px] text-ink",
             "focus:border-harbor focus:outline-none",
             error ? "border-rust" : "border-line",
-            endAdornment ? "pr-14" : "",
+            // A caller can set its own right padding (e.g. pr-24 for a text "Copy" button).
+            endAdornment && !/(^|\s)pr-\d/.test(className) ? "pr-14" : "",
             startAdornment ? "pl-8" : "",
             className,
           ].join(" ")}

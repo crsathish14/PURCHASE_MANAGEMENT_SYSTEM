@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import en from "@/locales/en.json";
 import { env } from "@/lib/env";
+import { insertLinkIntoMessage } from "@/lib/email-templates";
 import { getRfqLinksForRequisition } from "@/lib/data/rfq-links";
 import { quoteFormPath } from "@/lib/routes";
 import { requireApiActiveUser } from "@/lib/supabase/require-active-user";
@@ -110,7 +111,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         link,
         vendorId: parsed.data.vendorId,
         vendorEmail: parsed.data.vendorEmail,
-        message: parsed.data.message,
+        message: insertLinkIntoMessage(parsed.data.message, link),
         expiresAt: parsed.data.expiresAt,
       },
     },
